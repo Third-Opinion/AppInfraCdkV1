@@ -36,15 +36,15 @@ public class WebApplicationStack : Stack, IApplicationStack
 
     public void CreateResources(DeploymentContext context)
     {
-        var vpc = CreateOrImportVpc();
-        SecurityGroupBundle securityGroups = CreateSecurityGroups(vpc);
-        var cluster = CreateEcsCluster(vpc);
-        var database = CreateDatabase(vpc, securityGroups.DatabaseSg);
-        S3BucketBundle s3Buckets = CreateS3Buckets();
-        var service = CreateWebService(cluster, database, securityGroups);
+        //var vpc = CreateOrImportVpc();
+       // SecurityGroupBundle securityGroups = CreateSecurityGroups(vpc);
+       // var cluster = CreateEcsCluster(vpc);
+       // var database = CreateDatabase(vpc, securityGroups.DatabaseSg);
+       // S3BucketBundle s3Buckets = CreateS3Buckets();
+       // var service = CreateWebService(cluster, database, securityGroups);
 
         // Apply cross-environment access rules if configured
-        ConfigureCrossEnvironmentAccess(vpc, securityGroups);
+        // ConfigureCrossEnvironmentAccess(vpc, securityGroups);
 
         ApplyCommonTags();
     }
@@ -247,50 +247,22 @@ public class WebApplicationStack : Stack, IApplicationStack
         };
     }
 
-    private S3BucketBundle CreateS3Buckets()
-    {
-        var appBucket = new Bucket(this, "AppBucket", new BucketProps
-        {
-            BucketName = _context.Namer.S3Bucket("app"),
-            Versioned = _context.Environment.IsProductionClass,
-            RemovalPolicy = _context.Environment.IsProductionClass
-                ? RemovalPolicy.RETAIN
-                : RemovalPolicy.DESTROY,
-            AutoDeleteObjects = !_context.Environment.IsProductionClass,
-            Encryption = BucketEncryption.S3_MANAGED
-        });
-
-        var uploadsBucket = new Bucket(this, "UploadsBucket", new BucketProps
-        {
-            BucketName = _context.Namer.S3Bucket("uploads"),
-            Versioned = true,
-            RemovalPolicy = RemovalPolicy.RETAIN, // Always retain user uploads
-            AutoDeleteObjects = false,
-            Encryption = BucketEncryption.S3_MANAGED, // Always encrypt user uploads
-            PublicReadAccess = false,
-            BlockPublicAccess = BlockPublicAccess.BLOCK_ALL
-        });
-
-        var backupsBucket = new Bucket(this, "BackupsBucket", new BucketProps
-        {
-            BucketName = _context.Namer.S3Bucket("backups"),
-            Versioned = true,
-            RemovalPolicy = RemovalPolicy.RETAIN,
-            AutoDeleteObjects = false,
-            Encryption = BucketEncryption.S3_MANAGED,
-            LifecycleRules = new[]
-            {
-                new LifecycleRule
-                {
-                    Id = "DeleteOldBackups",
-                    Enabled = true,
-                    Expiration = Duration.Days(_context.Environment.IsProductionClass ? 90 : 30)
-                }
-            }
-        });
-
-        return new S3BucketBundle(appBucket, uploadsBucket, backupsBucket);
-    }
+    // private S3BucketBundle CreateS3Buckets()
+    // {
+    //     var appBucket = new Bucket(this, "AppBucket", new BucketProps
+    //     {
+    //         BucketName = _context.Namer.S3Bucket("app"),
+    //         Versioned = _context.Environment.IsProductionClass,
+    //         RemovalPolicy = _context.Environment.IsProductionClass
+    //             ? RemovalPolicy.RETAIN
+    //             : RemovalPolicy.DESTROY,
+    //         AutoDeleteObjects = !_context.Environment.IsProductionClass,
+    //         Encryption = BucketEncryption.S3_MANAGED
+    //     });
+    //
+    //
+    //     return new S3BucketBundle(appBucket);
+    // }
 
     private ApplicationLoadBalancedFargateService CreateWebService(ICluster cluster,
         IDatabaseInstance database,

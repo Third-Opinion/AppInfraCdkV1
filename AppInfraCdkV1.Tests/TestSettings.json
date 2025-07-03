@@ -1,7 +1,6 @@
 {
   "TestConfiguration": {
     "DefaultTimeout": "00:05:00",
-    "EnablePerformanceTests": true,
     "EnableIntegrationTests": true,
     "CoverageThreshold": 80,
     "ParallelizeTests": true
@@ -15,9 +14,9 @@
   "TestData": {
     "DefaultAccountIds": {
       "Development": "615299752206",
-      "Production": "222222222222"
+      "Production": "442042533707"
     },
-    "TestRegions": ["us-east-1", "us-west-2", "eu-west-1"],
+    "TestRegions": ["us-east-1", "us-west-2"],
     "TestApplications": ["TrialFinderV2"]
   }
 }

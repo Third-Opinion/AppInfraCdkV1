@@ -22,7 +22,7 @@ public class TrialFinderV2Stack : WebApplicationStack
 
     private void CreateTrialFinderSpecificResources(DeploymentContext context)
     {
-        // CreateTrialDocumentStorage(context);
+        CreateTrialDocumentStorage(context);
         // CreateAsyncProcessingQueue(context);
         // CreateNotificationServices(context);
     }
@@ -32,43 +32,35 @@ public class TrialFinderV2Stack : WebApplicationStack
     private void CreateTrialDocumentStorage(DeploymentContext context)
     {
         // Document storage for trial PDFs, protocols, etc.
-        var documentsBucket = new Bucket(this, "DocumentsBucket", new BucketProps
+        var documentsBucket = new Bucket(this, "CDKTestDocumentsBucket", new BucketProps
         {
             BucketName = context.Namer.S3Bucket("documents"),
-            Versioned = true,
-            RemovalPolicy = RemovalPolicy.RETAIN,
+            Versioned = false,
+            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
             AutoDeleteObjects = false,
-            LifecycleRules = new ILifecycleRule[]
-            {
-                new LifecycleRule
-                {
-                    Id = "ArchiveOldVersions",
-                    Enabled = true,
-                    NoncurrentVersionExpiration
-                        = Duration.Days(context.Environment.IsProductionClass ? 365 : 90),
-                    Transitions = new[]
-                    {
-                        new Transition
-                        {
-                            StorageClass = StorageClass.INFREQUENT_ACCESS,
-                            TransitionAfter = Duration.Days(30)
-                        },
-                        new Transition
-                        {
-                            StorageClass = StorageClass.GLACIER,
-                            TransitionAfter = Duration.Days(90)
-                        }
-                    }
-                }
-            }
-        });
-
-        // Archive bucket for long-term document retention
-        var archiveBucket = new Bucket(this, "ArchiveBucket", new BucketProps
-        {
-            BucketName = context.Namer.S3Bucket("archive"),
-            RemovalPolicy = RemovalPolicy.RETAIN,
-            AutoDeleteObjects = false
+            // LifecycleRules = new ILifecycleRule[]
+            // {
+            //     new LifecycleRule
+            //     {
+            //         Id = "ArchiveOldVersions",
+            //         Enabled = true,
+            //         NoncurrentVersionExpiration
+            //             = Duration.Days(context.Environment.IsProductionClass ? 365 : 90),
+            //         Transitions = new[]
+            //         {
+            //             new Transition
+            //             {
+            //                 StorageClass = StorageClass.INFREQUENT_ACCESS,
+            //                 TransitionAfter = Duration.Days(30)
+            //             },
+            //             new Transition
+            //             {
+            //                 StorageClass = StorageClass.GLACIER,
+            //                 TransitionAfter = Duration.Days(90)
+            //             }
+            //         }
+            //     }
+            // }
         });
     }
 

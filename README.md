@@ -108,6 +108,7 @@ Edit `AppInfraCdkV1.Deploy/appsettings.json` to configure your deployment:
 ### Deploy Infrastructure
 
 1. Bootstrap your AWS environment (first time only):
+### The bootsrap command is likely done for each of the AWS accounts you will deploy to
 ```bash
 cd AppInfraCdkV1.Deploy
 cdk bootstrap aws://ACCOUNT-ID/REGION
