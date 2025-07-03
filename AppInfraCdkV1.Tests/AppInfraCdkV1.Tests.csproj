@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Description>Comprehensive test suite for AWS CDK infrastructure</Description>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Amazon.CDK.Lib" Version="2.201.0" />
+        <PackageReference Include="FluentAssertions" Version="8.4.0" />
+        <PackageReference Include="Moq" Version="4.20.69"/>
+        <PackageReference Include="BenchmarkDotNet" Version="0.13.10"/>
+        <PackageReference Include="xunit" Version="2.9.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="TestSettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AppInfraCdkV1.Core\AppInfraCdkV1.Core.csproj" />
+        <ProjectReference Include="..\AppInfraCdkV1.Stacks\AppInfraCdkV1.Stacks.csproj" />
+        <ProjectReference Include="..\AppInfraCdkV1.Apps\AppInfraCdkV1.Apps.csproj" />
+    </ItemGroup>
+
+</Project>
