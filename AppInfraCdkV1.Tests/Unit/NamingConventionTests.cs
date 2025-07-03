@@ -1,6 +1,6 @@
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
-using FluentAssertions;
+using Shouldly;
 using Xunit;
 
 namespace AppInfraCdkV1.Tests.Unit;
@@ -13,52 +13,51 @@ public class NamingConventionTests
     [InlineData("Integration", "int")]
     [InlineData("Staging", "stg")]
     [InlineData("Production", "prod")]
-    public void GetEnvironmentPrefix_WithValidEnvironment_ReturnsCorrectPrefix(string environment,
+    public void GetEnvironmentPrefixWithValidEnvironmentReturnsCorrectPrefix(string environment,
         string expectedPrefix)
     {
         // Act
         var result = NamingConvention.GetEnvironmentPrefix(environment);
 
         // Assert
-        result.Should().Be(expectedPrefix);
+        result.ShouldBe(expectedPrefix);
     }
 
     [Fact]
-    public void GetEnvironmentPrefix_WithInvalidEnvironment_ThrowsArgumentException()
+    public void GetEnvironmentPrefixWithInvalidEnvironmentThrowsArgumentException()
     {
         // Act & Assert
-        var action = () => NamingConvention.GetEnvironmentPrefix("InvalidEnvironment");
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Unknown environment: InvalidEnvironment*");
+        var ex = Should.Throw<ArgumentException>(() => NamingConvention.GetEnvironmentPrefix("InvalidEnvironment"));
+        ex.Message.ShouldStartWith("Unknown environment: InvalidEnvironment");
     }
 
     [Theory]
     [InlineData("TrialFinderV2", "tfv2")]
-    public void GetApplicationCode_WithValidApplication_ReturnsCorrectCode(string application,
+    public void GetApplicationCodeWithValidApplicationReturnsCorrectCode(string application,
         string expectedCode)
     {
         // Act
         var result = NamingConvention.GetApplicationCode(application);
 
         // Assert
-        result.Should().Be(expectedCode);
+        result.ShouldBe(expectedCode);
     }
 
     [Theory]
     [InlineData("us-east-1", "ue1")]
     [InlineData("us-west-2", "uw2")]
     [InlineData("eu-west-1", "ew1")]
-    public void GetRegionCode_WithValidRegion_ReturnsCorrectCode(string region, string expectedCode)
+    public void GetRegionCodeWithValidRegionReturnsCorrectCode(string region, string expectedCode)
     {
         // Act
         var result = NamingConvention.GetRegionCode(region);
 
         // Assert
-        result.Should().Be(expectedCode);
+        result.ShouldBe(expectedCode);
     }
 
     [Fact]
-    public void GenerateResourceName_WithDevelopmentEnvironment_ReturnsCorrectFormat()
+    public void GenerateResourceNameWithDevelopmentEnvironmentReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("Development", "TrialFinderV2", "us-east-1");
@@ -67,11 +66,11 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateResourceName(context, "ecs", "main");
 
         // Assert
-        result.Should().Be("dev-tfv2-ecs-ue1-main");
+        result.ShouldBe("dev-tfv2-ecs-ue1-main");
     }
 
     [Fact]
-    public void GenerateResourceName_WithProductionEnvironment_ReturnsCorrectFormat()
+    public void GenerateResourceNameWithProductionEnvironmentReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("Production", "TrialFinderV2", "us-west-2");
@@ -80,11 +79,11 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateResourceName(context, "ecs", "main");
 
         // Assert
-        result.Should().Be("prod-tfv2-ecs-uw2-main");
+        result.ShouldBe("prod-tfv2-ecs-uw2-main");
     }
 
     [Fact]
-    public void GenerateS3BucketName_WithValidContext_ReturnsCorrectFormat()
+    public void GenerateS3BucketNameWithValidContextReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("QA", "TrialFinderV2", "us-east-1");
@@ -93,7 +92,7 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateS3BucketName(context, "app");
 
         // Assert
-        result.Should().Be("thirdopinion.io-qa-tfv2-app-ue1");
+        result.ShouldBe("thirdopinion.io-qa-tfv2-app-ue1");
     }
 
     #region Enum-based Method Tests
@@ -102,49 +101,49 @@ public class NamingConventionTests
     [InlineData(EnvironmentType.Development, "dev")]
     [InlineData(EnvironmentType.QA, "qa")]
     [InlineData(EnvironmentType.Production, "prod")]
-    public void GetEnvironmentPrefix_WithValidEnum_ReturnsCorrectPrefix(EnvironmentType environment, string expectedPrefix)
+    public void GetEnvironmentPrefixWithValidEnumReturnsCorrectPrefix(EnvironmentType environment, string expectedPrefix)
     {
         // Act
         var result = NamingConvention.GetEnvironmentPrefix(environment);
 
         // Assert
-        result.Should().Be(expectedPrefix);
+        result.ShouldBe(expectedPrefix);
     }
 
     [Theory]
     [InlineData(ApplicationType.TrialFinderV2, "tfv2")]
-    public void GetApplicationCode_WithValidEnum_ReturnsCorrectCode(ApplicationType application, string expectedCode)
+    public void GetApplicationCodeWithValidEnumReturnsCorrectCode(ApplicationType application, string expectedCode)
     {
         // Act
         var result = NamingConvention.GetApplicationCode(application);
 
         // Assert
-        result.Should().Be(expectedCode);
+        result.ShouldBe(expectedCode);
     }
 
     [Theory]
     [InlineData(AwsRegion.UsEast1, "ue1")]
     [InlineData(AwsRegion.UsWest2, "uw2")]
     [InlineData(AwsRegion.EuWest1, "ew1")]
-    public void GetRegionCode_WithValidEnum_ReturnsCorrectCode(AwsRegion region, string expectedCode)
+    public void GetRegionCodeWithValidEnumReturnsCorrectCode(AwsRegion region, string expectedCode)
     {
         // Act
         var result = NamingConvention.GetRegionCode(region);
 
         // Assert
-        result.Should().Be(expectedCode);
+        result.ShouldBe(expectedCode);
     }
 
     [Theory]
     [InlineData(EnvironmentType.Development, AccountType.NonProduction)]
     [InlineData(EnvironmentType.Production, AccountType.Production)]
-    public void GetAccountType_WithValidEnum_ReturnsCorrectType(EnvironmentType environment, AccountType expectedType)
+    public void GetAccountTypeWithValidEnumReturnsCorrectType(EnvironmentType environment, AccountType expectedType)
     {
         // Act
         var result = NamingConvention.GetAccountType(environment);
 
         // Assert
-        result.Should().Be(expectedType);
+        result.ShouldBe(expectedType);
     }
 
     #endregion
@@ -152,27 +151,25 @@ public class NamingConventionTests
     #region Registration Tests
 
     [Fact]
-    public void RegisterEnvironment_WithDuplicateEnvironment_ThrowsInvalidOperationException()
+    public void RegisterEnvironmentWithDuplicateEnvironmentThrowsInvalidOperationException()
     {
         // Arrange - Use existing environment
         var existingEnv = EnvironmentType.Development;
         
         // Act & Assert - Should throw because Development already exists
-        var action = () => NamingConvention.RegisterEnvironment(existingEnv, "test", AccountType.NonProduction);
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*already registered*");
+        var ex = Should.Throw<InvalidOperationException>(() => NamingConvention.RegisterEnvironment(existingEnv, "test", AccountType.NonProduction));
+        ex.Message.ShouldContain("already registered");
     }
 
     [Fact]
-    public void RegisterApplication_WithDuplicateApplication_ThrowsInvalidOperationException()
+    public void RegisterApplicationWithDuplicateApplicationThrowsInvalidOperationException()
     {
         // Arrange - Use existing application
         var existingApp = ApplicationType.TrialFinderV2;
         
         // Act & Assert - Should throw because TrialFinderV2 already exists
-        var action = () => NamingConvention.RegisterApplication(existingApp, "duplicate");
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("*already registered*");
+        var ex = Should.Throw<InvalidOperationException>(() => NamingConvention.RegisterApplication(existingApp, "duplicate"));
+        ex.Message.ShouldContain("already registered");
     }
 
     #endregion
@@ -180,25 +177,31 @@ public class NamingConventionTests
     #region Environment Grouping Tests
 
     [Fact]
-    public void GetEnvironmentsInSameAccount_WithDevelopment_ReturnsNonProductionEnvironments()
+    public void GetEnvironmentsInSameAccountWithDevelopmentReturnsNonProductionEnvironments()
     {
         // Act
         var result = NamingConvention.GetEnvironmentsInSameAccount("Development");
 
         // Assert
-        result.Should().Contain(new[] { "Development", "QA", "Integration" });
-        result.Should().NotContain(new[] { "Staging", "Production" });
+        result.ShouldContain("Development");
+        result.ShouldContain("QA");
+        result.ShouldContain("Integration");
+        result.ShouldNotContain("Staging");
+        result.ShouldNotContain("Production");
     }
 
     [Fact]
-    public void GetEnvironmentsInSameAccount_WithProduction_ReturnsProductionEnvironments()
+    public void GetEnvironmentsInSameAccountWithProductionReturnsProductionEnvironments()
     {
         // Act
         var result = NamingConvention.GetEnvironmentsInSameAccount("Production");
 
         // Assert
-        result.Should().Contain(new[] { "Staging", "Production" });
-        result.Should().NotContain(new[] { "Development", "QA", "Integration" });
+        result.ShouldContain("Staging");
+        result.ShouldContain("Production");
+        result.ShouldNotContain("Development");
+        result.ShouldNotContain("QA");
+        result.ShouldNotContain("Integration");
     }
 
     #endregion
@@ -206,7 +209,7 @@ public class NamingConventionTests
     #region Security Group Naming Tests
 
     [Fact]
-    public void GenerateSecurityGroupName_WithValidContext_ReturnsCorrectFormat()
+    public void GenerateSecurityGroupNameWithValidContextReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("Development", "TrialFinderV2", "us-east-1");
@@ -215,7 +218,7 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateSecurityGroupName(context, "alb", "web");
 
         // Assert
-        result.Should().Be("dev-tfv2-sg-alb-web-ue1");
+        result.ShouldBe("dev-tfv2-sg-alb-web-ue1");
     }
 
     #endregion
@@ -223,7 +226,7 @@ public class NamingConventionTests
     #region Log Group Naming Tests
 
     [Fact]
-    public void GenerateLogGroupName_WithValidContext_ReturnsCorrectFormat()
+    public void GenerateLogGroupNameWithValidContextReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("Production", "TrialFinderV2", "us-west-2");
@@ -232,7 +235,7 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateLogGroupName(context, "ecs", "web-app");
 
         // Assert
-        result.Should().Be("/aws/ecs/prod-tfv2-web-app");
+        result.ShouldBe("/aws/ecs/prod-tfv2-web-app");
     }
 
     #endregion
@@ -240,7 +243,7 @@ public class NamingConventionTests
     #region VPC Naming Tests
 
     [Fact]
-    public void GenerateVpcName_WithDefaultPurpose_ReturnsCorrectFormat()
+    public void GenerateVpcNameWithDefaultPurposeReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("QA", "TrialFinderV2", "eu-west-1");
@@ -249,11 +252,11 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateVpcName(context);
 
         // Assert
-        result.Should().Be("qa-tfv2-vpc-ew1-main");
+        result.ShouldBe("qa-tfv2-vpc-ew1-main");
     }
 
     [Fact]
-    public void GenerateVpcName_WithCustomPurpose_ReturnsCorrectFormat()
+    public void GenerateVpcNameWithCustomPurposeReturnsCorrectFormat()
     {
         // Arrange
         var context = CreateTestContext("Integration", "TrialFinderV2", "us-east-2");
@@ -262,7 +265,7 @@ public class NamingConventionTests
         var result = NamingConvention.GenerateVpcName(context, "isolated");
 
         // Assert
-        result.Should().Be("int-tfv2-vpc-ue2-isolated");
+        result.ShouldBe("int-tfv2-vpc-ue2-isolated");
     }
 
     #endregion

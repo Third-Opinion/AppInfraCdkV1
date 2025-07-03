@@ -1,6 +1,6 @@
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
-using FluentAssertions;
+using Shouldly;
 using Xunit;
 
 namespace AppInfraCdkV1.Tests.Unit;
@@ -8,7 +8,7 @@ namespace AppInfraCdkV1.Tests.Unit;
 public class DeploymentContextTests
 {
     [Fact]
-    public void GetCommonTags_WithValidContext_ReturnsAllRequiredTags()
+    public void GetCommonTagsWithValidContextReturnsAllRequiredTags()
     {
         // Arrange
         var context = CreateTestContext();
@@ -18,16 +18,22 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags.Should().ContainKey("Environment").WhoseValue.Should().Be("Development");
-        tags.Should().ContainKey("Application").WhoseValue.Should().Be("TrialFinderV2");
-        tags.Should().ContainKey("Version").WhoseValue.Should().Be("1.0.0");
-        tags.Should().ContainKey("DeployedBy").WhoseValue.Should().Be("CDK");
-        tags.Should().ContainKey("DeployedAt").WhoseValue.Should().Be(expectedDeploymentDate);
-        tags.Should().ContainKey("DeploymentId").WhoseValue.Should().NotBeNullOrEmpty();
+        tags.ShouldContainKey("Environment");
+        tags["Environment"].ShouldBe("Development");
+        tags.ShouldContainKey("Application");
+        tags["Application"].ShouldBe("TrialFinderV2");
+        tags.ShouldContainKey("Version");
+        tags["Version"].ShouldBe("1.0.0");
+        tags.ShouldContainKey("DeployedBy");
+        tags["DeployedBy"].ShouldBe("CDK");
+        tags.ShouldContainKey("DeployedAt");
+        tags["DeployedAt"].ShouldBe(expectedDeploymentDate);
+        tags.ShouldContainKey("DeploymentId");
+        tags["DeploymentId"].ShouldNotBeNullOrEmpty();
     }
 
     [Fact]
-    public void GetCommonTags_IncludesEnvironmentTags()
+    public void GetCommonTagsIncludesEnvironmentTags()
     {
         // Arrange
         var context = CreateTestContext();
@@ -38,65 +44,63 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags.Should().ContainKey("CustomTag").WhoseValue.Should().Be("CustomValue");
-        tags.Should().ContainKey("Team").WhoseValue.Should().Be("Infrastructure");
+        tags.ShouldContainKey("CustomTag");
+        tags["CustomTag"].ShouldBe("CustomValue");
+        tags.ShouldContainKey("Team");
+        tags["Team"].ShouldBe("Infrastructure");
     }
 
     [Fact]
-    public void ValidateNamingContext_WithValidContext_DoesNotThrow()
+    public void ValidateNamingContextWithValidContextDoesNotThrow()
     {
         // Arrange
         var context = CreateTestContext();
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().NotThrow();
+        Should.NotThrow(() => context.ValidateNamingContext());
     }
 
     [Fact]
-    public void ValidateNamingContext_WithInvalidEnvironment_ThrowsInvalidOperationException()
+    public void ValidateNamingContextWithInvalidEnvironmentThrowsInvalidOperationException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Environment.Name = "InvalidEnvironment";
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("Naming convention validation failed:*")
-            .WithInnerException<ArgumentException>();
+        var ex = Should.Throw<InvalidOperationException>(() => context.ValidateNamingContext());
+        ex.Message.ShouldStartWith("Naming convention validation failed:");
+        ex.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
     [Fact]
-    public void ValidateNamingContext_WithInvalidApplication_ThrowsInvalidOperationException()
+    public void ValidateNamingContextWithInvalidApplicationThrowsInvalidOperationException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Application.Name = "InvalidApplication";
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("Naming convention validation failed:*")
-            .WithInnerException<ArgumentException>();
+        var ex = Should.Throw<InvalidOperationException>(() => context.ValidateNamingContext());
+        ex.Message.ShouldStartWith("Naming convention validation failed:");
+        ex.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
     [Fact]
-    public void ValidateNamingContext_WithInvalidRegion_ThrowsInvalidOperationException()
+    public void ValidateNamingContextWithInvalidRegionThrowsInvalidOperationException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Environment.Region = "invalid-region";
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("Naming convention validation failed:*")
-            .WithInnerException<ArgumentException>();
+        var ex = Should.Throw<InvalidOperationException>(() => context.ValidateNamingContext());
+        ex.Message.ShouldStartWith("Naming convention validation failed:");
+        ex.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
     [Fact]
-    public void Namer_PropertyInitialization_CreatesResourceNamerInstance()
+    public void NamerPropertyInitializationCreatesResourceNamerInstance()
     {
         // Arrange
         var context = CreateTestContext();
@@ -105,12 +109,12 @@ public class DeploymentContextTests
         var namer = context.Namer;
 
         // Assert
-        namer.Should().NotBeNull();
-        namer.Should().BeOfType<ResourceNamer>();
+        namer.ShouldNotBeNull();
+        namer.ShouldBeOfType<ResourceNamer>();
     }
 
     [Fact]
-    public void Namer_PropertyAccess_ReturnsSameInstance()
+    public void NamerPropertyAccessReturnsSameInstance()
     {
         // Arrange
         var context = CreateTestContext();
@@ -120,23 +124,23 @@ public class DeploymentContextTests
         var namer2 = context.Namer;
 
         // Assert
-        namer1.Should().BeSameAs(namer2);
+        namer1.ShouldBeSameAs(namer2);
     }
 
     [Fact]
-    public void DeploymentId_DefaultValue_IsValidFormat()
+    public void DeploymentIdDefaultValueIsValidFormat()
     {
         // Arrange & Act
         var context = new DeploymentContext();
 
         // Assert
-        context.DeploymentId.Should().NotBeNullOrEmpty();
-        context.DeploymentId.Should().HaveLength(8); // GUID first 8 characters
-        context.DeploymentId.Should().MatchRegex("^[a-f0-9]{8}$"); // Hex digits only
+        context.DeploymentId.ShouldNotBeNullOrEmpty();
+        context.DeploymentId.Length.ShouldBe(8); // GUID first 8 characters
+        context.DeploymentId.ShouldMatch("^[a-f0-9]{8}$"); // Hex digits only
     }
 
     [Fact]
-    public void DeployedAt_DefaultValue_IsRecentUtcTime()
+    public void DeployedAtDefaultValueIsRecentUtcTime()
     {
         // Arrange
         var beforeCreation = DateTime.UtcNow;
@@ -146,37 +150,36 @@ public class DeploymentContextTests
         var afterCreation = DateTime.UtcNow;
 
         // Assert
-        context.DeployedAt.Should().BeOnOrAfter(beforeCreation);
-        context.DeployedAt.Should().BeOnOrBefore(afterCreation);
-        context.DeployedAt.Kind.Should().Be(DateTimeKind.Utc);
+        context.DeployedAt.ShouldBeGreaterThanOrEqualTo(beforeCreation);
+        context.DeployedAt.ShouldBeLessThanOrEqualTo(afterCreation);
+        context.DeployedAt.Kind.ShouldBe(DateTimeKind.Utc);
     }
 
     [Fact]
-    public void DeployedBy_DefaultValue_IsCDK()
+    public void DeployedByDefaultValueIsCDK()
     {
         // Arrange & Act
         var context = new DeploymentContext();
 
         // Assert
-        context.DeployedBy.Should().Be("CDK");
+        context.DeployedBy.ShouldBe("CDK");
     }
 
     [Theory]
     [InlineData("Production", "TrialFinderV2", "us-east-1")]
     [InlineData("Development", "TrialFinderV2", "eu-west-1")]
     [InlineData("Staging", "TrialFinderV2", "us-west-2")]
-    public void ValidateNamingContext_WithValidCombinations_DoesNotThrow(string environment, string application, string region)
+    public void ValidateNamingContextWithValidCombinationsDoesNotThrow(string environment, string application, string region)
     {
         // Arrange
         var context = CreateTestContext(environment, application, region);
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().NotThrow();
+        Should.NotThrow(() => context.ValidateNamingContext());
     }
 
     [Fact]
-    public void Environment_PropertySetter_AssignsValue()
+    public void EnvironmentPropertySetterAssignsValue()
     {
         // Arrange
         var context = new DeploymentContext();
@@ -186,11 +189,11 @@ public class DeploymentContextTests
         context.Environment = environment;
 
         // Assert
-        context.Environment.Should().BeSameAs(environment);
+        context.Environment.ShouldBeSameAs(environment);
     }
 
     [Fact]
-    public void Application_PropertySetter_AssignsValue()
+    public void ApplicationPropertySetterAssignsValue()
     {
         // Arrange
         var context = new DeploymentContext();
@@ -200,11 +203,11 @@ public class DeploymentContextTests
         context.Application = application;
 
         // Assert
-        context.Application.Should().BeSameAs(application);
+        context.Application.ShouldBeSameAs(application);
     }
 
     [Fact]
-    public void DeploymentId_PropertySetter_AssignsValue()
+    public void DeploymentIdPropertySetterAssignsValue()
     {
         // Arrange
         var context = new DeploymentContext();
@@ -214,11 +217,11 @@ public class DeploymentContextTests
         context.DeploymentId = deploymentId;
 
         // Assert
-        context.DeploymentId.Should().Be(deploymentId);
+        context.DeploymentId.ShouldBe(deploymentId);
     }
 
     [Fact]
-    public void DeployedBy_PropertySetter_AssignsValue()
+    public void DeployedByPropertySetterAssignsValue()
     {
         // Arrange
         var context = new DeploymentContext();
@@ -228,11 +231,11 @@ public class DeploymentContextTests
         context.DeployedBy = deployedBy;
 
         // Assert
-        context.DeployedBy.Should().Be(deployedBy);
+        context.DeployedBy.ShouldBe(deployedBy);
     }
 
     [Fact]
-    public void DeployedAt_PropertySetter_AssignsValue()
+    public void DeployedAtPropertySetterAssignsValue()
     {
         // Arrange
         var context = new DeploymentContext();
@@ -242,11 +245,11 @@ public class DeploymentContextTests
         context.DeployedAt = deployedAt;
 
         // Assert
-        context.DeployedAt.Should().Be(deployedAt);
+        context.DeployedAt.ShouldBe(deployedAt);
     }
 
     [Fact]
-    public void GetCommonTags_WithEmptyEnvironmentTags_ReturnsSystemTagsOnly()
+    public void GetCommonTagsWithEmptyEnvironmentTagsReturnsSystemTagsOnly()
     {
         // Arrange
         var context = CreateTestContext();
@@ -256,17 +259,17 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags.Should().HaveCount(6);
-        tags.Should().ContainKey("Environment");
-        tags.Should().ContainKey("Application");
-        tags.Should().ContainKey("Version");
-        tags.Should().ContainKey("DeploymentId");
-        tags.Should().ContainKey("DeployedBy");
-        tags.Should().ContainKey("DeployedAt");
+        tags.Count.ShouldBe(6);
+        tags.ShouldContainKey("Environment");
+        tags.ShouldContainKey("Application");
+        tags.ShouldContainKey("Version");
+        tags.ShouldContainKey("DeploymentId");
+        tags.ShouldContainKey("DeployedBy");
+        tags.ShouldContainKey("DeployedAt");
     }
 
     [Fact]
-    public void GetCommonTags_WithTagKeyCollision_SystemTagsOverrideEnvironmentTags()
+    public void GetCommonTagsWithTagKeyCollisionSystemTagsOverrideEnvironmentTags()
     {
         // Arrange
         var context = CreateTestContext();
@@ -277,24 +280,23 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags["Environment"].Should().Be("Development");
-        tags["Application"].Should().Be("TrialFinderV2");
+        tags["Environment"].ShouldBe("Development");
+        tags["Application"].ShouldBe("TrialFinderV2");
     }
 
     [Fact]
-    public void GetCommonTags_WithNullEnvironmentTags_ThrowsException()
+    public void GetCommonTagsWithNullEnvironmentTagsThrowsException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Environment.Tags = null!;
 
         // Act & Assert
-        var action = () => context.GetCommonTags();
-        action.Should().Throw<ArgumentNullException>();
+        Should.Throw<ArgumentNullException>(() => context.GetCommonTags());
     }
 
     [Fact]
-    public void GetCommonTags_WithCustomDeployedAtFormat_UsesCorrectDateFormat()
+    public void GetCommonTagsWithCustomDeployedAtFormatUsesCorrectDateFormat()
     {
         // Arrange
         var context = CreateTestContext();
@@ -304,11 +306,11 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags["DeployedAt"].Should().Be("2023-12-25");
+        tags["DeployedAt"].ShouldBe("2023-12-25");
     }
 
     [Fact]
-    public void GetCommonTags_WithEmptyStrings_HandlesEmptyValues()
+    public void GetCommonTagsWithEmptyStringsHandlesEmptyValues()
     {
         // Arrange
         var context = CreateTestContext();
@@ -319,54 +321,51 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags["DeploymentId"].Should().Be("");
-        tags["DeployedBy"].Should().Be("");
+        tags["DeploymentId"].ShouldBe("");
+        tags["DeployedBy"].ShouldBe("");
     }
 
     [Fact]
-    public void ValidateNamingContext_WithNullEnvironmentName_ThrowsInvalidOperationException()
+    public void ValidateNamingContextWithNullEnvironmentNameThrowsInvalidOperationException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Environment.Name = null!;
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("Naming convention validation failed:*")
-            .WithInnerException<ArgumentException>();
+        var ex = Should.Throw<InvalidOperationException>(() => context.ValidateNamingContext());
+        ex.Message.ShouldStartWith("Naming convention validation failed:");
+        ex.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
     [Fact]
-    public void ValidateNamingContext_WithNullApplicationName_ThrowsInvalidOperationException()
+    public void ValidateNamingContextWithNullApplicationNameThrowsInvalidOperationException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Application.Name = null!;
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("Naming convention validation failed:*")
-            .WithInnerException<ArgumentException>();
+        var ex = Should.Throw<InvalidOperationException>(() => context.ValidateNamingContext());
+        ex.Message.ShouldStartWith("Naming convention validation failed:");
+        ex.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
     [Fact]
-    public void ValidateNamingContext_WithNullRegion_ThrowsInvalidOperationException()
+    public void ValidateNamingContextWithNullRegionThrowsInvalidOperationException()
     {
         // Arrange
         var context = CreateTestContext();
         context.Environment.Region = null!;
 
         // Act & Assert
-        var action = () => context.ValidateNamingContext();
-        action.Should().Throw<InvalidOperationException>()
-            .WithMessage("Naming convention validation failed:*")
-            .WithInnerException<ArgumentException>();
+        var ex = Should.Throw<InvalidOperationException>(() => context.ValidateNamingContext());
+        ex.Message.ShouldStartWith("Naming convention validation failed:");
+        ex.InnerException.ShouldBeOfType<ArgumentNullException>();
     }
 
     [Fact]
-    public void Namer_ConcurrentAccess_ReturnsSameInstance()
+    public void NamerConcurrentAccessReturnsSameInstance()
     {
         // Arrange
         var context = CreateTestContext();
@@ -377,7 +376,7 @@ public class DeploymentContextTests
         Task.WaitAll(task1, task2);
 
         // Assert
-        task1.Result.Should().BeSameAs(task2.Result);
+        task1.Result.ShouldBeSameAs(task2.Result);
     }
 
     private static DeploymentContext CreateTestContext(

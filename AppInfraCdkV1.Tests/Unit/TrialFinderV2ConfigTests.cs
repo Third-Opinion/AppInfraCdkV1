@@ -1,6 +1,6 @@
 using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Core.Models;
-using FluentAssertions;
+using Shouldly;
 using Xunit;
 
 namespace AppInfraCdkV1.Tests.Unit;
@@ -8,214 +8,207 @@ namespace AppInfraCdkV1.Tests.Unit;
 public class TrialFinderV2ConfigTests
 {
     [Theory]
-    [InlineData("development")]
     [InlineData("Development")]
-    [InlineData("DEVELOPMENT")]
-    public void GetConfig_WithDevelopmentEnvironment_ReturnsDevelopmentConfig(string environment)
+    public void GetConfigWithDevelopmentEnvironmentReturnsDevelopmentConfig(string environment)
     {
         // Act
         var config = TrialFinderV2Config.GetConfig(environment);
 
         // Assert
-        config.Should().NotBeNull();
-        config.Name.Should().Be("TrialFinderV2");
-        config.Version.Should().NotBeNullOrEmpty();
-        config.Sizing.Should().NotBeNull();
-        config.Security.Should().NotBeNull();
-        config.Settings.Should().NotBeNull();
-        config.MultiEnvironment.Should().NotBeNull();
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        config.Version.ShouldNotBeNullOrEmpty();
+        config.Sizing.ShouldNotBeNull();
+        config.Security.ShouldNotBeNull();
+        config.Settings.ShouldNotBeNull();
+        config.MultiEnvironment.ShouldNotBeNull();
     }
 
     [Theory]
-    [InlineData("staging")]
     [InlineData("Staging")]
-    [InlineData("STAGING")]
-    public void GetConfig_WithStagingEnvironment_ReturnsStagingConfig(string environment)
+    public void GetConfigWithStagingEnvironmentReturnsStagingConfig(string environment)
     {
         // Act
         var config = TrialFinderV2Config.GetConfig(environment);
 
         // Assert
-        config.Should().NotBeNull();
-        config.Name.Should().Be("TrialFinderV2");
-        config.Sizing.Should().NotBeNull();
-        config.Security.Should().NotBeNull();
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        config.Sizing.ShouldNotBeNull();
+        config.Security.ShouldNotBeNull();
     }
 
     [Theory]
-    [InlineData("production")]
     [InlineData("Production")]
-    [InlineData("PRODUCTION")]
-    public void GetConfig_WithProductionEnvironment_ReturnsProductionConfig(string environment)
+    public void GetConfigWithProductionEnvironmentReturnsProductionConfig(string environment)
     {
         // Act
         var config = TrialFinderV2Config.GetConfig(environment);
 
         // Assert
-        config.Should().NotBeNull();
-        config.Name.Should().Be("TrialFinderV2");
-        config.Sizing.Should().NotBeNull();
-        config.Security.Should().NotBeNull();
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        config.Sizing.ShouldNotBeNull();
+        config.Security.ShouldNotBeNull();
     }
 
     [Fact]
-    public void GetConfig_WithUnknownEnvironment_ThrowsArgumentException()
+    public void GetConfigWithUnknownEnvironmentThrowsArgumentException()
     {
         // Act & Assert
-        var action = () => TrialFinderV2Config.GetConfig("UnknownEnvironment");
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Unknown environment: UnknownEnvironment");
+        var ex = Should.Throw<ArgumentException>(() => TrialFinderV2Config.GetConfig("UnknownEnvironment"));
+        ex.Message.ShouldStartWith("Unknown environment: UnknownEnvironment");
     }
 
     [Fact]
-    public void GetConfig_WithDevelopment_ConfiguresNonProductionSettings()
+    public void GetConfigWithDevelopmentConfiguresNonProductionSettings()
     {
         // Act
-        var config = TrialFinderV2Config.GetConfig("development");
+        var config = TrialFinderV2Config.GetConfig("Development");
 
         // Assert
-        config.Settings.Should().ContainKey("EnableDetailedLogging");
-        config.Settings["EnableDetailedLogging"].Should().Be(true); // Non-production = detailed logging
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(true); // Non-production = detailed logging
 
-        config.Settings.Should().ContainKey("ExternalApiTimeout");
-        config.Settings["ExternalApiTimeout"].Should().Be(30); // Non-production = longer timeout
+        config.Settings.ShouldContainKey("ExternalApiTimeout");
+        config.Settings["ExternalApiTimeout"].ShouldBe(30); // Non-production = longer timeout
 
-        config.Settings.Should().ContainKey("EnableMockExternalServices");
-        config.Settings["EnableMockExternalServices"].Should().Be(true); // Development specific
+        config.Settings.ShouldContainKey("EnableMockExternalServices");
+        config.Settings["EnableMockExternalServices"].ShouldBe(true); // Development specific
 
-        config.Settings.Should().ContainKey("EnableDebugMode");
-        config.Settings["EnableDebugMode"].Should().Be(true); // Development specific
+        config.Settings.ShouldContainKey("EnableDebugMode");
+        config.Settings["EnableDebugMode"].ShouldBe(true); // Development specific
 
-        config.Settings.Should().ContainKey("CacheEnabled");
-        config.Settings["CacheEnabled"].Should().Be(false); // Development specific
+        config.Settings.ShouldContainKey("CacheEnabled");
+        config.Settings["CacheEnabled"].ShouldBe(false); // Development specific
     }
 
     [Fact]
-    public void GetConfig_WithProduction_ConfiguresProductionSettings()
+    public void GetConfigWithProductionConfiguresProductionSettings()
     {
         // Act
-        var config = TrialFinderV2Config.GetConfig("production");
+        var config = TrialFinderV2Config.GetConfig("Production");
 
         // Assert
-        config.Settings.Should().ContainKey("EnableDetailedLogging");
-        config.Settings["EnableDetailedLogging"].Should().Be(false); // Production = no detailed logging
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(false); // Production = no detailed logging
 
-        config.Settings.Should().ContainKey("ExternalApiTimeout");
-        config.Settings["ExternalApiTimeout"].Should().Be(10); // Production = shorter timeout
+        config.Settings.ShouldContainKey("ExternalApiTimeout");
+        config.Settings["ExternalApiTimeout"].ShouldBe(10); // Production = shorter timeout
 
-        config.Settings.Should().ContainKey("EnableMockExternalServices");
-        config.Settings["EnableMockExternalServices"].Should().Be(false); // Production specific
+        config.Settings.ShouldContainKey("EnableMockExternalServices");
+        config.Settings["EnableMockExternalServices"].ShouldBe(false); // Production specific
 
-        config.Settings.Should().ContainKey("EnableHighAvailability");
-        config.Settings["EnableHighAvailability"].Should().Be(true); // Production specific
+        config.Settings.ShouldContainKey("EnableHighAvailability");
+        config.Settings["EnableHighAvailability"].ShouldBe(true); // Production specific
 
-        config.Settings.Should().ContainKey("EnableDisasterRecovery");
-        config.Settings["EnableDisasterRecovery"].Should().Be(true); // Production specific
+        config.Settings.ShouldContainKey("EnableDisasterRecovery");
+        config.Settings["EnableDisasterRecovery"].ShouldBe(true); // Production specific
 
-        config.Settings.Should().ContainKey("CacheEnabled");
-        config.Settings["CacheEnabled"].Should().Be(true); // Production specific
+        config.Settings.ShouldContainKey("CacheEnabled");
+        config.Settings["CacheEnabled"].ShouldBe(true); // Production specific
     }
 
     [Fact]
-    public void GetConfig_WithStaging_ConfiguresProductionClassSettings()
+    public void GetConfigWithStagingConfiguresProductionClassSettings()
     {
         // Act
-        var config = TrialFinderV2Config.GetConfig("staging");
+        var config = TrialFinderV2Config.GetConfig("Staging");
 
         // Assert
-        config.Settings.Should().ContainKey("EnableDetailedLogging");
-        config.Settings["EnableDetailedLogging"].Should().Be(false); // Production class = no detailed logging
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(false); // Production class = no detailed logging
 
-        config.Settings.Should().ContainKey("ExternalApiTimeout");
-        config.Settings["ExternalApiTimeout"].Should().Be(10); // Production class = shorter timeout
+        config.Settings.ShouldContainKey("ExternalApiTimeout");
+        config.Settings["ExternalApiTimeout"].ShouldBe(10); // Production class = shorter timeout
 
-        config.Settings.Should().ContainKey("EnableStagingFeatures");
-        config.Settings["EnableStagingFeatures"].Should().Be(true); // Staging specific
+        config.Settings.ShouldContainKey("EnableStagingFeatures");
+        config.Settings["EnableStagingFeatures"].ShouldBe(true); // Staging specific
 
-        config.Settings.Should().ContainKey("EnableBlueGreenDeployment");
-        config.Settings["EnableBlueGreenDeployment"].Should().Be(true); // Staging specific
+        config.Settings.ShouldContainKey("EnableBlueGreenDeployment");
+        config.Settings["EnableBlueGreenDeployment"].ShouldBe(true); // Staging specific
     }
 
     [Theory]
-    [InlineData("development", "0 */6 * * *")] // Every 6 hours for dev
-    [InlineData("production", "0 0 * * *")]   // Daily for production
-    [InlineData("staging", "0 0 * * *")]      // Daily for staging (production class)
-    public void GetConfig_ConfiguresCorrectTrialDataRefreshInterval(string environment, string expectedInterval)
+    [InlineData("Development", "0 */6 * * *")] // Every 6 hours for dev
+    [InlineData("Production", "0 0 * * *")]   // Daily for production
+    [InlineData("Staging", "0 0 * * *")]      // Daily for staging (production class)
+    public void GetConfigConfiguresCorrectTrialDataRefreshInterval(string environment, string expectedInterval)
     {
         // Act
         var config = TrialFinderV2Config.GetConfig(environment);
 
         // Assert
-        config.Settings.Should().ContainKey("TrialDataRefreshInterval");
-        config.Settings["TrialDataRefreshInterval"].Should().Be(expectedInterval);
+        config.Settings.ShouldContainKey("TrialDataRefreshInterval");
+        config.Settings["TrialDataRefreshInterval"].ShouldBe(expectedInterval);
     }
 
     [Theory]
-    [InlineData("development", 10)]  // Non-production = lower capacity
-    [InlineData("production", 50)]   // Production = higher capacity
-    [InlineData("staging", 50)]      // Production class = higher capacity
-    public void GetConfig_ConfiguresCorrectMaxConcurrentProcessing(string environment, int expectedMax)
+    [InlineData("Development", 10)]  // Non-production = lower capacity
+    [InlineData("Production", 50)]   // Production = higher capacity
+    [InlineData("Staging", 50)]      // Production class = higher capacity
+    public void GetConfigConfiguresCorrectMaxConcurrentProcessing(string environment, int expectedMax)
     {
         // Act
         var config = TrialFinderV2Config.GetConfig(environment);
 
         // Assert
-        config.Settings.Should().ContainKey("MaxConcurrentTrialProcessing");
-        config.Settings["MaxConcurrentTrialProcessing"].Should().Be(expectedMax);
+        config.Settings.ShouldContainKey("MaxConcurrentTrialProcessing");
+        config.Settings["MaxConcurrentTrialProcessing"].ShouldBe(expectedMax);
     }
 
     [Fact]
-    public void GetConfig_WithDevelopment_ConfiguresMultiEnvironmentCorrectly()
+    public void GetConfigWithDevelopmentConfiguresMultiEnvironmentCorrectly()
     {
         // Act
-        var config = TrialFinderV2Config.GetConfig("development");
+        var config = TrialFinderV2Config.GetConfig("Development");
 
         // Assert
-        config.MultiEnvironment.Should().NotBeNull();
-        config.MultiEnvironment.SupportsMultiEnvironmentDeployment.Should().BeTrue();
-        config.MultiEnvironment.SharedResources.Should().NotBeNull();
-        config.MultiEnvironment.SharedResources.VpcSharing.IsShared.Should().BeFalse(); // Each env gets own VPC
-        config.MultiEnvironment.SharedResources.DatabaseSharing.ShareInstances.Should().BeFalse(); // Each env gets own DB
+        config.MultiEnvironment.ShouldNotBeNull();
+        config.MultiEnvironment.SupportsMultiEnvironmentDeployment.ShouldBeTrue();
+        config.MultiEnvironment.SharedResources.ShouldNotBeNull();
+        config.MultiEnvironment.SharedResources.VpcSharing.IsShared.ShouldBeFalse(); // Each env gets own VPC
+        config.MultiEnvironment.SharedResources.DatabaseSharing.ShareInstances.ShouldBeFalse(); // Each env gets own DB
     }
 
     [Fact]
-    public void GetConfig_EnvironmentOverrides_ConfiguresBackupRetention()
+    public void GetConfigEnvironmentOverridesConfiguresBackupRetention()
     {
         // Act
-        var devConfig = TrialFinderV2Config.GetConfig("development");
-        var stagingConfig = TrialFinderV2Config.GetConfig("staging");
-        var prodConfig = TrialFinderV2Config.GetConfig("production");
+        var devConfig = TrialFinderV2Config.GetConfig("Development");
+        var stagingConfig = TrialFinderV2Config.GetConfig("Staging");
+        var prodConfig = TrialFinderV2Config.GetConfig("Production");
 
         // Assert
-        var devOverride = devConfig.MultiEnvironment.GetEffectiveConfigForEnvironment("development");
-        devOverride.BackupRetentionDays.Should().Be(1);
+        var devOverride = devConfig.MultiEnvironment.GetEffectiveConfigForEnvironment("Development");
+        devOverride.BackupRetentionDays.ShouldBe(1);
 
-        var stagingOverride = stagingConfig.MultiEnvironment.GetEffectiveConfigForEnvironment("staging");
-        stagingOverride.BackupRetentionDays.Should().Be(7);
+        var stagingOverride = stagingConfig.MultiEnvironment.GetEffectiveConfigForEnvironment("Staging");
+        stagingOverride.BackupRetentionDays.ShouldBe(7);
 
-        var prodOverride = prodConfig.MultiEnvironment.GetEffectiveConfigForEnvironment("production");
-        prodOverride.BackupRetentionDays.Should().Be(30);
+        var prodOverride = prodConfig.MultiEnvironment.GetEffectiveConfigForEnvironment("Production");
+        prodOverride.BackupRetentionDays.ShouldBe(30);
     }
 
     [Theory]
-    [InlineData("development", AccountType.NonProduction, false)]
-    [InlineData("staging", AccountType.Production, true)]
-    [InlineData("production", AccountType.Production, true)]
-    public void GetConfig_EnvironmentOverrides_ConfiguresEnhancedMonitoring(string environment, AccountType expectedAccountType, bool expectedMonitoring)
+    [InlineData("Development", AccountType.NonProduction, false)]
+    [InlineData("Staging", AccountType.Production, true)]
+    [InlineData("Production", AccountType.Production, true)]
+    public void GetConfigEnvironmentOverridesConfiguresEnhancedMonitoring(string environment, AccountType expectedAccountType, bool expectedMonitoring)
     {
         // Act
         var config = TrialFinderV2Config.GetConfig(environment);
 
         // Assert
         var environmentOverride = config.MultiEnvironment.GetEffectiveConfigForEnvironment(environment);
-        environmentOverride.EnableEnhancedMonitoring.Should().Be(expectedMonitoring);
+        environmentOverride.EnableEnhancedMonitoring.ShouldBe(expectedMonitoring);
     }
 
     [Fact]
-    public void GetConfig_AllEnvironments_HaveValidApplicationName()
+    public void GetConfigAllEnvironmentsHaveValidApplicationName()
     {
         // Arrange
-        var environments = new[] { "development", "staging", "production" };
+        var environments = new[] { "Development", "Staging", "Production" };
 
         foreach (var environment in environments)
         {
@@ -223,16 +216,16 @@ public class TrialFinderV2ConfigTests
             var config = TrialFinderV2Config.GetConfig(environment);
 
             // Assert
-            config.Name.Should().Be("TrialFinderV2", $"because {environment} should have consistent application name");
-            config.Version.Should().NotBeNullOrEmpty($"because {environment} should have a version");
+            config.Name.ShouldBe("TrialFinderV2", $"because {environment} should have consistent application name");
+            config.Version.ShouldNotBeNullOrEmpty($"because {environment} should have a version");
         }
     }
 
     [Fact]
-    public void GetConfig_AllEnvironments_HaveNonNullSizing()
+    public void GetConfigAllEnvironmentsHaveNonNullSizing()
     {
         // Arrange
-        var environments = new[] { "development", "staging", "production" };
+        var environments = new[] { "Development", "Staging", "Production" };
 
         foreach (var environment in environments)
         {
@@ -240,7 +233,7 @@ public class TrialFinderV2ConfigTests
             var config = TrialFinderV2Config.GetConfig(environment);
 
             // Assert
-            config.Sizing.Should().NotBeNull($"because {environment} should have sizing configuration");
+            config.Sizing.ShouldNotBeNull($"because {environment} should have sizing configuration");
         }
     }
 }
