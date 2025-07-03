@@ -55,12 +55,7 @@ public static class TrialFinderV2Config
         var baseSettings = new Dictionary<string, object>
         {
             ["EnableDetailedLogging"] = !isProductionClass,
-            ["ExternalApiTimeout"] = isProductionClass ? 10 : 30,
-            ["TrialDataRefreshInterval"]
-                = isProductionClass
-                    ? "0 0 * * *"
-                    : "0 */6 * * *", // Production: daily, Dev: every 6 hours
-            ["MaxConcurrentTrialProcessing"] = isProductionClass ? 50 : 10
+            ["ExternalApiTimeout"] = isProductionClass ? 10 : 30
         };
 
         // Environment-specific settings
