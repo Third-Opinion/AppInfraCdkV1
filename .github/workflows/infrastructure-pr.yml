@@ -36,16 +36,18 @@ jobs:
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ matrix.environment }}..."
-        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
-        dotnet run
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        dotnet run -- --validate-only
         echo "✅ Naming conventions validated successfully"
     
     - name: Display Resource Names
       run: |
         cd AppInfraCdkV1.Deploy
         echo "📝 Resource names for ${{ matrix.app }} in ${{ matrix.environment }}:"
-        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
-        dotnet run
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        dotnet run -- --show-names-only
 
   validate-infrastructure:
     needs: [validate-naming-conventions]
@@ -91,7 +93,7 @@ jobs:
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🏗️  Synthesizing CDK template with naming validation..."
-        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
         cdk synth
         echo "✅ CDK synthesis completed with naming conventions enforced"
     
@@ -99,7 +101,7 @@ jobs:
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking for infrastructure changes..."
-        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
         cdk diff || true
         echo "✅ Infrastructure diff completed"
 
@@ -129,14 +131,16 @@ jobs:
         echo "" >> naming_output.md
         echo "### TrialFinderV2 Development Resources" >> naming_output.md
         echo "\`\`\`" >> naming_output.md
-        export ASPNETCORE_ENVIRONMENT=Development
-        dotnet run >> naming_output.md
+        export CDK_ENVIRONMENT=Development
+        export CDK_APPLICATION=TrialFinderV2
+        dotnet run -- --show-names-only >> naming_output.md
         echo "\`\`\`" >> naming_output.md
         echo "" >> naming_output.md
         echo "### TrialFinderV2 Production Resources" >> naming_output.md
         echo "\`\`\`" >> naming_output.md
-        export ASPNETCORE_ENVIRONMENT=Production
-        dotnet run >> naming_output.md
+        export CDK_ENVIRONMENT=Production
+        export CDK_APPLICATION=TrialFinderV2
+        dotnet run -- --show-names-only >> naming_output.md
         echo "\`\`\`" >> naming_output.md
         echo "" >> naming_output.md
         echo "✅ All resource names follow the established naming conventions!" >> naming_output.md
