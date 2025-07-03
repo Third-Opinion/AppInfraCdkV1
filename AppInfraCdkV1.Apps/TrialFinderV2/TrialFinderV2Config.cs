@@ -55,7 +55,6 @@ public static class TrialFinderV2Config
         var baseSettings = new Dictionary<string, object>
         {
             ["EnableDetailedLogging"] = !isProductionClass,
-            ["ExternalApiTimeout"] = isProductionClass ? 10 : 30
         };
 
         // Environment-specific settings

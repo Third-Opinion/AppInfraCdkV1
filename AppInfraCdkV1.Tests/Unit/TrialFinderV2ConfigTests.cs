@@ -71,9 +71,6 @@ public class TrialFinderV2ConfigTests
         config.Settings.ShouldContainKey("EnableDetailedLogging");
         config.Settings["EnableDetailedLogging"].ShouldBe(true); // Non-production = detailed logging
 
-        config.Settings.ShouldContainKey("ExternalApiTimeout");
-        config.Settings["ExternalApiTimeout"].ShouldBe(30); // Non-production = longer timeout
-
         config.Settings.ShouldContainKey("EnableMockExternalServices");
         config.Settings["EnableMockExternalServices"].ShouldBe(true); // Development specific
 
