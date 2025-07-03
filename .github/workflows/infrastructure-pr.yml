@@ -1,6 +1,9 @@
-name: Infrastructure PR Validation
+name: Infrastructure Validation
 
 on:
+  push:
+    branches:
+      - '**'  # Run on all branches
   pull_request:
     paths:
     - 'src/**'
@@ -103,7 +106,7 @@ jobs:
   comment-naming-examples:
     needs: [validate-naming-conventions]
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    # Runs for both push and pull_request events
     
     steps:
     - uses: actions/checkout@v4
@@ -143,15 +146,28 @@ jobs:
         cat naming_output.md >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
     
-    - name: Comment PR with Naming Examples
+    - name: Comment with Naming Examples
       uses: actions/github-script@v7
       with:
         script: |
           const namingOutput = `${{ steps.naming.outputs.NAMING_OUTPUT }}`;
           
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: namingOutput
-          });
+          if (context.eventName === 'pull_request') {
+            // Comment on the pull request
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: namingOutput
+            });
+            console.log('✅ Posted comment on PR #' + context.issue.number);
+          } else if (context.eventName === 'push') {
+            // Comment on the commit
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: namingOutput
+            });
+            console.log('✅ Posted comment on commit ' + context.sha);
+          }
