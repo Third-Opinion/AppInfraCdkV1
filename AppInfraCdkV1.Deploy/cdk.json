@@ -1,5 +1,5 @@
 {
-  "app": "dotnet run --project src/HelloCdk/HelloCdk.csproj",
+  "app": "dotnet run --project AppInfraCdkV1.Deploy.csproj",
   "watch": {
     "include": [
       "**"
@@ -7,11 +7,11 @@
     "exclude": [
       "README.md",
       "cdk*.json",
-      "src/*/obj",
-      "src/*/bin",
-      "src/*.sln",
-      "src/*/GlobalSuppressions.cs",
-      "src/*/*.csproj"
+      "*/obj",
+      "*/bin",
+      "*.sln",
+      "*/GlobalSuppressions.cs",
+      "*/*.csproj"
     ]
   },
   "context": {

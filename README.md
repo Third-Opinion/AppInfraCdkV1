@@ -134,8 +134,8 @@ cdk deploy
 Set environment variables or modify appsettings.json:
 
 ```bash
-# Deploy to QA
-export ASPNETCORE_ENVIRONMENT=QA
+# Deploy to Development TODO why set ASPNETCORE_ENVIRONMENT?
+export ASPNETCORE_ENVIRONMENT=Development
 cdk deploy
 
 # Deploy to Production
