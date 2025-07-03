@@ -175,6 +175,211 @@ public class DeploymentContextTests
         action.Should().NotThrow();
     }
 
+    [Fact]
+    public void Environment_PropertySetter_AssignsValue()
+    {
+        // Arrange
+        var context = new DeploymentContext();
+        var environment = new EnvironmentConfig { Name = "TestEnv", Region = "us-west-1" };
+
+        // Act
+        context.Environment = environment;
+
+        // Assert
+        context.Environment.Should().BeSameAs(environment);
+    }
+
+    [Fact]
+    public void Application_PropertySetter_AssignsValue()
+    {
+        // Arrange
+        var context = new DeploymentContext();
+        var application = new ApplicationConfig { Name = "TestApp", Version = "2.0.0" };
+
+        // Act
+        context.Application = application;
+
+        // Assert
+        context.Application.Should().BeSameAs(application);
+    }
+
+    [Fact]
+    public void DeploymentId_PropertySetter_AssignsValue()
+    {
+        // Arrange
+        var context = new DeploymentContext();
+        var deploymentId = "test1234";
+
+        // Act
+        context.DeploymentId = deploymentId;
+
+        // Assert
+        context.DeploymentId.Should().Be(deploymentId);
+    }
+
+    [Fact]
+    public void DeployedBy_PropertySetter_AssignsValue()
+    {
+        // Arrange
+        var context = new DeploymentContext();
+        var deployedBy = "GitHub Actions";
+
+        // Act
+        context.DeployedBy = deployedBy;
+
+        // Assert
+        context.DeployedBy.Should().Be(deployedBy);
+    }
+
+    [Fact]
+    public void DeployedAt_PropertySetter_AssignsValue()
+    {
+        // Arrange
+        var context = new DeploymentContext();
+        var deployedAt = new DateTime(2023, 5, 15, 10, 30, 0, DateTimeKind.Utc);
+
+        // Act
+        context.DeployedAt = deployedAt;
+
+        // Assert
+        context.DeployedAt.Should().Be(deployedAt);
+    }
+
+    [Fact]
+    public void GetCommonTags_WithEmptyEnvironmentTags_ReturnsSystemTagsOnly()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.Environment.Tags.Clear();
+
+        // Act
+        var tags = context.GetCommonTags();
+
+        // Assert
+        tags.Should().HaveCount(6);
+        tags.Should().ContainKey("Environment");
+        tags.Should().ContainKey("Application");
+        tags.Should().ContainKey("Version");
+        tags.Should().ContainKey("DeploymentId");
+        tags.Should().ContainKey("DeployedBy");
+        tags.Should().ContainKey("DeployedAt");
+    }
+
+    [Fact]
+    public void GetCommonTags_WithTagKeyCollision_SystemTagsOverrideEnvironmentTags()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.Environment.Tags["Environment"] = "OverrideValue";
+        context.Environment.Tags["Application"] = "OverrideApp";
+
+        // Act
+        var tags = context.GetCommonTags();
+
+        // Assert
+        tags["Environment"].Should().Be("Development");
+        tags["Application"].Should().Be("TrialFinderV2");
+    }
+
+    [Fact]
+    public void GetCommonTags_WithNullEnvironmentTags_ThrowsException()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.Environment.Tags = null!;
+
+        // Act & Assert
+        var action = () => context.GetCommonTags();
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void GetCommonTags_WithCustomDeployedAtFormat_UsesCorrectDateFormat()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.DeployedAt = new DateTime(2023, 12, 25, 14, 30, 45, DateTimeKind.Utc);
+
+        // Act
+        var tags = context.GetCommonTags();
+
+        // Assert
+        tags["DeployedAt"].Should().Be("2023-12-25");
+    }
+
+    [Fact]
+    public void GetCommonTags_WithEmptyStrings_HandlesEmptyValues()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.DeploymentId = "";
+        context.DeployedBy = "";
+
+        // Act
+        var tags = context.GetCommonTags();
+
+        // Assert
+        tags["DeploymentId"].Should().Be("");
+        tags["DeployedBy"].Should().Be("");
+    }
+
+    [Fact]
+    public void ValidateNamingContext_WithNullEnvironmentName_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.Environment.Name = null!;
+
+        // Act & Assert
+        var action = () => context.ValidateNamingContext();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Naming convention validation failed:*")
+            .WithInnerException<ArgumentException>();
+    }
+
+    [Fact]
+    public void ValidateNamingContext_WithNullApplicationName_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.Application.Name = null!;
+
+        // Act & Assert
+        var action = () => context.ValidateNamingContext();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Naming convention validation failed:*")
+            .WithInnerException<ArgumentException>();
+    }
+
+    [Fact]
+    public void ValidateNamingContext_WithNullRegion_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.Environment.Region = null!;
+
+        // Act & Assert
+        var action = () => context.ValidateNamingContext();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Naming convention validation failed:*")
+            .WithInnerException<ArgumentException>();
+    }
+
+    [Fact]
+    public void Namer_ConcurrentAccess_ReturnsSameInstance()
+    {
+        // Arrange
+        var context = CreateTestContext();
+        var task1 = Task.Run(() => context.Namer);
+        var task2 = Task.Run(() => context.Namer);
+
+        // Act
+        Task.WaitAll(task1, task2);
+
+        // Assert
+        task1.Result.Should().BeSameAs(task2.Result);
+    }
+
     private static DeploymentContext CreateTestContext(
         string environment = "Development",
         string application = "TrialFinderV2", 
