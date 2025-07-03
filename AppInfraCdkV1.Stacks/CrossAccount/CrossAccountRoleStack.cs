@@ -30,8 +30,8 @@ public class CrossAccountRoleStack : Stack
 
     private void CreateDeploymentRole(DeploymentContext context)
     {
-        var githubOrg = "your-github-org"; // Replace with your actual GitHub org
-        var githubRepo = "your-repo-name"; // Replace with your actual repo name
+        var githubOrg = "your-github-org"; // TODO Replace with your actual GitHub org
+        var githubRepo = "your-repo-name"; // TODO eplace with your actual repo name
 
         var role = new Role(this, "GitHubActionsRole", new RoleProps
         {
@@ -56,10 +56,10 @@ public class CrossAccountRoleStack : Stack
             MaxSessionDuration = Duration.Hours(1)
         });
 
-        // Attach necessary policies
+        // Attach necessary policies TODO GH deployer
         role.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("PowerUserAccess"));
 
-        // Add specific CDK permissions
+        // Add specific CDK permissions TODO review and adjust as needed
         role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
             Effect = Effect.ALLOW,

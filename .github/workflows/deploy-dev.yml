@@ -1,0 +1,93 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CDK_ENVIRONMENT: Development
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [TrialFinderV2] # Add other apps here as you register them
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.DEV_AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        role-session-name: GitHubActions-Dev-${{ github.run_id }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCDKV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCDKV1.sln --no-restore
+    
+    - name: Validate Naming Conventions
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "📝 Resource names that will be created:"
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+    
+    - name: CDK Bootstrap (if needed)
+      run: |
+        cd src/Infrastructure.Deploy
+        cdk bootstrap --require-approval never
+    
+    - name: CDK Diff
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🔍 Checking what changes will be made..."
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Deploy
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🚀 Deploying ${{ matrix.app }} to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file outputs.json
+        echo "✅ Deployment completed successfully!"
+    
+    - name: Display Created Resources
+      run: |
+        cd src/Infrastructure.Deploy
+        if [ -f outputs.json ]; then
+          echo "📋 Resources created:"
+          cat outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat outputs.json
+        fi
+    
+    - name: Upload deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-outputs-${{ matrix.app }}-dev
+        path: src/Infrastructure.Deploy/outputs.json

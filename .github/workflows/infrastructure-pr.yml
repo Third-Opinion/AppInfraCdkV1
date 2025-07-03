@@ -1,0 +1,151 @@
+name: Infrastructure PR Validation
+
+on:
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'tests/**'
+    - '.github/workflows/**'
+
+jobs:
+  validate-naming-conventions:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [TrialFinderV2]
+        environment: [Development, Production]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCDKV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCDKV1.sln --no-restore
+    
+    - name: Validate Naming Conventions
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ matrix.environment }}..."
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }} --validate-only
+        echo "✅ Naming conventions validated successfully"
+    
+    - name: Display Resource Names
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "📝 Resource names for ${{ matrix.app }} in ${{ matrix.environment }}:"
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }} --show-names-only
+
+  validate-infrastructure:
+    needs: [validate-naming-conventions]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [TrialFinderV2]
+        environment: [Development]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.DEV_AWS_ROLE_ARN }}
+        aws-region: us-east-1
+        role-session-name: GitHubActions-PR-${{ github.run_id }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCDKV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCDKV1.sln --no-restore
+    
+    - name: Run tests
+      run: dotnet test AppInfraCDKV1.sln --no-build --verbosity normal
+    
+    - name: CDK Synth with Naming Validation
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🏗️  Synthesizing CDK template with naming validation..."
+        cdk synth --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }}"
+        echo "✅ CDK synthesis completed with naming conventions enforced"
+    
+    - name: CDK Diff (if not destructive)
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🔍 Checking for infrastructure changes..."
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }}" || true
+        echo "✅ Infrastructure diff completed"
+
+  comment-naming-examples:
+    needs: [validate-naming-conventions]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Build
+      run: |
+        dotnet restore AppInfraCDKV1.sln
+        dotnet build AppInfraCDKV1.sln --no-restore
+    
+    - name: Generate Naming Examples
+      id: naming
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "## 📝 Resource Naming Examples" >> naming_output.md
+        echo "" >> naming_output.md
+        echo "### TrialFinderV2 Development Resources" >> naming_output.md
+        echo "\`\`\`" >> naming_output.md
+        dotnet run -- --app=TrialFinderV2 --environment=Development --show-names-only >> naming_output.md
+        echo "\`\`\`" >> naming_output.md
+        echo "" >> naming_output.md
+        echo "### TrialFinderV2 Production Resources" >> naming_output.md
+        echo "\`\`\`" >> naming_output.md
+        dotnet run -- --app=TrialFinderV2 --environment=Production --show-names-only >> naming_output.md
+        echo "\`\`\`" >> naming_output.md
+        echo "" >> naming_output.md
+        echo "✅ All resource names follow the established naming conventions!" >> naming_output.md
+        
+        # Set output for use in comment
+        echo "NAMING_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+        cat naming_output.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Comment PR with Naming Examples
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const namingOutput = `${{ steps.naming.outputs.NAMING_OUTPUT }}`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: namingOutput
+          });

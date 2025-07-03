@@ -1,0 +1,140 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Application to deploy'
+        required: true
+        default: 'TrialFinderV2'
+        type: choice
+        options:
+        - TrialFinderV2
+        # Add other registered applications here
+      confirm:
+        description: 'Type "deploy" to confirm production deployment'
+        required: true
+        default: ''
+
+env:
+  CDK_ENVIRONMENT: Production
+  AWS_REGION: us-east-1
+
+jobs:
+  validate-input:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Validate confirmation
+      run: |
+        if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+          echo "❌ Deployment cancelled - confirmation not provided"
+          exit 1
+        fi
+        echo "✅ Production deployment confirmed"
+
+  validate-naming:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCDKV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCDKV1.sln --no-restore
+    
+    - name: Validate Naming Conventions for Production
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only
+        echo "✅ Naming conventions validated for production deployment"
+    
+    - name: Display Production Resource Names
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "📝 Production resource names that will be created:"
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+
+  deploy-prod:
+    needs: [validate-input, validate-naming]
+    if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.PROD_AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        role-session-name: GitHubActions-Prod-${{ github.run_id }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCDKV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCDKV1.sln --no-restore
+    
+    - name: Run tests
+      run: dotnet test AppInfraCDKV1.sln --no-build --verbosity normal
+    
+    - name: CDK Diff for Production
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🔍 Checking production changes for ${{ matrix.app }}..."
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Deploy to Production
+      run: |
+        cd src/Infrastructure.Deploy
+        echo "🚀 Deploying ${{ matrix.app }} to PRODUCTION environment..."
+        echo "⚠️  This is a PRODUCTION deployment!"
+        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file outputs.json
+        echo "✅ Production deployment completed successfully!"
+    
+    - name: Display Production Resources
+      run: |
+        cd src/Infrastructure.Deploy
+        if [ -f outputs.json ]; then
+          echo "📋 Production resources created/updated:"
+          cat outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat outputs.json
+        fi
+    
+    - name: Upload deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-outputs-${{ matrix.app }}-prod
+        path: src/Infrastructure.Deploy/outputs.json

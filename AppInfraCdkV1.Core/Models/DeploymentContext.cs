@@ -5,11 +5,41 @@ namespace AppInfraCdkV1.Core.Models;
 public class DeploymentContext
 {
     private ResourceNamer? _namer;
-    public EnvironmentConfig Environment { get; set; } = new();
-    public ApplicationConfig Application { get; set; } = new();
-    public string DeploymentId { get; set; } = Guid.NewGuid().ToString("N")[..8];
-    public string DeployedBy { get; set; } = "CDK";
-    public DateTime DeployedAt { get; set; } = DateTime.UtcNow;
+    private EnvironmentConfig _environment = new();
+    private ApplicationConfig _application = new();
+    private string _deploymentId = Guid.NewGuid().ToString("N")[..8];
+    private string _deployedBy = "CDK";
+    private DateTime _deployedAt = DateTime.UtcNow;
+
+    public EnvironmentConfig Environment
+    {
+        get => _environment;
+        set => _environment = value;
+    }
+
+    public ApplicationConfig Application
+    {
+        get => _application;
+        set => _application = value;
+    }
+
+    public string DeploymentId
+    {
+        get => _deploymentId;
+        set => _deploymentId = value;
+    }
+
+    public string DeployedBy
+    {
+        get => _deployedBy;
+        set => _deployedBy = value;
+    }
+
+    public DateTime DeployedAt
+    {
+        get => _deployedAt;
+        set => _deployedAt = value;
+    }
 
     /// <summary>
     ///     Gets the resource namer for this deployment context

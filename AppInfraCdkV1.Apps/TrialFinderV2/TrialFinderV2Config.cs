@@ -13,18 +13,10 @@ public static class TrialFinderV2Config
             // Non-Production Account Environments
             "development" => CreateConfig(environment, ResourceSizing.GetDevelopmentSizing(),
                 false),
-            "qa" => CreateConfig(environment, ResourceSizing.GetDevelopmentSizing(), false),
-            "test" => CreateConfig(environment, ResourceSizing.GetDevelopmentSizing(), false),
-            "integration" => CreateConfig(environment, ResourceSizing.GetDevelopmentSizing(),
-                false),
 
             // Production Account Environments
             "staging" => CreateConfig(environment, ResourceSizing.GetProductionSizing(), true),
-            "preproduction" => CreateConfig(environment, ResourceSizing.GetProductionSizing(),
-                true),
             "production" => CreateConfig(environment, GetProductionSizing(), true),
-            "uat" => CreateConfig(environment, ResourceSizing.GetProductionSizing(), true),
-
             _ => throw new ArgumentException($"Unknown environment: {environment}")
         };
     }
@@ -50,10 +42,10 @@ public static class TrialFinderV2Config
     {
         return new ResourceSizing
         {
-            InstanceType = "t3.large",
-            MinCapacity = 3,
-            MaxCapacity = 15,
-            DatabaseInstanceClass = "db.t3.medium"
+            // InstanceType = "t3.large",
+            // MinCapacity = 3,
+            // MaxCapacity = 15,
+            // DatabaseInstanceClass = "db.t3.medium"
         };
     }
 
@@ -81,27 +73,6 @@ public static class TrialFinderV2Config
                 ["EnableDebugMode"] = true,
                 ["CacheEnabled"] = false
             },
-            "qa" => new Dictionary<string, object>
-            {
-                ["EnableMockExternalServices"] = true,
-                ["UseTestDataSets"] = true,
-                ["EnableAutomatedTesting"] = true,
-                ["CacheEnabled"] = false
-            },
-            "test" => new Dictionary<string, object>
-            {
-                ["EnableMockExternalServices"] = false,
-                ["UseProductionLikeData"] = true,
-                ["EnablePerformanceTesting"] = true,
-                ["CacheEnabled"] = true
-            },
-            "integration" => new Dictionary<string, object>
-            {
-                ["EnableMockExternalServices"] = false,
-                ["TestExternalIntegrations"] = true,
-                ["EnableEndToEndTesting"] = true,
-                ["CacheEnabled"] = true
-            },
             "staging" => new Dictionary<string, object>
             {
                 ["EnableMockExternalServices"] = false,
@@ -109,14 +80,6 @@ public static class TrialFinderV2Config
                 ["EnableStagingFeatures"] = true,
                 ["CacheEnabled"] = true,
                 ["EnableBlueGreenDeployment"] = true
-            },
-            "preproduction" => new Dictionary<string, object>
-            {
-                ["EnableMockExternalServices"] = false,
-                ["UseProductionConfiguration"] = true,
-                ["EnablePreProdValidation"] = true,
-                ["CacheEnabled"] = true,
-                ["EnableCanaryDeployment"] = true
             },
             "production" => new Dictionary<string, object>
             {
@@ -126,13 +89,6 @@ public static class TrialFinderV2Config
                 ["CacheEnabled"] = true,
                 ["EnableDisasterRecovery"] = true,
                 ["EnableAdvancedMonitoring"] = true
-            },
-            "uat" => new Dictionary<string, object>
-            {
-                ["EnableMockExternalServices"] = false,
-                ["UseProductionConfiguration"] = true,
-                ["EnableUserAcceptanceTesting"] = true,
-                ["CacheEnabled"] = true
             },
             _ => new Dictionary<string, object>()
         };
@@ -184,13 +140,8 @@ public static class TrialFinderV2Config
         return environment.ToLower() switch
         {
             "development" => 1,
-            "qa" => 3,
-            "test" => 3,
-            "integration" => 5,
             "staging" => 7,
-            "preproduction" => 14,
             "production" => 30,
-            "uat" => 7,
             _ => 7
         };
     }
@@ -206,27 +157,6 @@ public static class TrialFinderV2Config
                 ["EnableDebugPanel"] = true,
                 ["EnableTrialSimulation"] = true
             },
-            "qa" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = true,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = true,
-                ["EnableAutomatedTestingFeatures"] = true
-            },
-            "test" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = false,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = false,
-                ["EnablePerformanceTestingFeatures"] = true
-            },
-            "integration" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = false,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = false,
-                ["EnableIntegrationTestingFeatures"] = true
-            },
             "staging" => new Dictionary<string, bool>
             {
                 ["EnableBetaFeatures"] = false,
@@ -234,26 +164,12 @@ public static class TrialFinderV2Config
                 ["EnableDebugPanel"] = false,
                 ["EnableStagingFeatures"] = true
             },
-            "preproduction" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = false,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = false,
-                ["EnablePreProdValidationFeatures"] = true
-            },
             "production" => new Dictionary<string, bool>
             {
                 ["EnableBetaFeatures"] = false,
                 ["EnableExperimentalUI"] = false,
                 ["EnableDebugPanel"] = false,
                 ["EnableProductionOnlyFeatures"] = true
-            },
-            "uat" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = false,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = false,
-                ["EnableUserAcceptanceFeatures"] = true
             },
             _ => new Dictionary<string, bool>()
         };

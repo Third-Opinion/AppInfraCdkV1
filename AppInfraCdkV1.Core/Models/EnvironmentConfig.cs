@@ -4,12 +4,48 @@ namespace AppInfraCdkV1.Core.Models;
 
 public class EnvironmentConfig
 {
-    public string Name { get; set; } = string.Empty;
-    public string AccountId { get; set; } = string.Empty;
-    public string Region { get; set; } = string.Empty;
-    public AccountType AccountType { get; set; } = AccountType.NonProduction;
-    public Dictionary<string, string> Tags { get; set; } = new();
-    public EnvironmentIsolationStrategy IsolationStrategy { get; set; } = new();
+    private string _name = string.Empty;
+    private string _accountId = string.Empty;
+    private string _region = string.Empty;
+    private AccountType _accountType = AccountType.NonProduction;
+    private Dictionary<string, string> _tags = new();
+    private EnvironmentIsolationStrategy _isolationStrategy = new();
+
+    public string Name
+    {
+        get => _name;
+        set => _name = value;
+    }
+
+    public string AccountId
+    {
+        get => _accountId;
+        set => _accountId = value;
+    }
+
+    public string Region
+    {
+        get => _region;
+        set => _region = value;
+    }
+
+    public AccountType AccountType
+    {
+        get => _accountType;
+        set => _accountType = value;
+    }
+
+    public Dictionary<string, string> Tags
+    {
+        get => _tags;
+        set => _tags = value;
+    }
+
+    public EnvironmentIsolationStrategy IsolationStrategy
+    {
+        get => _isolationStrategy;
+        set => _isolationStrategy = value;
+    }
 
     /// <summary>
     ///     Indicates if this is a production-class environment (staging, production, etc.)

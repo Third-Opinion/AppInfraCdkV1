@@ -2,14 +2,37 @@ namespace AppInfraCdkV1.Core.Models;
 
 public class SecurityConfig
 {
-    public List<string> AllowedCidrBlocks { get; set; } = new();
-    public bool EnableWaf { get; set; } = true;
-    public string CertificateArn { get; set; } = string.Empty;
+    private List<string> _allowedCidrBlocks = new();
+    private bool _enableWaf = true;
+    private string _certificateArn = string.Empty;
+    private CrossEnvironmentSecurityConfig _crossEnvironmentSecurity = new();
+
+    public List<string> AllowedCidrBlocks
+    {
+        get => _allowedCidrBlocks;
+        set => _allowedCidrBlocks = value;
+    }
+
+    public bool EnableWaf
+    {
+        get => _enableWaf;
+        set => _enableWaf = value;
+    }
+
+    public string CertificateArn
+    {
+        get => _certificateArn;
+        set => _certificateArn = value;
+    }
 
     /// <summary>
     ///     Cross-environment security rules
     /// </summary>
-    public CrossEnvironmentSecurityConfig CrossEnvironmentSecurity { get; set; } = new();
+    public CrossEnvironmentSecurityConfig CrossEnvironmentSecurity
+    {
+        get => _crossEnvironmentSecurity;
+        set => _crossEnvironmentSecurity = value;
+    }
 
     /// <summary>
     ///     Gets security configuration appropriate for the account type

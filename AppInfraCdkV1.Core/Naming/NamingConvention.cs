@@ -8,117 +8,153 @@ public static class NamingConvention
     private const string CompanyDomain = "thirdopinion.io";
 
     // Environment prefixes - Updated to support multiple environments per account
-    private static readonly Dictionary<string, string> EnvironmentPrefixes = new()
+    private static readonly Dictionary<EnvironmentType, string> EnvironmentPrefixes = new()
     {
         // Non-Production Account Environments
-        ["Development"] = "dev",
-        ["QA"] = "qa",
-        ["Test"] = "test",
-        ["Integration"] = "int",
+        [EnvironmentType.Development] = "dev",
+        [EnvironmentType.QA] = "qa",
+        [EnvironmentType.Integration] = "int",
 
         // Production Account Environments  
-        ["Staging"] = "stg",
-        ["Production"] = "prod",
-        ["PreProduction"] = "preprod",
-        ["UAT"] = "uat"
+        [EnvironmentType.Staging] = "stg",
+        [EnvironmentType.Production] = "prod",
     };
 
     // Account types for logical grouping
-    public static readonly Dictionary<string, AccountType> EnvironmentAccountTypes = new()
+    public static readonly Dictionary<EnvironmentType, AccountType> EnvironmentAccountTypes = new()
     {
-        ["Development"] = AccountType.NonProduction,
-        ["QA"] = AccountType.NonProduction,
-        ["Test"] = AccountType.NonProduction,
-        ["Integration"] = AccountType.NonProduction,
-        ["Staging"] = AccountType.Production,
-        ["Production"] = AccountType.Production,
-        ["PreProduction"] = AccountType.Production,
-        ["UAT"] = AccountType.Production
+        [EnvironmentType.Development] = AccountType.NonProduction,
+        [EnvironmentType.QA] = AccountType.NonProduction,
+        [EnvironmentType.Integration] = AccountType.NonProduction,
+        [EnvironmentType.Staging] = AccountType.Production,
+        [EnvironmentType.Production] = AccountType.Production,
     };
 
     // Application codes
-    private static readonly Dictionary<string, string> ApplicationCodes = new()
+    private static readonly Dictionary<ApplicationType, string> ApplicationCodes = new()
     {
-        ["TrialFinderV2"] = "tfv2",
-        ["PatientPortal"] = "pp",
-        ["AdminDashboard"] = "ad"
+        [ApplicationType.TrialFinderV2] = "tfv2",
     };
 
     // Region codes
-    private static readonly Dictionary<string, string> RegionCodes = new()
+    private static readonly Dictionary<AwsRegion, string> RegionCodes = new()
     {
-        ["us-east-1"] = "ue1",
-        ["us-east-2"] = "ue2",
-        ["us-west-1"] = "uw1",
-        ["us-west-2"] = "uw2",
-        ["eu-west-1"] = "ew1",
-        ["eu-central-1"] = "ec1",
-        ["ap-southeast-1"] = "as1"
+        [AwsRegion.UsEast1] = "ue1",
+        [AwsRegion.UsEast2] = "ue2",
+        [AwsRegion.UsWest1] = "uw1",
+        [AwsRegion.UsWest2] = "uw2",
+        [AwsRegion.EuWest1] = "ew1",
+        [AwsRegion.EuCentral1] = "ec1",
+        [AwsRegion.ApSoutheast1] = "as1"
     };
+
+    // Mapping from AWS region strings to enum values
+    private static readonly Dictionary<string, AwsRegion> RegionStringToEnum = new()
+    {
+        ["us-east-1"] = AwsRegion.UsEast1,
+        ["us-east-2"] = AwsRegion.UsEast2,
+        ["us-west-1"] = AwsRegion.UsWest1,
+        ["us-west-2"] = AwsRegion.UsWest2,
+        ["eu-west-1"] = AwsRegion.EuWest1,
+        ["eu-central-1"] = AwsRegion.EuCentral1,
+        ["ap-southeast-1"] = AwsRegion.ApSoutheast1
+    };
+
+    public static string GetEnvironmentPrefix(EnvironmentType environment)
+    {
+        if (EnvironmentPrefixes.TryGetValue(environment, out string? prefix))
+            return prefix;
+        throw new ArgumentException(
+            $"Unknown environment: {environment}. Supported environments: {string.Join(", ", EnvironmentPrefixes.Keys)}");
+    }
 
     public static string GetEnvironmentPrefix(string environmentName)
     {
-        if (EnvironmentPrefixes.TryGetValue(environmentName, out string? prefix))
-            return prefix;
+        if (Enum.TryParse<EnvironmentType>(environmentName, out var environment))
+            return GetEnvironmentPrefix(environment);
         throw new ArgumentException(
-            $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", EnvironmentPrefixes.Keys)}");
+            $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", Enum.GetNames<EnvironmentType>())}");
+    }
+
+    public static AccountType GetAccountType(EnvironmentType environment)
+    {
+        if (EnvironmentAccountTypes.TryGetValue(environment, out AccountType accountType))
+            return accountType;
+        throw new ArgumentException(
+            $"Unknown environment: {environment}. Supported environments: {string.Join(", ", EnvironmentAccountTypes.Keys)}");
     }
 
     public static AccountType GetAccountType(string environmentName)
     {
-        if (EnvironmentAccountTypes.TryGetValue(environmentName, out AccountType accountType))
-            return accountType;
+        if (Enum.TryParse<EnvironmentType>(environmentName, out var environment))
+            return GetAccountType(environment);
         throw new ArgumentException(
-            $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", EnvironmentAccountTypes.Keys)}");
+            $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", Enum.GetNames<EnvironmentType>())}");
+    }
+
+    public static string GetApplicationCode(ApplicationType application)
+    {
+        if (ApplicationCodes.TryGetValue(application, out string? code))
+            return code;
+        throw new ArgumentException(
+            $"Unknown application: {application}. Supported applications: {string.Join(", ", ApplicationCodes.Keys)}");
     }
 
     public static string GetApplicationCode(string applicationName)
     {
-        if (ApplicationCodes.TryGetValue(applicationName, out string? code))
+        if (Enum.TryParse<ApplicationType>(applicationName, out var application))
+            return GetApplicationCode(application);
+        throw new ArgumentException(
+            $"Unknown application: {applicationName}. Supported applications: {string.Join(", ", Enum.GetNames<ApplicationType>())}");
+    }
+
+    public static string GetRegionCode(AwsRegion region)
+    {
+        if (RegionCodes.TryGetValue(region, out string? code))
             return code;
         throw new ArgumentException(
-            $"Unknown application: {applicationName}. Supported applications: {string.Join(", ", ApplicationCodes.Keys)}");
+            $"Unknown region: {region}. Supported regions: {string.Join(", ", RegionCodes.Keys)}");
     }
 
     public static string GetRegionCode(string regionName)
     {
-        if (RegionCodes.TryGetValue(regionName, out string? code))
-            return code;
+        if (RegionStringToEnum.TryGetValue(regionName, out var region))
+            return GetRegionCode(region);
         throw new ArgumentException(
-            $"Unknown region: {regionName}. Supported regions: {string.Join(", ", RegionCodes.Keys)}");
+            $"Unknown region: {regionName}. Supported regions: {string.Join(", ", RegionStringToEnum.Keys)}");
     }
 
     /// <summary>
     ///     Registers a new environment with its account type
     /// </summary>
-    public static void RegisterEnvironment(string environmentName,
+    public static void RegisterEnvironment(EnvironmentType environment,
         string prefix,
         AccountType accountType)
     {
-        if (EnvironmentPrefixes.ContainsKey(environmentName))
+        if (EnvironmentPrefixes.ContainsKey(environment))
             throw new InvalidOperationException(
-                $"Environment {environmentName} is already registered with prefix {EnvironmentPrefixes[environmentName]}");
+                $"Environment {environment} is already registered with prefix {EnvironmentPrefixes[environment]}");
 
         if (EnvironmentPrefixes.ContainsValue(prefix))
             throw new InvalidOperationException($"Environment prefix {prefix} is already in use");
 
-        EnvironmentPrefixes[environmentName] = prefix;
-        EnvironmentAccountTypes[environmentName] = accountType;
+        EnvironmentPrefixes[environment] = prefix;
+        EnvironmentAccountTypes[environment] = accountType;
     }
 
     /// <summary>
     ///     Registers a new application code for naming conventions
     /// </summary>
-    public static void RegisterApplication(string applicationName, string code)
+    public static void RegisterApplication(ApplicationType application, string code)
     {
-        if (ApplicationCodes.ContainsKey(applicationName))
+        if (ApplicationCodes.ContainsKey(application))
             throw new InvalidOperationException(
-                $"Application {applicationName} is already registered with code {ApplicationCodes[applicationName]}");
+                $"Application {application} is already registered with code {ApplicationCodes[application]}");
 
         if (ApplicationCodes.ContainsValue(code))
             throw new InvalidOperationException($"Application code {code} is already in use");
 
-        ApplicationCodes[applicationName] = code;
+        ApplicationCodes[application] = code;
     }
 
     /// <summary>
@@ -221,13 +257,21 @@ public static class NamingConvention
     /// <summary>
     ///     Gets environments that share the same account as the given environment
     /// </summary>
-    public static List<string> GetEnvironmentsInSameAccount(string environmentName)
+    public static List<EnvironmentType> GetEnvironmentsInSameAccount(EnvironmentType environment)
     {
-        AccountType accountType = GetAccountType(environmentName);
+        AccountType accountType = GetAccountType(environment);
         return EnvironmentAccountTypes
             .Where(kvp => kvp.Value == accountType)
             .Select(kvp => kvp.Key)
             .ToList();
+    }
+
+    public static List<string> GetEnvironmentsInSameAccount(string environmentName)
+    {
+        if (Enum.TryParse<EnvironmentType>(environmentName, out var environment))
+            return GetEnvironmentsInSameAccount(environment).Select(e => e.ToString()).ToList();
+        throw new ArgumentException(
+            $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", Enum.GetNames<EnvironmentType>())}");
     }
 
     /// <summary>

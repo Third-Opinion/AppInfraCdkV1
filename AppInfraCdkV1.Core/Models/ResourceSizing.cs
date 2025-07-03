@@ -2,10 +2,10 @@ namespace AppInfraCdkV1.Core.Models;
 
 public class ResourceSizing
 {
-    public string InstanceType { get; set; } = "t3.micro";
-    public int MinCapacity { get; set; } = 1;
-    public int MaxCapacity { get; set; } = 3;
-    public string DatabaseInstanceClass { get; set; } = "db.t3.micro";
+    // public string InstanceType { get; set; } = "t3.micro";
+    // public int MinCapacity { get; set; } = 1;
+    // public int MaxCapacity { get; set; } = 3;
+    // public string DatabaseInstanceClass { get; set; } = "db.t3.micro";
 
     /// <summary>
     ///     Gets production-appropriate sizing for production-class environments
@@ -14,10 +14,10 @@ public class ResourceSizing
     {
         return new ResourceSizing
         {
-            InstanceType = "t3.medium",
-            MinCapacity = 2,
-            MaxCapacity = 10,
-            DatabaseInstanceClass = "db.t3.small"
+            // InstanceType = "t3.medium",
+            // MinCapacity = 2,
+            // MaxCapacity = 10,
+            // DatabaseInstanceClass = "db.t3.small"
         };
     }
 
@@ -28,10 +28,10 @@ public class ResourceSizing
     {
         return new ResourceSizing
         {
-            InstanceType = "t3.small",
-            MinCapacity = 1,
-            MaxCapacity = 3,
-            DatabaseInstanceClass = "db.t3.micro"
+            // InstanceType = "t3.small",
+            // MinCapacity = 1,
+            // MaxCapacity = 3,
+            // DatabaseInstanceClass = "db.t3.micro"
         };
     }
 

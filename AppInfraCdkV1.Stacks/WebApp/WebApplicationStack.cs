@@ -15,9 +15,9 @@ namespace AppInfraCdkV1.Stacks.WebApp;
 
 public class WebApplicationStack : Stack, IApplicationStack
 {
-    protected readonly DeploymentContext _context;
+    private readonly DeploymentContext _context;
 
-    public WebApplicationStack(Construct scope,
+    protected WebApplicationStack(Construct scope,
         string id,
         IStackProps props,
         DeploymentContext context)
@@ -34,9 +34,8 @@ public class WebApplicationStack : Stack, IApplicationStack
 
     public string ApplicationName { get; }
 
-    public virtual void CreateResources(DeploymentContext context)
+    public void CreateResources(DeploymentContext context)
     {
-        // Think of this like building a complete apartment unit with proper isolation
         var vpc = CreateOrImportVpc();
         SecurityGroupBundle securityGroups = CreateSecurityGroups(vpc);
         var cluster = CreateEcsCluster(vpc);
@@ -82,7 +81,7 @@ public class WebApplicationStack : Stack, IApplicationStack
 
             return new Vpc(this, "Vpc", new VpcProps
             {
-                Cidr = _context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr,
+                IpAddresses = IpAddresses.Cidr(_context.Environment.IsolationStrategy.VpcCidr?.PrimaryCidr ?? "10.0.0.0/16"),
                 MaxAzs = 2,
                 NatGateways = _context.Environment.IsProductionClass ? 2 : 1,
                 SubnetConfiguration = new[]
@@ -171,7 +170,7 @@ public class WebApplicationStack : Stack, IApplicationStack
         if (crossEnvAccess.CanAccessEnvironments.Any())
             foreach (var targetEnv in crossEnvAccess.CanAccessEnvironments)
                 Console.WriteLine($"Configuring access to environment: {targetEnv}");
-        // In a real implementation, you would configure VPC peering, 
+        // In a real implementation, you would configure VPC peering,
         // Transit Gateway, or other connectivity mechanisms here
     }
 
@@ -218,8 +217,8 @@ public class WebApplicationStack : Stack, IApplicationStack
                 Version = PostgresEngineVersion.VER_17_3
             }),
             InstanceIdentifier = _context.Namer.RdsInstance("main"),
-            InstanceType = InstanceType.Of(InstanceClass.BURSTABLE3,
-                GetInstanceSizeFromClass(_context.Application.Sizing.DatabaseInstanceClass)),
+            // InstanceType = InstanceType.Of(InstanceClass.BURSTABLE3,
+            //     GetInstanceSizeFromClass(_context.Application.Sizing.DatabaseInstanceClass)),
             Vpc = vpc,
             SubnetGroup = subnetGroup,
             SecurityGroups = new[] { securityGroup },
@@ -326,7 +325,7 @@ public class WebApplicationStack : Stack, IApplicationStack
                     TaskRole = CreateTaskRole(),
                     ExecutionRole = CreateExecutionRole()
                 },
-                DesiredCount = sizing.MinCapacity,
+              //  DesiredCount = sizing.MinCapacity,
                 PublicLoadBalancer = true,
                 Protocol = ApplicationProtocol.HTTPS,
                 RedirectHTTP = true,
@@ -364,8 +363,8 @@ public class WebApplicationStack : Stack, IApplicationStack
         return new FargateTaskDefinition(this, "TaskDefinition", new FargateTaskDefinitionProps
         {
             Family = _context.Namer.EcsTaskDefinition("web"),
-            MemoryLimitMiB = _context.Application.Sizing.GetMemoryLimit(),
-            Cpu = _context.Application.Sizing.GetCpuLimit()
+            // MemoryLimitMiB = _context.Application.Sizing.GetMemoryLimit(),
+            // Cpu = _context.Application.Sizing.GetCpuLimit()
         });
     }
 

@@ -10,12 +10,9 @@ public class NamingConventionTests
     [Theory]
     [InlineData("Development", "dev")]
     [InlineData("QA", "qa")]
-    [InlineData("Test", "test")]
     [InlineData("Integration", "int")]
     [InlineData("Staging", "stg")]
     [InlineData("Production", "prod")]
-    [InlineData("PreProduction", "preprod")]
-    [InlineData("UAT", "uat")]
     public void GetEnvironmentPrefix_WithValidEnvironment_ReturnsCorrectPrefix(string environment,
         string expectedPrefix)
     {
@@ -37,8 +34,6 @@ public class NamingConventionTests
 
     [Theory]
     [InlineData("TrialFinderV2", "tfv2")]
-    [InlineData("PatientPortal", "pp")]
-    [InlineData("AdminDashboard", "ad")]
     public void GetApplicationCode_WithValidApplication_ReturnsCorrectCode(string application,
         string expectedCode)
     {

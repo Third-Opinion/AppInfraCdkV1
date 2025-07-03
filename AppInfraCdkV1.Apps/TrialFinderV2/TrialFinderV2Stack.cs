@@ -1,5 +1,4 @@
 using Amazon.CDK;
-using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.SNS;
 using Amazon.CDK.AWS.SQS;
@@ -23,31 +22,30 @@ public class TrialFinderV2Stack : WebApplicationStack
 
     private void CreateTrialFinderSpecificResources(DeploymentContext context)
     {
-        // Think of this like customizing the apartment for specific tenant needs
-        CreateTrialDocumentStorage();
-        CreateAsyncProcessingQueue();
-        CreateNotificationServices();
+        // CreateTrialDocumentStorage(context);
+        // CreateAsyncProcessingQueue(context);
+        // CreateNotificationServices(context);
     }
 
 
 
-    private void CreateTrialDocumentStorage()
+    private void CreateTrialDocumentStorage(DeploymentContext context)
     {
         // Document storage for trial PDFs, protocols, etc.
         var documentsBucket = new Bucket(this, "DocumentsBucket", new BucketProps
         {
-            BucketName = _context.Namer.S3Bucket("documents"),
+            BucketName = context.Namer.S3Bucket("documents"),
             Versioned = true,
             RemovalPolicy = RemovalPolicy.RETAIN,
             AutoDeleteObjects = false,
-            LifecycleRules = new[]
+            LifecycleRules = new ILifecycleRule[]
             {
                 new LifecycleRule
                 {
                     Id = "ArchiveOldVersions",
                     Enabled = true,
                     NoncurrentVersionExpiration
-                        = Duration.Days(_context.Environment.IsProductionClass ? 365 : 90),
+                        = Duration.Days(context.Environment.IsProductionClass ? 365 : 90),
                     Transitions = new[]
                     {
                         new Transition
@@ -68,25 +66,25 @@ public class TrialFinderV2Stack : WebApplicationStack
         // Archive bucket for long-term document retention
         var archiveBucket = new Bucket(this, "ArchiveBucket", new BucketProps
         {
-            BucketName = _context.Namer.S3Bucket("archive"),
+            BucketName = context.Namer.S3Bucket("archive"),
             RemovalPolicy = RemovalPolicy.RETAIN,
             AutoDeleteObjects = false
         });
     }
 
-    private void CreateAsyncProcessingQueue()
+    private void CreateAsyncProcessingQueue(DeploymentContext context)
     {
         // Dead letter queue for failed processing
         var deadLetterQueue = new Queue(this, "ProcessingDeadLetterQueue", new QueueProps
         {
-            QueueName = _context.Namer.SqsQueue("processing-dlq"),
+            QueueName = context.Namer.SqsQueue("processing-dlq"),
             RetentionPeriod = Duration.Days(14)
         });
 
         // Main processing queue for trial data imports
         var processingQueue = new Queue(this, "TrialProcessingQueue", new QueueProps
         {
-            QueueName = _context.Namer.SqsQueue("processing"),
+            QueueName = context.Namer.SqsQueue("processing"),
             VisibilityTimeout = Duration.Minutes(15),
             DeadLetterQueue = new DeadLetterQueue
             {
@@ -98,7 +96,7 @@ public class TrialFinderV2Stack : WebApplicationStack
         // High priority queue for urgent updates
         var urgentQueue = new Queue(this, "UrgentProcessingQueue", new QueueProps
         {
-            QueueName = _context.Namer.SqsQueue("urgent"),
+            QueueName = context.Namer.SqsQueue("urgent"),
             VisibilityTimeout = Duration.Minutes(5),
             DeadLetterQueue = new DeadLetterQueue
             {
@@ -108,26 +106,26 @@ public class TrialFinderV2Stack : WebApplicationStack
         });
     }
 
-    private void CreateNotificationServices()
+    private void CreateNotificationServices(DeploymentContext context)
     {
         // SNS topic for trial status updates
         var trialUpdatesTopic = new Topic(this, "TrialUpdatesTopic", new TopicProps
         {
-            TopicName = _context.Namer.SnsTopics("trial-updates"),
+            TopicName = context.Namer.SnsTopics("trial-updates"),
             DisplayName = "Clinical Trial Updates"
         });
 
         // SNS topic for system alerts
         var alertsTopic = new Topic(this, "SystemAlertsTopic", new TopicProps
         {
-            TopicName = _context.Namer.SnsTopics("system-alerts"),
+            TopicName = context.Namer.SnsTopics("system-alerts"),
             DisplayName = "System Alerts and Monitoring"
         });
 
         // SNS topic for user notifications
         var userNotificationsTopic = new Topic(this, "UserNotificationsTopic", new TopicProps
         {
-            TopicName = _context.Namer.SnsTopics("user-notifications"),
+            TopicName = context.Namer.SnsTopics("user-notifications"),
             DisplayName = "User Notifications"
         });
     }

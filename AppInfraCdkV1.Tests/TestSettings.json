@@ -1,0 +1,23 @@
+{
+  "TestConfiguration": {
+    "DefaultTimeout": "00:05:00",
+    "EnablePerformanceTests": true,
+    "EnableIntegrationTests": true,
+    "CoverageThreshold": 80,
+    "ParallelizeTests": true
+  },
+  "MockAWSServices": {
+    "UseLocalStack": false,
+    "MockS3": true,
+    "MockRDS": true,
+    "MockECS": true
+  },
+  "TestData": {
+    "DefaultAccountIds": {
+      "Development": "615299752206",
+      "Production": "222222222222"
+    },
+    "TestRegions": ["us-east-1", "us-west-2", "eu-west-1"],
+    "TestApplications": ["TrialFinderV2"]
+  }
+}

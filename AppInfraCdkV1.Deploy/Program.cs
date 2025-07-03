@@ -7,13 +7,13 @@ using Environment = System.Environment;
 
 namespace AppInfraCdkV1.Deploy;
 
-public class Program
+public abstract class Program
 {
     public static void Main(string[] args)
     {
         try
         {
-            var configuration = BuildConfiguration(args);
+            IConfiguration configuration = BuildConfiguration(args);
             string environmentName = GetEnvironmentName(args);
             string appName = GetApplicationName(args);
             bool validateOnly = HasFlag(args, "--validate-only");
@@ -28,9 +28,8 @@ public class Program
 
             Console.WriteLine($"🚀 Starting CDK deployment for {appName} in {environmentName}");
 
-            // Think of this as the master contractor coordinating all building projects
-            var environmentConfig = GetEnvironmentConfig(configuration, environmentName);
-            var applicationConfig = GetApplicationConfig(configuration, appName, environmentName);
+            EnvironmentConfig environmentConfig = GetEnvironmentConfig(configuration, environmentName);
+            ApplicationConfig applicationConfig = GetApplicationConfig(configuration, appName, environmentName);
 
             var context = new DeploymentContext
             {
@@ -39,10 +38,7 @@ public class Program
                 DeployedBy = Environment.GetEnvironmentVariable("GITHUB_ACTOR") ?? "Local"
             };
 
-            // Validate naming conventions early - fail fast if misconfigured
             ValidateNamingConventions(context);
-
-            // Validate multi-environment setup
             ValidateMultiEnvironmentSetup(context);
 
             // If only validation requested, exit after validation
@@ -58,12 +54,10 @@ public class Program
             // Show account information for multi-environment context
             DisplayAccountContext(context);
 
-            // If only showing names, exit after displaying
             if (showNamesOnly) return;
 
             var app = new App();
 
-            // Create the stack - like constructing the actual apartment
             string stackName = GenerateStackName(context);
 
             var stack = appName.ToLower() switch
@@ -89,7 +83,6 @@ public class Program
             if (ex.InnerException != null)
                 Console.WriteLine($"   Inner exception: {ex.InnerException.Message}");
 
-            // Show help for common issues
             if (ex.Message.Contains("Unknown environment") ||
                 ex.Message.Contains("Unknown application") ||
                 ex.Message.Contains("Unknown region")) ShowNamingHelp();
@@ -257,14 +250,14 @@ public class Program
         if (context.Application.Name == "TrialFinderV2")
         {
             Console.WriteLine("\n🔍 TrialFinderV2-Specific Resources:");
-            Console.WriteLine($"   Documents Bucket: {context.Namer.S3Bucket("documents")}");
-            Console.WriteLine($"   Archive Bucket: {context.Namer.S3Bucket("archive")}");
-            Console.WriteLine($"   Processing Queue: {context.Namer.SqsQueue("processing")}");
-            Console.WriteLine($"   Urgent Queue: {context.Namer.SqsQueue("urgent")}");
-            Console.WriteLine(
-                $"   Trial Updates Topic: {context.Namer.SnsTopics("trial-updates")}");
-            Console.WriteLine(
-                $"   System Alerts Topic: {context.Namer.SnsTopics("system-alerts")}");
+            // Console.WriteLine($"   Documents Bucket: {context.Namer.S3Bucket("documents")}");
+            // Console.WriteLine($"   Archive Bucket: {context.Namer.S3Bucket("archive")}");
+            // Console.WriteLine($"   Processing Queue: {context.Namer.SqsQueue("processing")}");
+            // Console.WriteLine($"   Urgent Queue: {context.Namer.SqsQueue("urgent")}");
+            // Console.WriteLine(
+            //     $"   Trial Updates Topic: {context.Namer.SnsTopics("trial-updates")}");
+            // Console.WriteLine(
+            //     $"   System Alerts Topic: {context.Namer.SnsTopics("system-alerts")}");
         }
 
         Console.WriteLine();
