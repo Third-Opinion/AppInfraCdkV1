@@ -348,12 +348,6 @@ public class WebApplicationStack : Stack, IApplicationStack
         foreach (var setting in _context.Application.Settings)
             envVars[$"APP_{setting.Key.ToUpper()}"] = setting.Value.ToString() ?? "";
 
-        // Add feature flags
-        var effectiveConfig
-            = _context.Application.MultiEnvironment.GetEffectiveConfigForEnvironment(
-                _context.Environment.Name);
-        foreach (var flag in effectiveConfig.FeatureFlags)
-            envVars[$"FEATURE_{flag.Key.ToUpper()}"] = flag.Value.ToString();
 
         return envVars;
     }
