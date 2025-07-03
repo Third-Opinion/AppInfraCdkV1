@@ -96,6 +96,177 @@ public class NamingConventionTests
         result.Should().Be("thirdopinion.io-qa-tfv2-app-ue1");
     }
 
+    #region Enum-based Method Tests
+
+    [Theory]
+    [InlineData(EnvironmentType.Development, "dev")]
+    [InlineData(EnvironmentType.QA, "qa")]
+    [InlineData(EnvironmentType.Production, "prod")]
+    public void GetEnvironmentPrefix_WithValidEnum_ReturnsCorrectPrefix(EnvironmentType environment, string expectedPrefix)
+    {
+        // Act
+        var result = NamingConvention.GetEnvironmentPrefix(environment);
+
+        // Assert
+        result.Should().Be(expectedPrefix);
+    }
+
+    [Theory]
+    [InlineData(ApplicationType.TrialFinderV2, "tfv2")]
+    public void GetApplicationCode_WithValidEnum_ReturnsCorrectCode(ApplicationType application, string expectedCode)
+    {
+        // Act
+        var result = NamingConvention.GetApplicationCode(application);
+
+        // Assert
+        result.Should().Be(expectedCode);
+    }
+
+    [Theory]
+    [InlineData(AwsRegion.UsEast1, "ue1")]
+    [InlineData(AwsRegion.UsWest2, "uw2")]
+    [InlineData(AwsRegion.EuWest1, "ew1")]
+    public void GetRegionCode_WithValidEnum_ReturnsCorrectCode(AwsRegion region, string expectedCode)
+    {
+        // Act
+        var result = NamingConvention.GetRegionCode(region);
+
+        // Assert
+        result.Should().Be(expectedCode);
+    }
+
+    [Theory]
+    [InlineData(EnvironmentType.Development, AccountType.NonProduction)]
+    [InlineData(EnvironmentType.Production, AccountType.Production)]
+    public void GetAccountType_WithValidEnum_ReturnsCorrectType(EnvironmentType environment, AccountType expectedType)
+    {
+        // Act
+        var result = NamingConvention.GetAccountType(environment);
+
+        // Assert
+        result.Should().Be(expectedType);
+    }
+
+    #endregion
+
+    #region Registration Tests
+
+    [Fact]
+    public void RegisterEnvironment_WithDuplicateEnvironment_ThrowsInvalidOperationException()
+    {
+        // Arrange - Use existing environment
+        var existingEnv = EnvironmentType.Development;
+        
+        // Act & Assert - Should throw because Development already exists
+        var action = () => NamingConvention.RegisterEnvironment(existingEnv, "test", AccountType.NonProduction);
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*already registered*");
+    }
+
+    [Fact]
+    public void RegisterApplication_WithDuplicateApplication_ThrowsInvalidOperationException()
+    {
+        // Arrange - Use existing application
+        var existingApp = ApplicationType.TrialFinderV2;
+        
+        // Act & Assert - Should throw because TrialFinderV2 already exists
+        var action = () => NamingConvention.RegisterApplication(existingApp, "duplicate");
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*already registered*");
+    }
+
+    #endregion
+
+    #region Environment Grouping Tests
+
+    [Fact]
+    public void GetEnvironmentsInSameAccount_WithDevelopment_ReturnsNonProductionEnvironments()
+    {
+        // Act
+        var result = NamingConvention.GetEnvironmentsInSameAccount("Development");
+
+        // Assert
+        result.Should().Contain(new[] { "Development", "QA", "Integration" });
+        result.Should().NotContain(new[] { "Staging", "Production" });
+    }
+
+    [Fact]
+    public void GetEnvironmentsInSameAccount_WithProduction_ReturnsProductionEnvironments()
+    {
+        // Act
+        var result = NamingConvention.GetEnvironmentsInSameAccount("Production");
+
+        // Assert
+        result.Should().Contain(new[] { "Staging", "Production" });
+        result.Should().NotContain(new[] { "Development", "QA", "Integration" });
+    }
+
+    #endregion
+
+    #region Security Group Naming Tests
+
+    [Fact]
+    public void GenerateSecurityGroupName_WithValidContext_ReturnsCorrectFormat()
+    {
+        // Arrange
+        var context = CreateTestContext("Development", "TrialFinderV2", "us-east-1");
+
+        // Act
+        var result = NamingConvention.GenerateSecurityGroupName(context, "alb", "web");
+
+        // Assert
+        result.Should().Be("dev-tfv2-sg-alb-web-ue1");
+    }
+
+    #endregion
+
+    #region Log Group Naming Tests
+
+    [Fact]
+    public void GenerateLogGroupName_WithValidContext_ReturnsCorrectFormat()
+    {
+        // Arrange
+        var context = CreateTestContext("Production", "TrialFinderV2", "us-west-2");
+
+        // Act
+        var result = NamingConvention.GenerateLogGroupName(context, "ecs", "web-app");
+
+        // Assert
+        result.Should().Be("/aws/ecs/prod-tfv2-web-app");
+    }
+
+    #endregion
+
+    #region VPC Naming Tests
+
+    [Fact]
+    public void GenerateVpcName_WithDefaultPurpose_ReturnsCorrectFormat()
+    {
+        // Arrange
+        var context = CreateTestContext("QA", "TrialFinderV2", "eu-west-1");
+
+        // Act
+        var result = NamingConvention.GenerateVpcName(context);
+
+        // Assert
+        result.Should().Be("qa-tfv2-vpc-ew1-main");
+    }
+
+    [Fact]
+    public void GenerateVpcName_WithCustomPurpose_ReturnsCorrectFormat()
+    {
+        // Arrange
+        var context = CreateTestContext("Integration", "TrialFinderV2", "us-east-2");
+
+        // Act
+        var result = NamingConvention.GenerateVpcName(context, "isolated");
+
+        // Assert
+        result.Should().Be("int-tfv2-vpc-ue2-isolated");
+    }
+
+    #endregion
+
     private static DeploymentContext CreateTestContext(string environment,
         string application,
         string region)
