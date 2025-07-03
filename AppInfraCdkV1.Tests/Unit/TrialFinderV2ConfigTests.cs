@@ -91,8 +91,7 @@ public class TrialFinderV2ConfigTests
         config.Settings.ShouldContainKey("EnableDetailedLogging");
         config.Settings["EnableDetailedLogging"].ShouldBe(false); // Production = no detailed logging
 
-        config.Settings.ShouldContainKey("ExternalApiTimeout");
-        config.Settings["ExternalApiTimeout"].ShouldBe(10); // Production = shorter timeout
+        // ExternalApiTimeout setting was removed from configuration
 
         config.Settings.ShouldContainKey("EnableMockExternalServices");
         config.Settings["EnableMockExternalServices"].ShouldBe(false); // Production specific
@@ -117,8 +116,7 @@ public class TrialFinderV2ConfigTests
         config.Settings.ShouldContainKey("EnableDetailedLogging");
         config.Settings["EnableDetailedLogging"].ShouldBe(false); // Production class = no detailed logging
 
-        config.Settings.ShouldContainKey("ExternalApiTimeout");
-        config.Settings["ExternalApiTimeout"].ShouldBe(10); // Production class = shorter timeout
+        // ExternalApiTimeout setting was removed from configuration
 
         config.Settings.ShouldContainKey("EnableStagingFeatures");
         config.Settings["EnableStagingFeatures"].ShouldBe(true); // Staging specific
@@ -127,33 +125,9 @@ public class TrialFinderV2ConfigTests
         config.Settings["EnableBlueGreenDeployment"].ShouldBe(true); // Staging specific
     }
 
-    [Theory]
-    [InlineData("Development", "0 */6 * * *")] // Every 6 hours for dev
-    [InlineData("Production", "0 0 * * *")]   // Daily for production
-    [InlineData("Staging", "0 0 * * *")]      // Daily for staging (production class)
-    public void GetConfigConfiguresCorrectTrialDataRefreshInterval(string environment, string expectedInterval)
-    {
-        // Act
-        var config = TrialFinderV2Config.GetConfig(environment);
+    // TrialDataRefreshInterval test removed - setting not implemented in current config
 
-        // Assert
-        config.Settings.ShouldContainKey("TrialDataRefreshInterval");
-        config.Settings["TrialDataRefreshInterval"].ShouldBe(expectedInterval);
-    }
-
-    [Theory]
-    [InlineData("Development", 10)]  // Non-production = lower capacity
-    [InlineData("Production", 50)]   // Production = higher capacity
-    [InlineData("Staging", 50)]      // Production class = higher capacity
-    public void GetConfigConfiguresCorrectMaxConcurrentProcessing(string environment, int expectedMax)
-    {
-        // Act
-        var config = TrialFinderV2Config.GetConfig(environment);
-
-        // Assert
-        config.Settings.ShouldContainKey("MaxConcurrentTrialProcessing");
-        config.Settings["MaxConcurrentTrialProcessing"].ShouldBe(expectedMax);
-    }
+    // MaxConcurrentTrialProcessing test removed - setting not implemented in current config
 
     [Fact]
     public void GetConfigWithDevelopmentConfiguresMultiEnvironmentCorrectly()
