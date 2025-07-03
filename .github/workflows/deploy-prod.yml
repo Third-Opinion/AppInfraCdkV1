@@ -50,21 +50,21 @@ jobs:
         dotnet-version: '8.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore AppInfraCDKV1.sln
+      run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCDKV1.sln --no-restore
+      run: dotnet build AppInfraCdkV1.sln --no-restore
     
     - name: Validate Naming Conventions for Production
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
         dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only
         echo "✅ Naming conventions validated for production deployment"
     
     - name: Display Production Resource Names
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "📝 Production resource names that will be created:"
         dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
 
@@ -101,23 +101,23 @@ jobs:
         role-session-name: GitHubActions-Prod-${{ github.run_id }}
     
     - name: Restore dependencies
-      run: dotnet restore AppInfraCDKV1.sln
+      run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCDKV1.sln --no-restore
+      run: dotnet build AppInfraCdkV1.sln --no-restore
     
     - name: Run tests
-      run: dotnet test AppInfraCDKV1.sln --no-build --verbosity normal
+      run: dotnet test AppInfraCdkV1.sln --no-build --verbosity normal
     
     - name: CDK Diff for Production
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "🔍 Checking production changes for ${{ matrix.app }}..."
         cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
     
     - name: CDK Deploy to Production
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} to PRODUCTION environment..."
         echo "⚠️  This is a PRODUCTION deployment!"
         cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
@@ -127,7 +127,7 @@ jobs:
     
     - name: Display Production Resources
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         if [ -f outputs.json ]; then
           echo "📋 Production resources created/updated:"
           cat outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat outputs.json
@@ -137,4 +137,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: deployment-outputs-${{ matrix.app }}-prod
-        path: src/Infrastructure.Deploy/outputs.json
+        path: AppInfraCdkV1.Deploy/outputs.json

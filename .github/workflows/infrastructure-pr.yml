@@ -24,23 +24,25 @@ jobs:
         dotnet-version: '8.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore AppInfraCDKV1.sln
+      run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCDKV1.sln --no-restore
+      run: dotnet build AppInfraCdkV1.sln --no-restore
     
     - name: Validate Naming Conventions
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ matrix.environment }}..."
-        dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }} --validate-only
+        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
+        dotnet run
         echo "✅ Naming conventions validated successfully"
     
     - name: Display Resource Names
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "📝 Resource names for ${{ matrix.app }} in ${{ matrix.environment }}:"
-        dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }} --show-names-only
+        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
+        dotnet run
 
   validate-infrastructure:
     needs: [validate-naming-conventions]
@@ -74,26 +76,28 @@ jobs:
         role-session-name: GitHubActions-PR-${{ github.run_id }}
     
     - name: Restore dependencies
-      run: dotnet restore AppInfraCDKV1.sln
+      run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCDKV1.sln --no-restore
+      run: dotnet build AppInfraCdkV1.sln --no-restore
     
     - name: Run tests
-      run: dotnet test AppInfraCDKV1.sln --no-build --verbosity normal
+      run: dotnet test AppInfraCdkV1.sln --no-build --verbosity normal
     
     - name: CDK Synth with Naming Validation
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "🏗️  Synthesizing CDK template with naming validation..."
-        cdk synth --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }}"
+        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
+        cdk synth
         echo "✅ CDK synthesis completed with naming conventions enforced"
     
     - name: CDK Diff (if not destructive)
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "🔍 Checking for infrastructure changes..."
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ matrix.environment }}" || true
+        export ASPNETCORE_ENVIRONMENT=${{ matrix.environment }}
+        cdk diff || true
         echo "✅ Infrastructure diff completed"
 
   comment-naming-examples:
@@ -111,23 +115,25 @@ jobs:
     
     - name: Build
       run: |
-        dotnet restore AppInfraCDKV1.sln
-        dotnet build AppInfraCDKV1.sln --no-restore
+        dotnet restore AppInfraCdkV1.sln
+        dotnet build AppInfraCdkV1.sln --no-restore
     
     - name: Generate Naming Examples
       id: naming
       run: |
-        cd src/Infrastructure.Deploy
+        cd AppInfraCdkV1.Deploy
         echo "## 📝 Resource Naming Examples" >> naming_output.md
         echo "" >> naming_output.md
         echo "### TrialFinderV2 Development Resources" >> naming_output.md
         echo "\`\`\`" >> naming_output.md
-        dotnet run -- --app=TrialFinderV2 --environment=Development --show-names-only >> naming_output.md
+        export ASPNETCORE_ENVIRONMENT=Development
+        dotnet run >> naming_output.md
         echo "\`\`\`" >> naming_output.md
         echo "" >> naming_output.md
         echo "### TrialFinderV2 Production Resources" >> naming_output.md
         echo "\`\`\`" >> naming_output.md
-        dotnet run -- --app=TrialFinderV2 --environment=Production --show-names-only >> naming_output.md
+        export ASPNETCORE_ENVIRONMENT=Production
+        dotnet run >> naming_output.md
         echo "\`\`\`" >> naming_output.md
         echo "" >> naming_output.md
         echo "✅ All resource names follow the established naming conventions!" >> naming_output.md
