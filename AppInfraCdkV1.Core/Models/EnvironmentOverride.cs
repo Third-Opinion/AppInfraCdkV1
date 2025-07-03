@@ -4,7 +4,6 @@ public class EnvironmentOverride
 {
     private ResourceSizing? _sizingOverride;
     private SecurityConfig? _securityOverride;
-    private Dictionary<string, bool> _featureFlags = new();
     private Dictionary<string, object> _settings = new();
     private bool _enableEnhancedMonitoring = false;
     private int _backupRetentionDays = 7;
@@ -25,15 +24,6 @@ public class EnvironmentOverride
     {
         get => _securityOverride;
         set => _securityOverride = value;
-    }
-
-    /// <summary>
-    ///     Feature flags for this environment
-    /// </summary>
-    public Dictionary<string, bool> FeatureFlags
-    {
-        get => _featureFlags;
-        set => _featureFlags = value;
     }
 
     /// <summary>

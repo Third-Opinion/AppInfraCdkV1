@@ -126,8 +126,7 @@ public static class TrialFinderV2Config
         var environmentOverride = new EnvironmentOverride
         {
             EnableEnhancedMonitoring = accountType == AccountType.Production,
-            BackupRetentionDays = GetBackupRetentionForEnvironment(environment),
-            FeatureFlags = GetFeatureFlagsForEnvironment(environment)
+            BackupRetentionDays = GetBackupRetentionForEnvironment(environment)
         };
 
         config.EnvironmentOverrides[environment] = environmentOverride;
@@ -146,34 +145,6 @@ public static class TrialFinderV2Config
         };
     }
 
-    private static Dictionary<string, bool> GetFeatureFlagsForEnvironment(string environment)
-    {
-        return environment.ToLower() switch
-        {
-            "development" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = true,
-                ["EnableExperimentalUI"] = true,
-                ["EnableDebugPanel"] = true,
-                ["EnableTrialSimulation"] = true
-            },
-            "staging" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = false,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = false,
-                ["EnableStagingFeatures"] = true
-            },
-            "production" => new Dictionary<string, bool>
-            {
-                ["EnableBetaFeatures"] = false,
-                ["EnableExperimentalUI"] = false,
-                ["EnableDebugPanel"] = false,
-                ["EnableProductionOnlyFeatures"] = true
-            },
-            _ => new Dictionary<string, bool>()
-        };
-    }
 
     private static string GetVersion()
     {
