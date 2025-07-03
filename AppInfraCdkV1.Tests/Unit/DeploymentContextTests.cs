@@ -365,7 +365,7 @@ public class DeploymentContextTests
     }
 
     [Fact]
-    public void NamerConcurrentAccessReturnsSameInstance()
+    public async Task NamerConcurrentAccessReturnsSameInstance()
     {
         // Arrange
         var context = CreateTestContext();
@@ -373,10 +373,10 @@ public class DeploymentContextTests
         var task2 = Task.Run(() => context.Namer);
 
         // Act
-        Task.WaitAll(task1, task2);
+        var results = await Task.WhenAll(task1, task2);
 
         // Assert
-        task1.Result.ShouldBeSameAs(task2.Result);
+        results[0].ShouldBeSameAs(results[1]);
     }
 
     private static DeploymentContext CreateTestContext(

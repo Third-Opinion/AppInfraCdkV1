@@ -1,5 +1,6 @@
 using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Core.Models;
+using AppInfraCdkV1.Core.Naming;
 using Shouldly;
 using Xunit;
 
@@ -202,6 +203,11 @@ public class TrialFinderV2ConfigTests
         // Assert
         var environmentOverride = config.MultiEnvironment.GetEffectiveConfigForEnvironment(environment);
         environmentOverride.EnableEnhancedMonitoring.ShouldBe(expectedMonitoring);
+        
+        // Verify that the account type expectation is consistent with the enhanced monitoring setting
+        // (This validates the test data consistency without accessing internal implementation details)
+        var accountType = NamingConvention.GetAccountType(environment);
+        accountType.ShouldBe(expectedAccountType);
     }
 
     [Fact]
