@@ -50,17 +50,7 @@ Resources:
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/develop'
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/development'
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/feature/*'
-                  - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master'
-                  - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main'
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:pull_request'
-                  - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/*'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/develop'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/development'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/feature/*'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/master'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/main'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:pull_request'
-                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/*'
       Policies:
         - PolicyName: CDKDeployPolicy
           PolicyDocument:
