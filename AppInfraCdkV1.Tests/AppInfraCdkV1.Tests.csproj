@@ -26,6 +26,7 @@
         <ProjectReference Include="..\AppInfraCdkV1.Core\AppInfraCdkV1.Core.csproj" />
         <ProjectReference Include="..\AppInfraCdkV1.Stacks\AppInfraCdkV1.Stacks.csproj" />
         <ProjectReference Include="..\AppInfraCdkV1.Apps\AppInfraCdkV1.Apps.csproj" />
+        <ProjectReference Include="..\AppInfraCdkV1.Deploy\AppInfraCdkV1.Deploy.csproj" />
     </ItemGroup>
 
 </Project>
