@@ -21,7 +21,7 @@ AppInfraCdkV1 is a comprehensive Infrastructure as Code (IaC) solution built wit
 ## Background
 
 This project addresses common challenges in AWS infrastructure management:
-- **Multi-Environment Support**: Seamlessly deploy to Development, QA, Integration, Staging, and Production environments
+- **Multi-Environment Support**: Seamlessly deploy to Development, Integration, Staging, and Production environments
 - **Naming Consistency**: Enforces standardized resource naming conventions across all AWS resources
 - **Security by Default**: Implements security best practices with proper VPC isolation and security group management
 - **Modular Architecture**: Allows easy extension for new applications while maintaining consistency
@@ -111,11 +111,10 @@ Edit `AppInfraCdkV1.Deploy/appsettings.json` to configure your deployment:
 
 ### Supported Environments
 
-- **Development** (`dev`): Non-production, shared VPC
-- **QA** (`qa`): Non-production, shared VPC
-- **Integration** (`int`): Non-production, shared VPC
-- **Staging** (`stg`): Production account, isolated VPC
-- **Production** (`prod`): Production account, isolated VPC
+- **Development** (`dev`): Non-production
+- **Integration** (`int`): Non-production
+- **Staging** (`stg`): Production account
+- **Production** (`prod`): Production account
 
 ## Usage
 

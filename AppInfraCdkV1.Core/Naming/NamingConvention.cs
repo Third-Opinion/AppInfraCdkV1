@@ -12,7 +12,6 @@ public static class NamingConvention
     {
         // Non-Production Account Environments
         [EnvironmentType.Development] = "dev",
-        [EnvironmentType.QA] = "qa",
         [EnvironmentType.Integration] = "int",
 
         // Production Account Environments  
@@ -24,7 +23,6 @@ public static class NamingConvention
     public static readonly Dictionary<EnvironmentType, AccountType> EnvironmentAccountTypes = new()
     {
         [EnvironmentType.Development] = AccountType.NonProduction,
-        [EnvironmentType.QA] = AccountType.NonProduction,
         [EnvironmentType.Integration] = AccountType.NonProduction,
         [EnvironmentType.Staging] = AccountType.Production,
         [EnvironmentType.Production] = AccountType.Production,

@@ -357,7 +357,7 @@ public abstract class Program
     {
         Console.Error.WriteLine("\n📋 Naming Convention Help:");
         Console.Error.WriteLine("Available environments:");
-        Console.Error.WriteLine("  Non-Production Account: Development, QA, Test, Integration");
+        Console.Error.WriteLine("  Non-Production Account: Development, Integration");
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
         Console.Error.WriteLine("Available applications: TrialFinderV2");
         Console.Error.WriteLine(
