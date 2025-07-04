@@ -23,6 +23,6 @@ appsettings.json:66 configures Production environment for us-east-2
 - Exclude infrastructure code from coverage requirements
 - Include the itegration testing code in the coverage report
 
-## [] 5. Propose a solution to move to using roles vs users. Do not make any changes just propose a solution.
+## [x] 5. Propose a solution to move to using roles vs users. Do not make any changes just propose a solution.
 Recommendation: Use IAM roles for service accounts (IRSA) or AWS Identity Center for managing access
 to AWS resources instead of IAM users. This allows for better security and management of permissions.
