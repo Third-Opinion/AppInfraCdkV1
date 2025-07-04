@@ -109,6 +109,9 @@ jobs:
   comment-naming-examples:
     needs: [validate-naming-conventions]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     # Runs for both push and pull_request events
     
     steps:
