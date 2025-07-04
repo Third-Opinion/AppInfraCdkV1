@@ -54,10 +54,10 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
     
-    - name: Validate Naming Conventions
+    - name: Validate Naming
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        echo "🔍 Validating naming for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
         dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
     
     - name: Display Resource Names
