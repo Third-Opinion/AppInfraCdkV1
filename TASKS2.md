@@ -85,7 +85,7 @@ Sizing should be simple and not specific to any particular resource. So developm
    - Remove any size-related parameters from workflow files
 5. Add unit tests for sizing logic
 
-## [] 5. Update all the documentation to reflect the change to move from users to roles for GitHub Actions.
+## [x] 5. Update all the documentation to reflect the change to move from users to roles for GitHub Actions.
 
 ### Detailed Steps:
 1. Update README files:
@@ -103,7 +103,7 @@ Sizing should be simple and not specific to any particular resource. So developm
    - Add steps for setting up OIDC providers and roles
 5. Add security best practices documentation
 
-## [] 6. Update the GitHub Actions job names to be a bit shorter and more descriptive.
+## [x] 6. Update the GitHub Actions job names to be a bit shorter and more descriptive.
 For example change validate-infrastructure to validate-infra or validate-naming-conventions to validate-naming.
 
 ### Detailed Steps:
@@ -118,7 +118,7 @@ For example change validate-infrastructure to validate-infra or validate-naming-
 3. Update status badge references if any
 4. Test all workflows to ensure they still run correctly
 
-## [] 7. Create a PR to develop with all the changes.
+## [x] 7. Create a PR to develop with all the changes.
 
 ### Detailed Steps:
 1. Ensure all changes are committed to the feature branch
