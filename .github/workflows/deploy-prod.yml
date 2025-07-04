@@ -20,7 +20,7 @@ on:
 
 env:
   CDK_ENVIRONMENT: Production
-  AWS_REGION: us-east-1
+  AWS_REGION: us-east-2
 
 jobs:
   validate-input:

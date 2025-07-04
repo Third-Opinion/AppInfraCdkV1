@@ -101,7 +101,7 @@ Edit `AppInfraCdkV1.Deploy/appsettings.json` to configure your deployment:
   "Environment": {
     "Name": "Development",
     "AccountId": "123456789012",
-    "Region": "us-east-1"
+    "Region": "us-east-2"
   },
   "Application": {
     "Name": "TrialFinderV2"
