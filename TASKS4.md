@@ -5,4 +5,4 @@
 
 ## [] 1. Remove the regions  EuWest1, EuCentral1, ApSoutheast1 from the codebase
 ## [] 2. Remove QA from the Environments in the codebase
-## [] 3. Remove the regions  EuWest1, EuCentral1, ApSoutheast1 from the codebase
+## [] 3. Remove all environment sharing code from the codebase, assuming all environments are isolated
