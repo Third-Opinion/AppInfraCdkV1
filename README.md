@@ -2,17 +2,17 @@
 
 ## Status
 
-### Production (main)
-[![Deploy to Production](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-prod.yml/badge.svg?branch=main)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-prod.yml)
-[![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg?branch=main)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
+### Production (master)
+[![Deploy to Production](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-prod.yml/badge.svg?branch=master)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-prod.yml)
+[![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg?branch=master)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
 
 ### Development (develop)
 [![Deploy to Development](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-dev.yml/badge.svg?branch=develop)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-dev.yml)
 [![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg?branch=develop)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
 
-### Code Quality
+### Code Quality (all branches)
 [![Claude Code Review](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/claude-code-review.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/claude-code-review.yml)
-[![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
+[![Infrastructure Validation - Overall](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
 
 ## Overview
 
