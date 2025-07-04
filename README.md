@@ -1,5 +1,19 @@
 # AppInfraCdkV1 - AWS CDK Infrastructure as Code
 
+## Status
+
+### Production (main)
+[![Deploy to Production](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-prod.yml/badge.svg?branch=main)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-prod.yml)
+[![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg?branch=main)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
+
+### Development (develop)
+[![Deploy to Development](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-dev.yml/badge.svg?branch=develop)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/deploy-dev.yml)
+[![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg?branch=develop)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
+
+### Code Quality
+[![Claude Code Review](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/claude-code-review.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/claude-code-review.yml)
+[![Infrastructure Validation](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
+
 ## Overview
 
 AppInfraCdkV1 is a comprehensive Infrastructure as Code (IaC) solution built with AWS CDK v2 (.NET) that provides a modular, scalable approach to deploying AWS infrastructure. This framework is designed to support multiple applications and environments with a focus on security, consistency, and maintainability.
@@ -212,11 +226,24 @@ dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 
 ## CI/CD Integration
 
-The project includes GitHub Actions workflows for:
+The project includes comprehensive GitHub Actions workflows with status badges shown at the top of this README:
+
+### Deployment Workflows
+- **Deploy to Production**: Automated deployment to production environment on `main` branch
+- **Deploy to Development**: Automated deployment to development environment on `develop` branch
+
+### Validation Workflows  
+- **Infrastructure Validation**: Validates naming conventions, runs tests, and performs CDK synthesis
+- **Claude Code Review**: Automated code review and quality checks
+- **Claude Code**: Interactive code assistance and review
+
+### Workflow Features
 - Pull request validation
-- Automated testing
+- Automated testing with comprehensive unit and integration tests
 - CDK synthesis validation
-- Security scanning
+- Naming convention enforcement
+- Multi-environment deployment support
+- Security scanning and validation
 
 ## Troubleshooting
 
