@@ -171,7 +171,7 @@ jobs:
     - name: Check Coverage Threshold
       run: |
         # Extract coverage percentage from the JSON summary
-        COVERAGE=$(cat coverage/report/Summary.json | grep -o '"LineCoverage":[0-9.]*' | cut -d':' -f2)
+        COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
         echo "Current coverage: $COVERAGE%"
         
         # Check if coverage meets minimum threshold (80%)
@@ -207,7 +207,7 @@ jobs:
             const summaryPath = 'coverage/report/Summary.json';
             if (fs.existsSync(summaryPath)) {
               const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-              const coverage = summary.LineCoverage;
+              const coverage = summary.summary.linecoverage;
               const status = coverage >= 80 ? '✅' : '❌';
               const coverageComment = `## 📊 Test Coverage Report
               
