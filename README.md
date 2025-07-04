@@ -67,7 +67,7 @@ AppInfraCdkV1/
 ## Prerequisites
 
 - .NET 8.0 SDK or later
-- AWS CLI configured with appropriate credentials
+- AWS CLI v2 (authentication handled via GitHub Actions OIDC)
 - AWS CDK CLI v2 (`npm install -g aws-cdk`)
 - Docker (for ECS container deployments)
 - Node.js 18.x or later (for CDK CLI)
@@ -243,6 +243,13 @@ The project includes comprehensive GitHub Actions workflows with status badges s
 - Naming convention enforcement
 - Multi-environment deployment support
 - Security scanning and validation
+
+### Authentication
+Deployments use GitHub Actions with OpenID Connect (OIDC) for secure, keyless authentication to AWS:
+- **Development**: Uses role `dev-tfv2-role-ue2-github-actions` in account 615299752206
+- **Production**: Uses role `prod-tfv2-role-ue2-github-actions` in account 442042533707
+- No AWS access keys or secrets are stored in GitHub
+- Authentication is handled automatically by GitHub Actions workflows
 
 ## Troubleshooting
 
