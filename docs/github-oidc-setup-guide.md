@@ -29,7 +29,7 @@ AWS STS (Security Token Service)
         |
         | (3) Assume IAM Role
         v
-IAM Role (github-actions-dev-deploy or github-actions-prod-deploy)
+IAM Role (dev-tfv2-role-ue2-github-actions or prod-tfv2-role-ue2-github-actions)
         |
         | (4) Temporary credentials
         v
@@ -75,8 +75,8 @@ The script will automatically detect which account you're in and deploy the appr
 
 The GitHub workflows have been updated to use OIDC authentication:
 
-1. **deploy-dev.yml**: Uses `arn:aws:iam::615299752206:role/github-actions-dev-deploy`
-2. **deploy-prod.yml**: Uses `arn:aws:iam::442042533707:role/github-actions-prod-deploy`
+1. **deploy-dev.yml**: Uses `arn:aws:iam::615299752206:role/dev-tfv2-role-ue2-github-actions`
+2. **deploy-prod.yml**: Uses `arn:aws:iam::442042533707:role/prod-tfv2-role-ue2-github-actions`
 3. **infrastructure-pr.yml**: Uses the development role for validation
 
 Each workflow includes the required permissions:
@@ -175,7 +175,7 @@ Both roles have permissions scoped to environment-specific resources:
 
 3. Review role trust policy:
    ```bash
-   aws iam get-role --role-name github-actions-dev-deploy
+   aws iam get-role --role-name dev-tfv2-role-ue2-github-actions
    ```
 
 ## Maintenance

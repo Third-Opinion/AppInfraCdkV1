@@ -61,7 +61,7 @@ Delete the old roles after the new ones are created and the workflows are update
 4. Update any configuration or parameter files
 5. Remove any shared resource stacks or constructs
 
-## [] 4. Simplify the resource size configuration in the CDK codebase. 
+## [x] 4. Simplify the resource size configuration in the CDK codebase. 
 Sizing should be based on the environment name (e.g. `development`, `production`).
 Sizing should be done in the CDK codebase, not in the workflow files.
 Sizing should be done in a way that is easy to understand and maintain.
