@@ -19,7 +19,7 @@ Fix: Update to aws-actions/configure-aws-credentials@v4
 deploy-prod.yml:23 sets region to us-east-1
 appsettings.json:66 configures Production environment for us-east-2
 
-## [] 4. Improve code coverage
+## [x] 4. Improve code coverage
 - Exclude infrastructure code from coverage requirements
 - Include the itegration testing code in the coverage report
 
