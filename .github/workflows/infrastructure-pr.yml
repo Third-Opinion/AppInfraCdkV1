@@ -1,4 +1,4 @@
-name: Infrastructure Validation 1
+name: Infrastructure Validation
 
 on:
   push:
@@ -64,7 +64,6 @@ jobs:
   validate-infrastructure:
     needs: [validate-naming-conventions, run-tests]
     runs-on: ubuntu-latest
-    environment: development
     strategy:
       matrix:
         app: [TrialFinderV2]
