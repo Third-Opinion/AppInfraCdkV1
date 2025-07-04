@@ -155,7 +155,7 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const namingOutput = `${{ steps.naming.outputs.NAMING_OUTPUT }}`;
+          const namingOutput = process.env.NAMING_OUTPUT;
           
           if (context.eventName === 'pull_request') {
             // Comment on the pull request
@@ -176,3 +176,5 @@ jobs:
             });
             console.log('✅ Posted comment on commit ' + context.sha);
           }
+      env:
+        NAMING_OUTPUT: ${{ steps.naming.outputs.NAMING_OUTPUT }}
