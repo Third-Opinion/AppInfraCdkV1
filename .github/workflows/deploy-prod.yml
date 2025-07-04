@@ -53,7 +53,7 @@ jobs:
       run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCdkV1.sln --no-restore
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
     - name: Validate Naming Conventions for Production
       run: |
@@ -104,10 +104,10 @@ jobs:
       run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCdkV1.sln --no-restore
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
     - name: Run tests
-      run: dotnet test AppInfraCdkV1.sln --no-build --verbosity normal
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
     
     - name: CDK Diff for Production
       run: |

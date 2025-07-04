@@ -3,5 +3,5 @@
 ## Upon completion, update this file marking the item as complete
 
 
-## [] 1. Change all regions to us-east-2 in all files
+## [x] 1. Change all regions to us-east-2 in all files
 ## [] 2. Fix failing tests on master branch in the deploy-prod.yml workflow 

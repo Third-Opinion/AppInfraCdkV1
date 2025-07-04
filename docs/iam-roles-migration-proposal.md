@@ -18,7 +18,7 @@ This approach has several limitations:
 
 ## Proposed Solution
 
-### Option 1: GitHub Actions with OpenID Connect (OIDC) - **Recommended**
+### 2: GitHub Actions with OpenID Connect (OIDC) - **Recommended**
 
 Use GitHub's OIDC provider to assume IAM roles directly without storing any credentials.
 
