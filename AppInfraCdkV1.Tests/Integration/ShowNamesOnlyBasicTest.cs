@@ -16,7 +16,11 @@ public class ShowNamesOnlyBasicTest
         // Arrange - Use built executable for reliable execution
         var solutionRoot = GetSolutionRoot();
         var deployProjectPath = Path.Combine(solutionRoot, "AppInfraCdkV1.Deploy");
-        var executablePath = Path.Combine(deployProjectPath, "bin", "Debug", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        
+        // Check for Release first (used by CI), then Debug as fallback
+        var releasePath = Path.Combine(deployProjectPath, "bin", "Release", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        var debugPath = Path.Combine(deployProjectPath, "bin", "Debug", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        var executablePath = File.Exists(releasePath) ? releasePath : debugPath;
         
         var processStartInfo = new ProcessStartInfo
         {

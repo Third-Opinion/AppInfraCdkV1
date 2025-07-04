@@ -1,4 +1,4 @@
-# Branch Protection Setup Guide
+1# Branch Protection Setup Guide
 
 This guide explains how to configure GitHub branch protection rules to ensure the test job passes before PRs can be merged.
 
