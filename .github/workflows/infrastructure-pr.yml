@@ -1,4 +1,4 @@
-name: Infrastructure Validation 1
+name: Infrastructure Validation
 
 on:
   push:
@@ -18,8 +18,12 @@ on:
     - '*.sln'
     - '*.csproj'
 
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
 jobs:
-  validate-naming-conventions:
+  validate-naming:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -57,10 +61,9 @@ jobs:
         export CDK_APPLICATION=${{ matrix.app }}
         dotnet run -- --show-names-only
 
-  validate-infrastructure:
-    needs: [validate-naming-conventions, run-tests]
+  validate-infra:
+    needs: [validate-naming, test]
     runs-on: ubuntu-latest
-    environment: development
     strategy:
       matrix:
         app: [TrialFinderV2]
@@ -82,12 +85,26 @@ jobs:
     - name: Install CDK CLI
       run: npm install -g aws-cdk
     
+    - name: Debug GitHub Context
+      run: |
+        echo "GitHub Actor: ${{ github.actor }}"
+        echo "GitHub Repository: ${{ github.repository }}"
+        echo "GitHub Ref: ${{ github.ref }}"
+        echo "GitHub Event Name: ${{ github.event_name }}"
+        echo "GitHub SHA: ${{ github.sha }}"
+        echo "Is Pull Request: ${{ github.event_name == 'pull_request' }}"
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "PR Number: ${{ github.event.pull_request.number }}"
+          echo "PR Head Ref: ${{ github.head_ref }}"
+          echo "PR Base Ref: ${{ github.base_ref }}"
+        fi
+    
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        role-to-assume: arn:aws:iam::615299752206:role/dev-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-PR-${{ github.run_id }}
+        aws-region: us-east-2
     
     - name: Restore dependencies
       run: dotnet restore AppInfraCdkV1.sln
@@ -114,7 +131,7 @@ jobs:
         cdk diff || true
         echo "✅ Infrastructure diff completed"
 
-  run-tests:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -134,24 +151,15 @@ jobs:
     - name: Build solution
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: Run Unit Tests with Coverage
+    - name: Run All Tests with Coverage
       run: |
         dotnet test AppInfraCdkV1.Tests/AppInfraCdkV1.Tests.csproj \
           --no-build \
           --configuration Release \
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
+          --settings coverlet.runsettings \
           --logger trx \
-          --filter "FullyQualifiedName~Unit" \
-          --verbosity normal
-    
-    - name: Run Integration Tests
-      run: |
-        dotnet test AppInfraCdkV1.Tests/AppInfraCdkV1.Tests.csproj \
-          --no-build \
-          --configuration Release \
-          --logger trx \
-          --filter "FullyQualifiedName~Integration" \
           --verbosity normal
     
     - name: Install ReportGenerator
@@ -174,13 +182,13 @@ jobs:
         COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
         echo "Current coverage: $COVERAGE%"
         
-        # Check if coverage meets minimum threshold (35%)
-        # Note: Lower threshold accounts for infrastructure code (CDK stacks) which are harder to unit test
-        if (( $(echo "$COVERAGE >= 35" | bc -l) )); then
-          echo "✅ Coverage check passed: $COVERAGE% >= 35%"
+        # Check if coverage meets minimum threshold (70%)
+        # Note: Infrastructure projects (Deploy, Stacks) are excluded from coverage
+        if (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+          echo "✅ Coverage check passed: $COVERAGE% >= 70%"
         else
-          echo "❌ Coverage check failed: $COVERAGE% < 35%"
-          echo "Please add more unit tests to increase coverage above 35%"
+          echo "❌ Coverage check failed: $COVERAGE% < 70%"
+          echo "Please add more unit tests to increase coverage above 70%"
           exit 1
         fi
     
@@ -209,16 +217,17 @@ jobs:
             if (fs.existsSync(summaryPath)) {
               const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
               const coverage = summary.summary.linecoverage;
-              const status = coverage >= 35 ? '✅' : '❌';
+              const status = coverage >= 70 ? '✅' : '❌';
               const coverageComment = `## 📊 Test Coverage Report
               
               ${status} **Line Coverage: ${coverage.toFixed(1)}%**
               
-              - **Minimum Required**: 35% (accounts for infrastructure code)
-              - **Status**: ${coverage >= 35 ? 'PASSED' : 'FAILED'}
-              - **Core Business Logic**: ~77% (AppInfraCdkV1.Core)
+              - **Minimum Required**: 70%
+              - **Status**: ${coverage >= 70 ? 'PASSED' : 'FAILED'}
+              - **Excluded from Coverage**: Infrastructure projects (Deploy, Stacks)
+              - **Core Business Logic**: ~81% (AppInfraCdkV1.Core)
               
-              ${coverage < 35 ? '⚠️ Coverage is below the required threshold. Please add more unit tests.' : '🎉 Coverage meets the required threshold!'}
+              ${coverage < 70 ? '⚠️ Coverage is below the required threshold. Please add more unit tests.' : '🎉 Coverage meets the required threshold!'}
               
               [View detailed coverage report in artifacts](${context.payload.pull_request.html_url}/checks)`;
               
@@ -233,8 +242,8 @@ jobs:
             console.log('Could not post coverage comment:', error.message);
           }
 
-  comment-naming-examples:
-    needs: [validate-naming-conventions, run-tests]
+  comment-naming:
+    needs: [validate-naming, test]
     runs-on: ubuntu-latest
     permissions:
       contents: write

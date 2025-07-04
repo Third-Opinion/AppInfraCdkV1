@@ -67,8 +67,6 @@ public class VpcCidrConfigTests
 
     [Theory]
     [InlineData("Test")]
-    [InlineData("QA")]
-    [InlineData("Integration")]
     [InlineData("")]
     public void GetDefaultForEnvironment_WithUnknownEnvironment_ShouldReturnFallbackCidr(string environment)
     {

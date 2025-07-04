@@ -167,7 +167,7 @@ public class DeploymentContextTests
 
     [Theory]
     [InlineData("Production", "TrialFinderV2", "us-east-1")]
-    [InlineData("Development", "TrialFinderV2", "eu-west-1")]
+    [InlineData("Development", "TrialFinderV2", "us-east-2")]
     [InlineData("Staging", "TrialFinderV2", "us-west-2")]
     public void ValidateNamingContextWithValidCombinationsDoesNotThrow(string environment, string application, string region)
     {

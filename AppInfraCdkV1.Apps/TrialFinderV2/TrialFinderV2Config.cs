@@ -99,21 +99,7 @@ public static class TrialFinderV2Config
     {
         var config = new MultiEnvironmentConfig
         {
-            SupportsMultiEnvironmentDeployment = true,
-            SharedResources = new SharedResourcesConfig
-            {
-                VpcSharing = new VpcSharingConfig
-                {
-                    IsShared = false, // Each environment gets its own VPC for better isolation
-                    SharingEnvironments = new List<string>()
-                },
-                DatabaseSharing = new DatabaseSharingConfig
-                {
-                    ShareInstances = false, // Each environment gets its own database
-                    UseSeparateSchemas = true,
-                    SharingEnvironments = new List<string>()
-                }
-            }
+            SupportsMultiEnvironmentDeployment = true
         };
 
         // Configure environment-specific overrides

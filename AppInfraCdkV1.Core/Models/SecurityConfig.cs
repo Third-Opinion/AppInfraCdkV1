@@ -5,7 +5,6 @@ public class SecurityConfig
     private List<string> _allowedCidrBlocks = new();
     private bool _enableWaf = true;
     private string _certificateArn = string.Empty;
-    private CrossEnvironmentSecurityConfig _crossEnvironmentSecurity = new();
 
     public List<string> AllowedCidrBlocks
     {
@@ -25,14 +24,6 @@ public class SecurityConfig
         set => _certificateArn = value;
     }
 
-    /// <summary>
-    ///     Cross-environment security rules
-    /// </summary>
-    public CrossEnvironmentSecurityConfig CrossEnvironmentSecurity
-    {
-        get => _crossEnvironmentSecurity;
-        set => _crossEnvironmentSecurity = value;
-    }
 
     /// <summary>
     ///     Gets security configuration appropriate for the account type
@@ -49,13 +40,7 @@ public class SecurityConfig
         return new SecurityConfig
         {
             EnableWaf = true,
-            AllowedCidrBlocks = new List<string>(), // Restrictive by default
-            CrossEnvironmentSecurity = new CrossEnvironmentSecurityConfig
-            {
-                AllowCrossEnvironmentAccess = false,
-                RequireEncryptionInTransit = true,
-                RequireEncryptionAtRest = true
-            }
+            AllowedCidrBlocks = new List<string>() // Restrictive by default
         };
     }
 
@@ -65,13 +50,7 @@ public class SecurityConfig
         {
             EnableWaf = false,
             AllowedCidrBlocks = new List<string>
-                { "10.0.0.0/8" }, // More permissive for development
-            CrossEnvironmentSecurity = new CrossEnvironmentSecurityConfig
-            {
-                AllowCrossEnvironmentAccess = true,
-                RequireEncryptionInTransit = false,
-                RequireEncryptionAtRest = false
-            }
+                { "10.0.0.0/8" } // More permissive for development
         };
     }
 }

@@ -98,7 +98,6 @@ public class NamingValidationIntegrationTests
         if (environment == "Development")
         {
             accountType.ShouldBe(AccountType.NonProduction);
-            siblingEnvironments.ShouldContain("QA");
             siblingEnvironments.ShouldContain("Integration");
         }
         else if (environment == "Production")

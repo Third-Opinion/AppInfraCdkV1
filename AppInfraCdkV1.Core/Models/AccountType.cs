@@ -6,7 +6,7 @@ namespace AppInfraCdkV1.Core.Models;
 public enum AccountType
 {
     /// <summary>
-    ///     Non-production account containing development, testing, and QA environments
+    ///     Non-production account containing development and testing environments
     /// </summary>
     NonProduction,
 
