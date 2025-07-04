@@ -23,7 +23,7 @@ AppInfraCdkV1 is a comprehensive Infrastructure as Code (IaC) solution built wit
 This project addresses common challenges in AWS infrastructure management:
 - **Multi-Environment Support**: Seamlessly deploy to Development, Integration, Staging, and Production environments
 - **Naming Consistency**: Enforces standardized resource naming conventions across all AWS resources
-- **Security by Default**: Implements security best practices with proper VPC isolation and security group management
+- **Security by Default**: Implements security best practices with VPC isolation and security group management
 - **Modular Architecture**: Allows easy extension for new applications while maintaining consistency
 - **Type Safety**: Leverages C# and .NET's strong typing for safer infrastructure code
 

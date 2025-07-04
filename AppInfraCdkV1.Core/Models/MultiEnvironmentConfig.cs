@@ -7,7 +7,6 @@ public class MultiEnvironmentConfig
 {
     private bool _supportsMultiEnvironmentDeployment = true;
     private Dictionary<string, EnvironmentOverride> _environmentOverrides = new();
-    private SharedResourcesConfig _sharedResources = new();
 
     /// <summary>
     ///     Whether this application supports multi-environment deployment
@@ -25,15 +24,6 @@ public class MultiEnvironmentConfig
     {
         get => _environmentOverrides;
         set => _environmentOverrides = value;
-    }
-
-    /// <summary>
-    ///     Shared resources configuration
-    /// </summary>
-    public SharedResourcesConfig SharedResources
-    {
-        get => _sharedResources;
-        set => _sharedResources = value;
     }
 
     /// <summary>

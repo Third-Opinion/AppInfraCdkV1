@@ -106,7 +106,6 @@ public class EnvironmentConfigTests
         var config = new EnvironmentConfig();
         var expectedStrategy = new EnvironmentIsolationStrategy
         {
-            UseVpcPerEnvironment = true,
             VpcCidr = new VpcCidrConfig { PrimaryCidr = "10.0.0.0/16" }
         };
 
@@ -115,7 +114,7 @@ public class EnvironmentConfigTests
 
         // Assert
         config.IsolationStrategy.ShouldBe(expectedStrategy);
-        config.IsolationStrategy.UseVpcPerEnvironment.ShouldBeTrue();
+        config.IsolationStrategy.VpcCidr.PrimaryCidr.ShouldBe("10.0.0.0/16");
     }
 
     [Fact]

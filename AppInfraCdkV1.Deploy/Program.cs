@@ -147,10 +147,7 @@ public abstract class Program
                 Console.WriteLine($"   Current environment: {context.Environment.Name}");
 
                 // Validate isolation strategy
-                if (context.Environment.IsolationStrategy.UseVpcPerEnvironment)
-                    Console.WriteLine("   🔒 Isolation: VPC per environment (recommended)");
-                else if (context.Environment.IsolationStrategy.UseSharedVpcWithSubnets)
-                    Console.WriteLine("   🔒 Isolation: Shared VPC with subnet isolation");
+                Console.WriteLine("   🔒 Isolation: VPC per environment");
 
                 // Validate CIDR ranges don't conflict
                 ValidateCidrRanges(context);
@@ -293,18 +290,9 @@ public abstract class Program
             Console.WriteLine(
                 $"   Other environments in this account: {string.Join(", ", siblings.Where(e => e != context.Environment.Name))}");
 
-        if (context.Environment.IsolationStrategy.UseVpcPerEnvironment)
-        {
-            Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
-            Console.WriteLine(
-                $"   VPC CIDR: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
-        }
-        else if (context.Environment.IsolationStrategy.UseSharedVpcWithSubnets)
-        {
-            Console.WriteLine("   VPC Strategy: Shared VPC with subnet isolation");
-            Console.WriteLine(
-                $"   Shared VPC ID: {context.Environment.IsolationStrategy.SharedVpcId}");
-        }
+        Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
+        Console.WriteLine(
+            $"   VPC CIDR: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
 
         Console.WriteLine();
     }
@@ -466,11 +454,6 @@ public abstract class Program
         {
             envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
             {
-                UseVpcPerEnvironment
-                    = isolationSection.GetValue<bool>("UseVpcPerEnvironment", true),
-                UseSharedVpcWithSubnets
-                    = isolationSection.GetValue<bool>("UseSharedVpcWithSubnets", false),
-                SharedVpcId = isolationSection["SharedVpcId"],
                 UseEnvironmentSpecificIamRoles
                     = isolationSection.GetValue<bool>("UseEnvironmentSpecificIamRoles", true),
                 UseEnvironmentSpecificKmsKeys
