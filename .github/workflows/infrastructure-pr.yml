@@ -134,24 +134,15 @@ jobs:
     - name: Build solution
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: Run Unit Tests with Coverage
+    - name: Run All Tests with Coverage
       run: |
         dotnet test AppInfraCdkV1.Tests/AppInfraCdkV1.Tests.csproj \
           --no-build \
           --configuration Release \
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
+          --settings coverlet.runsettings \
           --logger trx \
-          --filter "FullyQualifiedName~Unit" \
-          --verbosity normal
-    
-    - name: Run Integration Tests
-      run: |
-        dotnet test AppInfraCdkV1.Tests/AppInfraCdkV1.Tests.csproj \
-          --no-build \
-          --configuration Release \
-          --logger trx \
-          --filter "FullyQualifiedName~Integration" \
           --verbosity normal
     
     - name: Install ReportGenerator
@@ -174,13 +165,13 @@ jobs:
         COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
         echo "Current coverage: $COVERAGE%"
         
-        # Check if coverage meets minimum threshold (35%)
-        # Note: Lower threshold accounts for infrastructure code (CDK stacks) which are harder to unit test
-        if (( $(echo "$COVERAGE >= 35" | bc -l) )); then
-          echo "✅ Coverage check passed: $COVERAGE% >= 35%"
+        # Check if coverage meets minimum threshold (70%)
+        # Note: Infrastructure projects (Deploy, Stacks) are excluded from coverage
+        if (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+          echo "✅ Coverage check passed: $COVERAGE% >= 70%"
         else
-          echo "❌ Coverage check failed: $COVERAGE% < 35%"
-          echo "Please add more unit tests to increase coverage above 35%"
+          echo "❌ Coverage check failed: $COVERAGE% < 70%"
+          echo "Please add more unit tests to increase coverage above 70%"
           exit 1
         fi
     
@@ -209,16 +200,17 @@ jobs:
             if (fs.existsSync(summaryPath)) {
               const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
               const coverage = summary.summary.linecoverage;
-              const status = coverage >= 35 ? '✅' : '❌';
+              const status = coverage >= 70 ? '✅' : '❌';
               const coverageComment = `## 📊 Test Coverage Report
               
               ${status} **Line Coverage: ${coverage.toFixed(1)}%**
               
-              - **Minimum Required**: 35% (accounts for infrastructure code)
-              - **Status**: ${coverage >= 35 ? 'PASSED' : 'FAILED'}
-              - **Core Business Logic**: ~77% (AppInfraCdkV1.Core)
+              - **Minimum Required**: 70%
+              - **Status**: ${coverage >= 70 ? 'PASSED' : 'FAILED'}
+              - **Excluded from Coverage**: Infrastructure projects (Deploy, Stacks)
+              - **Core Business Logic**: ~81% (AppInfraCdkV1.Core)
               
-              ${coverage < 35 ? '⚠️ Coverage is below the required threshold. Please add more unit tests.' : '🎉 Coverage meets the required threshold!'}
+              ${coverage < 70 ? '⚠️ Coverage is below the required threshold. Please add more unit tests.' : '🎉 Coverage meets the required threshold!'}
               
               [View detailed coverage report in artifacts](${context.payload.pull_request.html_url}/checks)`;
               
