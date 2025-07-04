@@ -178,6 +178,27 @@ Configure these in GitHub Settings → Environments → `production`:
 - Rotate these keys regularly according to your security policy
 - Consider using GitHub's dependabot to monitor for exposed secrets
 
+## Policy Updates
+
+### July 4, 2025 - CDK Policy Fix
+**Issue**: GitHub Actions CDK deployment failing with `iam:PassRole` permission error.
+
+**Solution**: Updated CDK deployment policy to include proper IAM permissions for CDK operations.
+
+```bash
+# Updated development account policy
+aws iam create-policy-version \
+  --policy-arn "arn:aws:iam::615299752206:policy/dev-g-policy-g-gh-cdk-deploy" \
+  --policy-document file://iam-policies/cdk-deploy-policy-fixed.json \
+  --set-as-default \
+  --profile=to-dev-admin
+```
+
+**Result**: Policy updated to version v2 with enhanced CDK permissions including:
+- Proper `iam:PassRole` for CDK execution roles
+- Required IAM role management permissions for CDK-generated roles
+- Removed overly restrictive deny statements that blocked CDK operations
+
 ## Next Steps
 
 1. Configure GitHub Environment Secrets as documented above
@@ -185,3 +206,4 @@ Configure these in GitHub Settings → Environments → `production`:
 3. Test deployments with the new credentials
 4. Remove any old/unused IAM users and access keys
 5. Set up key rotation schedule
+6. Apply the same policy fix to production account when needed

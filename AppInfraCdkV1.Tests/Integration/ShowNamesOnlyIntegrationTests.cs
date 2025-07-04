@@ -233,7 +233,11 @@ public class ShowNamesOnlyIntegrationTests
     private async Task<ProcessResult> ExecuteDeployCommand(string arguments)
     {
         // Use the built executable instead of dotnet run for more reliable execution
-        var executablePath = Path.Combine(_deployProjectPath, "bin", "Debug", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        // Check for Release first (used by CI), then Debug as fallback
+        var releasePath = Path.Combine(_deployProjectPath, "bin", "Release", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        var debugPath = Path.Combine(_deployProjectPath, "bin", "Debug", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        
+        var executablePath = File.Exists(releasePath) ? releasePath : debugPath;
         
         var processStartInfo = new ProcessStartInfo
         {
