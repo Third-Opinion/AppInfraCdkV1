@@ -9,7 +9,6 @@ public class NamingConventionTests
 {
     [Theory]
     [InlineData("Development", "dev")]
-    [InlineData("QA", "qa")]
     [InlineData("Integration", "int")]
     [InlineData("Staging", "stg")]
     [InlineData("Production", "prod")]
@@ -85,20 +84,20 @@ public class NamingConventionTests
     public void GenerateS3BucketNameWithValidContextReturnsCorrectFormat()
     {
         // Arrange
-        var context = CreateTestContext("QA", "TrialFinderV2", "us-east-1");
+        var context = CreateTestContext("Integration", "TrialFinderV2", "us-east-1");
 
         // Act
         var result = NamingConvention.GenerateS3BucketName(context, "app");
 
         // Assert
-        result.ShouldBe("thirdopinion.io-qa-tfv2-app-ue1");
+        result.ShouldBe("thirdopinion.io-int-tfv2-app-ue1");
     }
 
     #region Enum-based Method Tests
 
     [Theory]
     [InlineData(EnvironmentType.Development, "dev")]
-    [InlineData(EnvironmentType.QA, "qa")]
+    [InlineData(EnvironmentType.Integration, "int")]
     [InlineData(EnvironmentType.Production, "prod")]
     public void GetEnvironmentPrefixWithValidEnumReturnsCorrectPrefix(EnvironmentType environment, string expectedPrefix)
     {
@@ -182,7 +181,6 @@ public class NamingConventionTests
 
         // Assert
         result.ShouldContain("Development");
-        result.ShouldContain("QA");
         result.ShouldContain("Integration");
         result.ShouldNotContain("Staging");
         result.ShouldNotContain("Production");
@@ -198,7 +196,6 @@ public class NamingConventionTests
         result.ShouldContain("Staging");
         result.ShouldContain("Production");
         result.ShouldNotContain("Development");
-        result.ShouldNotContain("QA");
         result.ShouldNotContain("Integration");
     }
 
@@ -244,13 +241,13 @@ public class NamingConventionTests
     public void GenerateVpcNameWithDefaultPurposeReturnsCorrectFormat()
     {
         // Arrange
-        var context = CreateTestContext("QA", "TrialFinderV2", "us-east-2");
+        var context = CreateTestContext("Integration", "TrialFinderV2", "us-east-2");
 
         // Act
         var result = NamingConvention.GenerateVpcName(context);
 
         // Assert
-        result.ShouldBe("qa-tfv2-vpc-ue2-main");
+        result.ShouldBe("int-tfv2-vpc-ue2-main");
     }
 
     [Fact]

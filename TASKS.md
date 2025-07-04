@@ -1,12 +1,14 @@
-# Adress Each of These Issues One by One. Commit after each item is complete.
-## Upon completion, update this file marking the item as complete
+# Adress Each of These Issues One by One. 
+## Commit after each item is complete\ if there were code changes.
+## Store all temporary files in the `temp` directory. and do not commit them.
+## Upon completion, update this file marking the item as complete. Do not commit for changes to this file.
 
 # CloudFormation to CDK Level 2 Migration Plan
 
 ## Overview
 This plan outlines the migration of AWS resources from CloudFormation to CDK Level 2 constructs in C#. The migration follows a dependency-based order, ensuring each component is deployed before its dependents.
 
-## Pre-Migration: Resource Inventory
+## Phase 0: Pre-Migration Resource Inventory
 
 ### [ ] 1. Gather All Resource IDs
 Create a comprehensive inventory of existing resources:
@@ -39,7 +41,7 @@ aws ec2 describe-nat-gateways --query 'NatGateways[*].[NatGatewayId,VpcId,Subnet
 echo -e "\n### Security Groups ###" >> resource-inventory.txt
 aws ec2 describe-security-groups --query 'SecurityGroups[*].[GroupId,GroupName,VpcId,Description]' --output table >> resource-inventory.txt
 
-# Load Balancers
+# Load Balancers, be sure this includes the listeners
 echo -e "\n### Application Load Balancers ###" >> resource-inventory.txt
 aws elbv2 describe-load-balancers --query 'LoadBalancers[*].[LoadBalancerArn,LoadBalancerName,DNSName,State.Code]' --output table >> resource-inventory.txt
 
@@ -68,6 +70,8 @@ done
 # List all CloudFormation stacks
 aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE --query 'StackSummaries[*].[StackName,StackStatus]' --output table
 
+# Search resource-inventory.txt to find the stacks that are relevant to this migration. Ask for help if you are not sure which stacks to migrate.
+
 # Export each stack template (replace with your stack names)
 aws cloudformation get-template --stack-name <vpc-stack-name> --query 'TemplateBody' > vpc-stack-template.json
 aws cloudformation get-template --stack-name <security-stack-name> --query 'TemplateBody' > security-stack-template.json
@@ -76,7 +80,7 @@ aws cloudformation get-template --stack-name <rds-stack-name> --query 'TemplateB
 aws cloudformation get-template --stack-name <ecs-stack-name> --query 'TemplateBody' > ecs-stack-template.json
 ```
 
----
+# STOP HERE for now. We will continue with the VPC migration later.
 
 ## Phase 1: VPC and Core Networking
 
@@ -112,13 +116,6 @@ aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=$VPC_ID" > vpc-endp
 - [ ] 4.5. Number of NAT Gateways
 - [ ] 4.6. VPC endpoint requirements
 
-### [ ] 5. Initialize CDK Project
-```bash
-mkdir YourAppInfrastructure
-cd YourAppInfrastructure
-cdk init app --language csharp
-```
-
 ### [ ] 6. Create VPC CDK Stack
 - [ ] 6.1. Create `VpcStack.cs` with explicit configurations
 - [ ] 6.2. Define all subnets with specific CIDR masks
@@ -126,9 +123,8 @@ cdk init app --language csharp
 - [ ] 6.4. Set up route tables explicitly
 
 ### [ ] 7. Deploy VPC Stack
-```bash
-cdk deploy VpcStack
-```
+TBD approach - STOP here for now, we will continue with the VPC deployment later.
+
 
 ### [ ] 8. Validate VPC Deployment
 ```bash
