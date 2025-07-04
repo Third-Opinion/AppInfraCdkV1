@@ -4,4 +4,4 @@
 
 
 ## [x] 1. Change all regions to us-east-2 in all files
-## [] 2. Fix failing tests on master branch in the deploy-prod.yml workflow 
+## [x] 2. Fix failing tests on master branch in the deploy-prod.yml workflow 
