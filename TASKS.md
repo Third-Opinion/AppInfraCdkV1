@@ -11,7 +11,7 @@ For example, modify the policy to limit all resources by the environment prefixs
 ]
 Use the aws cli to update the policy:
 
-## [] 2. Missing AWS Action Version Pin (deploy-prod.yml:97)
+## [x] 2. Missing AWS Action Version Pin (deploy-prod.yml:97)
 Using @v1 which is deprecated and has security vulnerabilities
 Fix: Update to aws-actions/configure-aws-credentials@v4
 
