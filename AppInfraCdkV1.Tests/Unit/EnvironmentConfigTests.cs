@@ -19,6 +19,7 @@ public class EnvironmentConfigTests
         config.AccountType.ShouldBe(AccountType.NonProduction);
         config.Tags.ShouldNotBeNull();
         config.Tags.ShouldBeEmpty();
+        config.IsolationStrategy.ShouldNotBeNull();
     }
 
     [Fact]
@@ -96,6 +97,24 @@ public class EnvironmentConfigTests
         config.Tags.ShouldBe(expectedTags);
         config.Tags["Environment"].ShouldBe("Development");
         config.Tags["Team"].ShouldBe("Platform");
+    }
+
+    [Fact]
+    public void IsolationStrategy_ShouldAllowSetAndGet()
+    {
+        // Arrange
+        var config = new EnvironmentConfig();
+        var expectedStrategy = new EnvironmentIsolationStrategy
+        {
+            VpcCidr = new VpcCidrConfig { PrimaryCidr = "10.0.0.0/16" }
+        };
+
+        // Act
+        config.IsolationStrategy = expectedStrategy;
+
+        // Assert
+        config.IsolationStrategy.ShouldBe(expectedStrategy);
+        config.IsolationStrategy.VpcCidr.PrimaryCidr.ShouldBe("10.0.0.0/16");
     }
 
     [Fact]
@@ -218,6 +237,19 @@ public class EnvironmentConfigTests
 
         // Assert
         config.Tags.ShouldBeNull();
+    }
+
+    [Fact]
+    public void EnvironmentConfig_ShouldHandleNullIsolationStrategyAssignment()
+    {
+        // Arrange
+        var config = new EnvironmentConfig();
+
+        // Act
+        config.IsolationStrategy = null!;
+
+        // Assert
+        config.IsolationStrategy.ShouldBeNull();
     }
 
     [Theory]
