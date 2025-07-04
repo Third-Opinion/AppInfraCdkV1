@@ -92,6 +92,7 @@ jobs:
         role-to-assume: arn:aws:iam::615299752206:role/github-actions-dev-deploy
         role-session-name: GitHubActions-PR-${{ github.run_id }}
         aws-region: us-east-2
+        audience: sts.amazonaws.com
     
     - name: Restore dependencies
       run: dotnet restore AppInfraCdkV1.sln
