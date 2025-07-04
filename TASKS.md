@@ -15,7 +15,7 @@ Use the aws cli to update the policy:
 Using @v1 which is deprecated and has security vulnerabilities
 Fix: Update to aws-actions/configure-aws-credentials@v4
 
-## [] 3. Production Region Inconsistency
+## [x] 3. Production Region Inconsistency
 deploy-prod.yml:23 sets region to us-east-1
 appsettings.json:66 configures Production environment for us-east-2
 
