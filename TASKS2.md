@@ -45,7 +45,7 @@ Delete the old roles after the new ones are created and the workflows are update
 5. Test workflows with new roles
 6. Delete old roles after confirming new roles work
 
-## [] 3. Complete remove the concept to shared resource between environments for the codebase.
+## [x] 3. Complete remove the concept to shared resource between environments for the codebase.
 
 ### Detailed Steps:
 1. Search for shared resource references:
