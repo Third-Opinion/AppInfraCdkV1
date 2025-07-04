@@ -256,7 +256,7 @@ public class EnvironmentConfigTests
     [Theory]
     [InlineData("Development", "123456789012", "us-east-1", AccountType.NonProduction)]
     [InlineData("Production", "987654321098", "us-west-2", AccountType.Production)]
-    [InlineData("Staging", "555666777888", "eu-west-1", AccountType.Production)]
+    [InlineData("Staging", "555666777888", "us-east-2", AccountType.Production)]
     public void EnvironmentConfig_ShouldAcceptVariousValidValues(string name, string accountId, string region, AccountType accountType)
     {
         // Arrange & Act

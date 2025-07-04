@@ -361,7 +361,7 @@ public abstract class Program
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
         Console.Error.WriteLine("Available applications: TrialFinderV2");
         Console.Error.WriteLine(
-            "Available regions: us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1");
+            "Available regions: us-east-1, us-east-2, us-west-1, us-west-2");
         Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
         Console.Error.WriteLine(
             "To add new environments, update appsettings.json and NamingConvention.cs");

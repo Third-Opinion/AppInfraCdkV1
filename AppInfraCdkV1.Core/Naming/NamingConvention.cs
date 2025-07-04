@@ -42,10 +42,7 @@ public static class NamingConvention
         [AwsRegion.UsEast1] = "ue1",
         [AwsRegion.UsEast2] = "ue2",
         [AwsRegion.UsWest1] = "uw1",
-        [AwsRegion.UsWest2] = "uw2",
-        [AwsRegion.EuWest1] = "ew1",
-        [AwsRegion.EuCentral1] = "ec1",
-        [AwsRegion.ApSoutheast1] = "as1"
+        [AwsRegion.UsWest2] = "uw2"
     };
 
     // Mapping from AWS region strings to enum values
@@ -54,10 +51,7 @@ public static class NamingConvention
         ["us-east-1"] = AwsRegion.UsEast1,
         ["us-east-2"] = AwsRegion.UsEast2,
         ["us-west-1"] = AwsRegion.UsWest1,
-        ["us-west-2"] = AwsRegion.UsWest2,
-        ["eu-west-1"] = AwsRegion.EuWest1,
-        ["eu-central-1"] = AwsRegion.EuCentral1,
-        ["ap-southeast-1"] = AwsRegion.ApSoutheast1
+        ["us-west-2"] = AwsRegion.UsWest2
     };
 
     public static string GetEnvironmentPrefix(EnvironmentType environment)
