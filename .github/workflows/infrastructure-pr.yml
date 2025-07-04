@@ -52,6 +52,7 @@ jobs:
   validate-infrastructure:
     needs: [validate-naming-conventions]
     runs-on: ubuntu-latest
+    environment: development
     strategy:
       matrix:
         app: [TrialFinderV2]
