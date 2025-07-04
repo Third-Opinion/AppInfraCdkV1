@@ -10,7 +10,7 @@ This plan outlines the migration of AWS resources from CloudFormation to CDK Lev
 
 ## Phase 0: Pre-Migration Resource Inventory
 
-### [ ] 1. Gather All Resource IDs
+### [x] 1. Gather All Resource IDs
 Create a comprehensive inventory of existing resources:
 
 ```bash
@@ -65,7 +65,7 @@ for cluster in $(aws ecs list-clusters --query 'clusterArns[*]' --output text); 
 done
 ```
 
-### [ ] 2. Export CloudFormation Stacks
+### [x] 2. Export CloudFormation Stacks
 ```bash
 # List all CloudFormation stacks
 aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE --query 'StackSummaries[*].[StackName,StackStatus]' --output table
