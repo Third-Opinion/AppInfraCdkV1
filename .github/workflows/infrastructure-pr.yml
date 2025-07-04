@@ -23,7 +23,7 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  validate-naming-conventions:
+  validate-naming:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -61,8 +61,8 @@ jobs:
         export CDK_APPLICATION=${{ matrix.app }}
         dotnet run -- --show-names-only
 
-  validate-infrastructure:
-    needs: [validate-naming-conventions, run-tests]
+  validate-infra:
+    needs: [validate-naming, test]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -131,7 +131,7 @@ jobs:
         cdk diff || true
         echo "✅ Infrastructure diff completed"
 
-  run-tests:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -242,8 +242,8 @@ jobs:
             console.log('Could not post coverage comment:', error.message);
           }
 
-  comment-naming-examples:
-    needs: [validate-naming-conventions, run-tests]
+  comment-naming:
+    needs: [validate-naming, test]
     runs-on: ubuntu-latest
     permissions:
       contents: write

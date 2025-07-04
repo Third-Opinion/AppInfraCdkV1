@@ -59,12 +59,12 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: Validate Naming Conventions for Production
+    - name: Validate Naming
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        echo "🔍 Validating naming for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
         dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only
-        echo "✅ Naming conventions validated for production deployment"
+        echo "✅ Naming validated for production deployment"
     
     - name: Display Production Resource Names
       run: |
