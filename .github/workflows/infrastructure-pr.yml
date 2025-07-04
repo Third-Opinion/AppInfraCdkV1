@@ -1,4 +1,4 @@
-name: Infrastructure Validation
+name: Infrastructure Validation 1
 
 on:
   push:
@@ -18,12 +18,8 @@ on:
     - '*.sln'
     - '*.csproj'
 
-permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
-
 jobs:
-  validate-naming:
+  validate-naming-conventions:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -61,9 +57,10 @@ jobs:
         export CDK_APPLICATION=${{ matrix.app }}
         dotnet run -- --show-names-only
 
-  validate-infra:
-    needs: [validate-naming, test]
+  validate-infrastructure:
+    needs: [validate-naming-conventions, run-tests]
     runs-on: ubuntu-latest
+    environment: development
     strategy:
       matrix:
         app: [TrialFinderV2]
@@ -85,25 +82,11 @@ jobs:
     - name: Install CDK CLI
       run: npm install -g aws-cdk
     
-    - name: Debug GitHub Context
-      run: |
-        echo "GitHub Actor: ${{ github.actor }}"
-        echo "GitHub Repository: ${{ github.repository }}"
-        echo "GitHub Ref: ${{ github.ref }}"
-        echo "GitHub Event Name: ${{ github.event_name }}"
-        echo "GitHub SHA: ${{ github.sha }}"
-        echo "Is Pull Request: ${{ github.event_name == 'pull_request' }}"
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          echo "PR Number: ${{ github.event.pull_request.number }}"
-          echo "PR Head Ref: ${{ github.head_ref }}"
-          echo "PR Base Ref: ${{ github.base_ref }}"
-        fi
-    
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::615299752206:role/dev-tfv2-role-ue2-github-actions
-        role-session-name: GitHubActions-PR-${{ github.run_id }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-2
     
     - name: Restore dependencies
@@ -131,7 +114,7 @@ jobs:
         cdk diff || true
         echo "✅ Infrastructure diff completed"
 
-  test:
+  run-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -242,8 +225,8 @@ jobs:
             console.log('Could not post coverage comment:', error.message);
           }
 
-  comment-naming:
-    needs: [validate-naming, test]
+  comment-naming-examples:
+    needs: [validate-naming-conventions, run-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write

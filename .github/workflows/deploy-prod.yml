@@ -22,10 +22,6 @@ env:
   CDK_ENVIRONMENT: Production
   AWS_REGION: us-east-2
 
-permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
-
 jobs:
   validate-input:
     if: github.event_name == 'workflow_dispatch'
@@ -57,14 +53,14 @@ jobs:
       run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+      run: dotnet build AppInfraCdkV1.sln --no-restore
     
-    - name: Validate Naming
+    - name: Validate Naming Conventions for Production
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Validating naming for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        echo "🔍 Validating naming conventions for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
         dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only
-        echo "✅ Naming validated for production deployment"
+        echo "✅ Naming conventions validated for production deployment"
     
     - name: Display Production Resource Names
       run: |
@@ -100,18 +96,18 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
-        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
     
     - name: Restore dependencies
       run: dotnet restore AppInfraCdkV1.sln
     
     - name: Build
-      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+      run: dotnet build AppInfraCdkV1.sln --no-restore
     
     - name: Run tests
-      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+      run: dotnet test AppInfraCdkV1.sln --no-build --verbosity normal
     
     - name: CDK Diff for Production
       run: |
