@@ -14,6 +14,14 @@
         <PackageReference Include="BenchmarkDotNet" Version="0.13.10"/>
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+        <PackageReference Include="coverlet.collector" Version="6.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="coverlet.msbuild" Version="6.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
@@ -26,6 +34,7 @@
         <ProjectReference Include="..\AppInfraCdkV1.Core\AppInfraCdkV1.Core.csproj" />
         <ProjectReference Include="..\AppInfraCdkV1.Stacks\AppInfraCdkV1.Stacks.csproj" />
         <ProjectReference Include="..\AppInfraCdkV1.Apps\AppInfraCdkV1.Apps.csproj" />
+        <ProjectReference Include="..\AppInfraCdkV1.Deploy\AppInfraCdkV1.Deploy.csproj" />
     </ItemGroup>
 
 </Project>
