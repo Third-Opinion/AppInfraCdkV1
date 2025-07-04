@@ -39,7 +39,7 @@ public abstract class Program
             };
 
             ValidateNamingConventions(context);
-            ValidateMultiEnvironmentSetup(context);
+            ValidateMultiEnvironmentSetupWithConfig(context, configuration);
 
             // If only validation requested, exit after validation
             if (validateOnly)
@@ -79,9 +79,9 @@ public abstract class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Deployment failed: {ex.Message}");
+            Console.Error.WriteLine($"❌ Deployment failed: {ex.Message}");
             if (ex.InnerException != null)
-                Console.WriteLine($"   Inner exception: {ex.InnerException.Message}");
+                Console.Error.WriteLine($"   Inner exception: {ex.InnerException.Message}");
 
             if (ex.Message.Contains("Unknown environment") ||
                 ex.Message.Contains("Unknown application") ||
@@ -107,7 +107,7 @@ public abstract class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Naming convention validation failed: {ex.Message}");
+            Console.Error.WriteLine($"❌ Naming convention validation failed: {ex.Message}");
             ShowNamingHelp();
             throw;
         }
@@ -115,11 +115,28 @@ public abstract class Program
 
     private static void ValidateMultiEnvironmentSetup(DeploymentContext context)
     {
+        ValidateMultiEnvironmentSetupWithConfig(context, null);
+    }
+
+    private static void ValidateMultiEnvironmentSetupWithConfig(DeploymentContext context, IConfiguration? configuration)
+    {
         try
         {
             Console.WriteLine("🏢 Validating multi-environment setup...");
 
-            var siblingEnvironments = context.Environment.GetAccountSiblingEnvironments();
+            List<string> siblingEnvironments;
+            
+            if (configuration != null)
+            {
+                // Get actual sibling environments from configuration based on account ID
+                siblingEnvironments = GetSiblingEnvironmentsFromConfig(configuration, context.Environment.AccountId);
+            }
+            else
+            {
+                // Fallback to naming convention (uses account type)
+                siblingEnvironments = context.Environment.GetAccountSiblingEnvironments();
+            }
+            
             if (siblingEnvironments.Count > 1)
             {
                 Console.WriteLine("📋 Detected multi-environment account setup:");
@@ -147,7 +164,7 @@ public abstract class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Multi-environment validation failed: {ex.Message}");
+            Console.Error.WriteLine($"❌ Multi-environment validation failed: {ex.Message}");
             throw;
         }
     }
@@ -186,7 +203,7 @@ public abstract class Program
             }
             catch (InvalidOperationException ex)
             {
-                Console.WriteLine($"❌ {ex.Message}");
+                Console.Error.WriteLine($"❌ {ex.Message}");
                 throw;
             }
 
@@ -215,8 +232,8 @@ public abstract class Program
 
         if (violations.Any())
         {
-            Console.WriteLine("❌ AWS resource name limit violations:");
-            foreach (string violation in violations) Console.WriteLine($"   {violation}");
+            Console.Error.WriteLine("❌ AWS resource name limit violations:");
+            foreach (string violation in violations) Console.Error.WriteLine($"   {violation}");
             throw new InvalidOperationException("Resource names exceed AWS limits");
         }
 
@@ -338,23 +355,40 @@ public abstract class Program
 
     private static void ShowNamingHelp()
     {
-        Console.WriteLine("\n📋 Naming Convention Help:");
-        Console.WriteLine("Available environments:");
-        Console.WriteLine("  Non-Production Account: Development, QA, Test, Integration");
-        Console.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
-        Console.WriteLine("Available applications: TrialFinderV2");
-        Console.WriteLine(
+        Console.Error.WriteLine("\n📋 Naming Convention Help:");
+        Console.Error.WriteLine("Available environments:");
+        Console.Error.WriteLine("  Non-Production Account: Development, QA, Test, Integration");
+        Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
+        Console.Error.WriteLine("Available applications: TrialFinderV2");
+        Console.Error.WriteLine(
             "Available regions: us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1");
-        Console.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
-        Console.WriteLine(
+        Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
+        Console.Error.WriteLine(
             "To add new environments, update appsettings.json and NamingConvention.cs");
-        Console.WriteLine("\nExample usage:");
-        Console.WriteLine("  dotnet run -- --app=TrialFinderV2 --environment=Development");
-        Console.WriteLine(
+        Console.Error.WriteLine("\nExample usage:");
+        Console.Error.WriteLine("  dotnet run -- --app=TrialFinderV2 --environment=Development");
+        Console.Error.WriteLine(
             "  dotnet run -- --app=TrialFinderV2 --environment=Staging --validate-only");
-        Console.WriteLine(
+        Console.Error.WriteLine(
             "  dotnet run -- --app=TrialFinderV2 --environment=Production --show-names-only");
-        Console.WriteLine("  dotnet run -- --list-environments");
+        Console.Error.WriteLine("  dotnet run -- --list-environments");
+    }
+
+    private static List<string> GetSiblingEnvironmentsFromConfig(IConfiguration configuration, string accountId)
+    {
+        var environmentsSection = configuration.GetSection("Environments");
+        var siblingEnvironments = new List<string>();
+
+        foreach (var env in environmentsSection.GetChildren())
+        {
+            var envAccountId = env["AccountId"];
+            if (envAccountId == accountId)
+            {
+                siblingEnvironments.Add(env.Key);
+            }
+        }
+
+        return siblingEnvironments;
     }
 
     private static bool HasFlag(string[] args, string flag)

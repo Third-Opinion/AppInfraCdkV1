@@ -52,6 +52,7 @@ jobs:
   validate-infrastructure:
     needs: [validate-naming-conventions]
     runs-on: ubuntu-latest
+    environment: development
     strategy:
       matrix:
         app: [TrialFinderV2]
@@ -108,6 +109,9 @@ jobs:
   comment-naming-examples:
     needs: [validate-naming-conventions]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     # Runs for both push and pull_request events
     
     steps:
@@ -154,7 +158,7 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const namingOutput = `${{ steps.naming.outputs.NAMING_OUTPUT }}`;
+          const namingOutput = process.env.NAMING_OUTPUT;
           
           if (context.eventName === 'pull_request') {
             // Comment on the pull request
@@ -175,3 +179,5 @@ jobs:
             });
             console.log('✅ Posted comment on commit ' + context.sha);
           }
+      env:
+        NAMING_OUTPUT: ${{ steps.naming.outputs.NAMING_OUTPUT }}

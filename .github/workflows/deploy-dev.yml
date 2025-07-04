@@ -13,6 +13,7 @@ env:
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
+    environment: development
     strategy:
       matrix:
         app: [TrialFinderV2] # Add other apps here as you register them
