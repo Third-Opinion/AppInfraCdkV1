@@ -49,6 +49,8 @@ Resources:
                 'token.actions.githubusercontent.com:sub':
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master'
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main'
+                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/master'
+                  - !Sub 'repo:${GitHubOrg}/TrialFinder:ref:refs/heads/main'
       Policies:
         - PolicyName: CDKDeployPolicy
           PolicyDocument:
