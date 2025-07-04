@@ -13,16 +13,20 @@ public class ShowNamesOnlyBasicTest
     [Fact]
     public async Task ShowNamesOnly_BasicExecution_ReturnsExpectedOutput()
     {
-        // Arrange - Use simple command execution from the solution root
+        // Arrange - Use built executable for reliable execution
+        var solutionRoot = GetSolutionRoot();
+        var deployProjectPath = Path.Combine(solutionRoot, "AppInfraCdkV1.Deploy");
+        var executablePath = Path.Combine(deployProjectPath, "bin", "Debug", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        
         var processStartInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = "run --project AppInfraCdkV1.Deploy -- --environment=Development --app=TrialFinderV2 --show-names-only",
+            Arguments = $"\"{executablePath}\" --environment=Development --app=TrialFinderV2 --show-names-only",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            WorkingDirectory = GetSolutionRoot()
+            WorkingDirectory = deployProjectPath
         };
 
         // Act

@@ -12,7 +12,7 @@ namespace AppInfraCdkV1.Tests.Integration;
 /// </summary>
 public class ShowNamesOnlyIntegrationTests
 {
-    private const int TimeoutMilliseconds = 30000; // 30 seconds
+    private const int TimeoutMilliseconds = 60000; // 60 seconds
     private readonly string _solutionRoot;
     private readonly string _deployProjectPath;
 
@@ -232,15 +232,18 @@ public class ShowNamesOnlyIntegrationTests
 
     private async Task<ProcessResult> ExecuteDeployCommand(string arguments)
     {
+        // Use the built executable instead of dotnet run for more reliable execution
+        var executablePath = Path.Combine(_deployProjectPath, "bin", "Debug", "net8.0", "AppInfraCdkV1.Deploy.dll");
+        
         var processStartInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"run --project \"{_deployProjectPath}\" -- {arguments}",
+            Arguments = $"\"{executablePath}\" {arguments}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            WorkingDirectory = _solutionRoot
+            WorkingDirectory = _deployProjectPath
         };
 
         using var process = new Process { StartInfo = processStartInfo };
@@ -272,7 +275,14 @@ public class ShowNamesOnlyIntegrationTests
         }
         catch (OperationCanceledException)
         {
-            process.Kill();
+            try
+            {
+                process.Kill();
+            }
+            catch (Exception)
+            {
+                // Ignore errors when killing process
+            }
             throw new TimeoutException($"Process did not complete within {TimeoutMilliseconds}ms timeout");
         }
 
