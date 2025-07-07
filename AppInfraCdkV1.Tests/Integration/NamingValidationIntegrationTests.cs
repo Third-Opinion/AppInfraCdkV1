@@ -98,7 +98,6 @@ public class NamingValidationIntegrationTests
         if (environment == "Development")
         {
             accountType.ShouldBe(AccountType.NonProduction);
-            siblingEnvironments.ShouldContain("QA");
             siblingEnvironments.ShouldContain("Integration");
         }
         else if (environment == "Production")
@@ -238,12 +237,6 @@ public class NamingValidationIntegrationTests
             envConfig.AccountType = accountType;
         else
             envConfig.AccountType = NamingConvention.GetAccountType(environmentName);
-
-        // Use default isolation strategy for tests
-        envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
-        {
-            VpcCidr = VpcCidrConfig.GetDefaultForEnvironment(environmentName)
-        };
 
         return envConfig;
     }

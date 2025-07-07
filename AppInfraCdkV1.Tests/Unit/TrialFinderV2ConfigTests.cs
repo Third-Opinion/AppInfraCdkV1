@@ -138,9 +138,6 @@ public class TrialFinderV2ConfigTests
         // Assert
         config.MultiEnvironment.ShouldNotBeNull();
         config.MultiEnvironment.SupportsMultiEnvironmentDeployment.ShouldBeTrue();
-        config.MultiEnvironment.SharedResources.ShouldNotBeNull();
-        config.MultiEnvironment.SharedResources.VpcSharing.IsShared.ShouldBeFalse(); // Each env gets own VPC
-        config.MultiEnvironment.SharedResources.DatabaseSharing.ShareInstances.ShouldBeFalse(); // Each env gets own DB
     }
 
     [Fact]

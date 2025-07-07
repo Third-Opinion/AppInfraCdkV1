@@ -19,7 +19,6 @@ public class EnvironmentConfigTests
         config.AccountType.ShouldBe(AccountType.NonProduction);
         config.Tags.ShouldNotBeNull();
         config.Tags.ShouldBeEmpty();
-        config.IsolationStrategy.ShouldNotBeNull();
     }
 
     [Fact]
@@ -97,25 +96,6 @@ public class EnvironmentConfigTests
         config.Tags.ShouldBe(expectedTags);
         config.Tags["Environment"].ShouldBe("Development");
         config.Tags["Team"].ShouldBe("Platform");
-    }
-
-    [Fact]
-    public void IsolationStrategy_ShouldAllowSetAndGet()
-    {
-        // Arrange
-        var config = new EnvironmentConfig();
-        var expectedStrategy = new EnvironmentIsolationStrategy
-        {
-            UseVpcPerEnvironment = true,
-            VpcCidr = new VpcCidrConfig { PrimaryCidr = "10.0.0.0/16" }
-        };
-
-        // Act
-        config.IsolationStrategy = expectedStrategy;
-
-        // Assert
-        config.IsolationStrategy.ShouldBe(expectedStrategy);
-        config.IsolationStrategy.UseVpcPerEnvironment.ShouldBeTrue();
     }
 
     [Fact]
@@ -240,23 +220,10 @@ public class EnvironmentConfigTests
         config.Tags.ShouldBeNull();
     }
 
-    [Fact]
-    public void EnvironmentConfig_ShouldHandleNullIsolationStrategyAssignment()
-    {
-        // Arrange
-        var config = new EnvironmentConfig();
-
-        // Act
-        config.IsolationStrategy = null!;
-
-        // Assert
-        config.IsolationStrategy.ShouldBeNull();
-    }
-
     [Theory]
     [InlineData("Development", "123456789012", "us-east-1", AccountType.NonProduction)]
     [InlineData("Production", "987654321098", "us-west-2", AccountType.Production)]
-    [InlineData("Staging", "555666777888", "eu-west-1", AccountType.Production)]
+    [InlineData("Staging", "555666777888", "us-east-2", AccountType.Production)]
     public void EnvironmentConfig_ShouldAcceptVariousValidValues(string name, string accountId, string region, AccountType accountType)
     {
         // Arrange & Act

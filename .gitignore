@@ -4,3 +4,5 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 /AppInfraCdkV1.Deploy/cdk.out/
+/coverage/
+/temp

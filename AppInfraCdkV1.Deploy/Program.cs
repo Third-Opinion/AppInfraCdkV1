@@ -147,13 +147,7 @@ public abstract class Program
                 Console.WriteLine($"   Current environment: {context.Environment.Name}");
 
                 // Validate isolation strategy
-                if (context.Environment.IsolationStrategy.UseVpcPerEnvironment)
-                    Console.WriteLine("   🔒 Isolation: VPC per environment (recommended)");
-                else if (context.Environment.IsolationStrategy.UseSharedVpcWithSubnets)
-                    Console.WriteLine("   🔒 Isolation: Shared VPC with subnet isolation");
-
-                // Validate CIDR ranges don't conflict
-                ValidateCidrRanges(context);
+                Console.WriteLine("   🔒 Isolation: VPC per environment");
             }
             else
             {
@@ -171,17 +165,8 @@ public abstract class Program
 
     private static void ValidateCidrRanges(DeploymentContext context)
     {
-        var cidr = context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr;
-        if (string.IsNullOrEmpty(cidr))
-        {
-            Console.WriteLine(
-                $"⚠️  Warning: No CIDR specified for {context.Environment.Name}, using default");
-            context.Environment.IsolationStrategy.VpcCidr
-                = VpcCidrConfig.GetDefaultForEnvironment(context.Environment.Name);
-        }
-
-        Console.WriteLine(
-            $"   🌐 VPC CIDR for {context.Environment.Name}: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
+        // CIDR validation removed - no longer using IsolationStrategy
+        Console.WriteLine("   🌐 VPC CIDR validation skipped - using default VPC configuration");
     }
 
     private static void ValidateAccountLevelUniqueness(DeploymentContext context)
@@ -293,19 +278,7 @@ public abstract class Program
             Console.WriteLine(
                 $"   Other environments in this account: {string.Join(", ", siblings.Where(e => e != context.Environment.Name))}");
 
-        if (context.Environment.IsolationStrategy.UseVpcPerEnvironment)
-        {
-            Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
-            Console.WriteLine(
-                $"   VPC CIDR: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
-        }
-        else if (context.Environment.IsolationStrategy.UseSharedVpcWithSubnets)
-        {
-            Console.WriteLine("   VPC Strategy: Shared VPC with subnet isolation");
-            Console.WriteLine(
-                $"   Shared VPC ID: {context.Environment.IsolationStrategy.SharedVpcId}");
-        }
-
+        Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
         Console.WriteLine();
     }
 
@@ -357,11 +330,11 @@ public abstract class Program
     {
         Console.Error.WriteLine("\n📋 Naming Convention Help:");
         Console.Error.WriteLine("Available environments:");
-        Console.Error.WriteLine("  Non-Production Account: Development, QA, Test, Integration");
+        Console.Error.WriteLine("  Non-Production Account: Development, Integration");
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
         Console.Error.WriteLine("Available applications: TrialFinderV2");
         Console.Error.WriteLine(
-            "Available regions: us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1");
+            "Available regions: us-east-1, us-east-2, us-west-1, us-west-2");
         Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
         Console.Error.WriteLine(
             "To add new environments, update appsettings.json and NamingConvention.cs");
@@ -460,45 +433,7 @@ public abstract class Program
             // Default based on environment name
             envConfig.AccountType = NamingConvention.GetAccountType(environmentName);
 
-        // Parse isolation strategy
-        var isolationSection = section.GetSection("IsolationStrategy");
-        if (isolationSection.Exists())
-        {
-            envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
-            {
-                UseVpcPerEnvironment
-                    = isolationSection.GetValue<bool>("UseVpcPerEnvironment", true),
-                UseSharedVpcWithSubnets
-                    = isolationSection.GetValue<bool>("UseSharedVpcWithSubnets", false),
-                SharedVpcId = isolationSection["SharedVpcId"],
-                UseEnvironmentSpecificIamRoles
-                    = isolationSection.GetValue<bool>("UseEnvironmentSpecificIamRoles", true),
-                UseEnvironmentSpecificKmsKeys
-                    = isolationSection.GetValue<bool>("UseEnvironmentSpecificKmsKeys", true)
-            };
-
-            // Parse VPC CIDR
-            var vpcCidrSection = isolationSection.GetSection("VpcCidr");
-            if (vpcCidrSection.Exists())
-                envConfig.IsolationStrategy.VpcCidr = new VpcCidrConfig
-                {
-                    PrimaryCidr = vpcCidrSection["PrimaryCidr"] ?? VpcCidrConfig
-                        .GetDefaultForEnvironment(environmentName).PrimaryCidr,
-                    SecondaryCidrs
-                        = vpcCidrSection.GetSection("SecondaryCidrs").Get<List<string>>() ?? new()
-                };
-            else
-                envConfig.IsolationStrategy.VpcCidr
-                    = VpcCidrConfig.GetDefaultForEnvironment(environmentName);
-        }
-        else
-        {
-            // Use defaults
-            envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
-            {
-                VpcCidr = VpcCidrConfig.GetDefaultForEnvironment(environmentName)
-            };
-        }
+        // IsolationStrategy parsing removed - no longer used
 
         // Validate the region is supported
         try

@@ -38,7 +38,7 @@ public class TrialFinderV2Stack : WebApplicationStack
             Versioned = false,
             RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
             AutoDeleteObjects = false,
-            EventBridgeEnabled = true,
+            EventBridgeEnabled = false,
             // LifecycleRules = new ILifecycleRule[]
             // {
             //     new LifecycleRule

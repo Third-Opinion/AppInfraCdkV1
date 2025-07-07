@@ -43,8 +43,6 @@ public class WebApplicationStack : Stack, IApplicationStack
        // S3BucketBundle s3Buckets = CreateS3Buckets();
        // var service = CreateWebService(cluster, database, securityGroups);
 
-        // Apply cross-environment access rules if configured
-        // ConfigureCrossEnvironmentAccess(vpc, securityGroups);
 
         ApplyCommonTags();
     }
@@ -52,18 +50,6 @@ public class WebApplicationStack : Stack, IApplicationStack
     private IVpc CreateOrImportVpc()
     {
         var vpcName = _context.Namer.Vpc();
-
-        // Check if we should use a shared VPC
-        if (_context.Environment.IsolationStrategy.UseSharedVpcWithSubnets &&
-            !string.IsNullOrEmpty(_context.Environment.IsolationStrategy.SharedVpcId))
-        {
-            Console.WriteLine(
-                $"Using shared VPC: {_context.Environment.IsolationStrategy.SharedVpcId}");
-            return Vpc.FromLookup(this, "SharedVpc", new VpcLookupOptions
-            {
-                VpcId = _context.Environment.IsolationStrategy.SharedVpcId
-            });
-        }
 
         // Try to find existing VPC for this environment
         try
@@ -75,13 +61,13 @@ public class WebApplicationStack : Stack, IApplicationStack
         }
         catch
         {
-            // If VPC doesn't exist, create it with environment-specific CIDR
+            // If VPC doesn't exist, create it with default CIDR
             Console.WriteLine(
-                $"Creating new VPC: {vpcName} with CIDR: {_context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
+                $"Creating new VPC: {vpcName} with default CIDR");
 
             return new Vpc(this, "Vpc", new VpcProps
             {
-                IpAddresses = IpAddresses.Cidr(_context.Environment.IsolationStrategy.VpcCidr?.PrimaryCidr ?? "10.0.0.0/16"),
+                IpAddresses = IpAddresses.Cidr("10.0.0.0/16"),
                 MaxAzs = 2,
                 NatGateways = _context.Environment.IsProductionClass ? 2 : 1,
                 SubnetConfiguration = new[]
@@ -162,17 +148,6 @@ public class WebApplicationStack : Stack, IApplicationStack
             albSg.AddIngressRule(Peer.Ipv4(cidr), Port.AllTcp(), $"Allow access from {cidr}");
     }
 
-    private void ConfigureCrossEnvironmentAccess(IVpc vpc, SecurityGroupBundle securityGroups)
-    {
-        var crossEnvAccess = _context.Environment.IsolationStrategy.CrossEnvironmentAccess;
-
-        // Configure cross-environment access if allowed
-        if (crossEnvAccess.CanAccessEnvironments.Any())
-            foreach (var targetEnv in crossEnvAccess.CanAccessEnvironments)
-                Console.WriteLine($"Configuring access to environment: {targetEnv}");
-        // In a real implementation, you would configure VPC peering,
-        // Transit Gateway, or other connectivity mechanisms here
-    }
 
     private ICluster CreateEcsCluster(IVpc vpc)
     {
@@ -365,9 +340,6 @@ public class WebApplicationStack : Stack, IApplicationStack
     {
         var tags = _context.GetCommonTags();
         tags["AccountType"] = _context.Environment.AccountType.ToString();
-        tags["IsolationStrategy"] = _context.Environment.IsolationStrategy.UseVpcPerEnvironment
-            ? "VpcPerEnvironment"
-            : "SharedVpc";
 
         foreach (var tag in tags) Tags.SetTag(tag.Key, tag.Value);
     }

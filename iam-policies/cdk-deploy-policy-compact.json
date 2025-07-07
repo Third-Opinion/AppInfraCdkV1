@@ -1,0 +1,153 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CDKBootstrapAndMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:*",
+        "ssm:GetParameter",
+        "ssm:PutParameter",
+        "ssm:DeleteParameter",
+        "ssm:DescribeParameters"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:*:*:stack/CDKToolkit/*",
+        "arn:aws:cloudformation:*:*:stack/dev-*",
+        "arn:aws:cloudformation:*:*:stack/qa-*",
+        "arn:aws:cloudformation:*:*:stack/int-*",
+        "arn:aws:cloudformation:*:*:stack/stg-*",
+        "arn:aws:cloudformation:*:*:stack/prod-*",
+        "arn:aws:ssm:*:*:parameter/cdk-bootstrap/*",
+        "arn:aws:ssm:*:*:parameter/*"
+      ]
+    },
+    {
+      "Sid": "S3ForCDKAssets",
+      "Effect": "Allow",
+      "Action": [
+        "s3:*"
+      ],
+      "Resource": [
+        "arn:aws:s3:::cdk-*",
+        "arn:aws:s3:::thirdopinion.io-*",
+        "arn:aws:s3:::dev-*",
+        "arn:aws:s3:::qa-*",
+        "arn:aws:s3:::int-*",
+        "arn:aws:s3:::stg-*",
+        "arn:aws:s3:::prod-*"
+      ]
+    },
+    {
+      "Sid": "ECRServices",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CoreServices",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*",
+        "autoscaling:*",
+        "elasticloadbalancing:*",
+        "ecs:*",
+        "lambda:*",
+        "states:*",
+        "rds:*",
+        "dynamodb:*",
+        "elasticache:*",
+        "apigateway:*",
+        "cloudfront:*",
+        "route53:*",
+        "sqs:*",
+        "sns:*",
+        "events:*",
+        "logs:*",
+        "cloudwatch:*",
+        "xray:*",
+        "cognito-idp:*",
+        "cognito-identity:*",
+        "ses:*",
+        "amplify:*",
+        "bedrock:*",
+        "sagemaker:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerTaggedAccess",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "secretsmanager:ResourceTag/CDKManaged": "true"
+        }
+      }
+    },
+    {
+      "Sid": "SecretsManagerCreateTagged",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:TagResource"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/CDKManaged": "true"
+        }
+      }
+    },
+    {
+      "Sid": "IAMRoleManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:UpdateRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:PassRole",
+        "iam:CreateServiceLinkedRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/cdk-*",
+        "arn:aws:iam::*:role/dev-*",
+        "arn:aws:iam::*:role/qa-*",
+        "arn:aws:iam::*:role/int-*",
+        "arn:aws:iam::*:role/stg-*",
+        "arn:aws:iam::*:role/prod-*",
+        "arn:aws:iam::*:role/aws-service-role/*"
+      ]
+    },
+    {
+      "Sid": "ReadOnlyAccess",
+      "Effect": "Allow",
+      "Action": [
+        "kms:DescribeKey",
+        "kms:ListAliases",
+        "acm:ListCertificates",
+        "acm:DescribeCertificate",
+        "sts:AssumeRole",
+        "tag:TagResources",
+        "tag:UntagResources",
+        "tag:GetResources"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
