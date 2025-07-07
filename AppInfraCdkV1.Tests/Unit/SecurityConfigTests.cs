@@ -17,7 +17,6 @@ public class SecurityConfigTests
         config.AllowedCidrBlocks.ShouldBeEmpty();
         config.EnableWaf.ShouldBeTrue();
         config.CertificateArn.ShouldBe(string.Empty);
-        config.CrossEnvironmentSecurity.ShouldNotBeNull();
     }
 
     [Fact]
@@ -64,25 +63,6 @@ public class SecurityConfigTests
         config.CertificateArn.ShouldBe(expectedArn);
     }
 
-    [Fact]
-    public void CrossEnvironmentSecurity_ShouldAllowSetAndGet()
-    {
-        // Arrange
-        var config = new SecurityConfig();
-        var expectedCrossEnvConfig = new CrossEnvironmentSecurityConfig
-        {
-            AllowCrossEnvironmentAccess = true,
-            RequireEncryptionInTransit = true,
-            RequireEncryptionAtRest = true
-        };
-
-        // Act
-        config.CrossEnvironmentSecurity = expectedCrossEnvConfig;
-
-        // Assert
-        config.CrossEnvironmentSecurity.ShouldBe(expectedCrossEnvConfig);
-        config.CrossEnvironmentSecurity.AllowCrossEnvironmentAccess.ShouldBeTrue();
-    }
 
     [Fact]
     public void GetSecurityConfigForAccountType_WithProductionAccountType_ShouldReturnProductionConfig()
@@ -95,10 +75,6 @@ public class SecurityConfigTests
         result.EnableWaf.ShouldBeTrue();
         result.AllowedCidrBlocks.ShouldNotBeNull();
         result.AllowedCidrBlocks.ShouldBeEmpty();
-        result.CrossEnvironmentSecurity.ShouldNotBeNull();
-        result.CrossEnvironmentSecurity.AllowCrossEnvironmentAccess.ShouldBeFalse();
-        result.CrossEnvironmentSecurity.RequireEncryptionInTransit.ShouldBeTrue();
-        result.CrossEnvironmentSecurity.RequireEncryptionAtRest.ShouldBeTrue();
     }
 
     [Fact]
@@ -113,10 +89,6 @@ public class SecurityConfigTests
         result.AllowedCidrBlocks.ShouldNotBeNull();
         result.AllowedCidrBlocks.ShouldNotBeEmpty();
         result.AllowedCidrBlocks.ShouldContain("10.0.0.0/8");
-        result.CrossEnvironmentSecurity.ShouldNotBeNull();
-        result.CrossEnvironmentSecurity.AllowCrossEnvironmentAccess.ShouldBeTrue();
-        result.CrossEnvironmentSecurity.RequireEncryptionInTransit.ShouldBeFalse();
-        result.CrossEnvironmentSecurity.RequireEncryptionAtRest.ShouldBeFalse();
     }
 
     [Fact]
@@ -141,8 +113,6 @@ public class SecurityConfigTests
         // Assert
         productionConfig.EnableWaf.ShouldNotBe(developmentConfig.EnableWaf);
         productionConfig.AllowedCidrBlocks.Count.ShouldNotBe(developmentConfig.AllowedCidrBlocks.Count);
-        productionConfig.CrossEnvironmentSecurity.AllowCrossEnvironmentAccess
-            .ShouldNotBe(developmentConfig.CrossEnvironmentSecurity.AllowCrossEnvironmentAccess);
     }
 
     [Fact]
@@ -174,16 +144,4 @@ public class SecurityConfigTests
         config.AllowedCidrBlocks.ShouldBeNull();
     }
 
-    [Fact]
-    public void SecurityConfig_ShouldHandleNullCrossEnvironmentSecurityAssignment()
-    {
-        // Arrange
-        var config = new SecurityConfig();
-
-        // Act
-        config.CrossEnvironmentSecurity = null!;
-
-        // Assert
-        config.CrossEnvironmentSecurity.ShouldBeNull();
-    }
 }

@@ -106,7 +106,6 @@ public class EnvironmentConfigTests
         var config = new EnvironmentConfig();
         var expectedStrategy = new EnvironmentIsolationStrategy
         {
-            UseVpcPerEnvironment = true,
             VpcCidr = new VpcCidrConfig { PrimaryCidr = "10.0.0.0/16" }
         };
 
@@ -115,7 +114,7 @@ public class EnvironmentConfigTests
 
         // Assert
         config.IsolationStrategy.ShouldBe(expectedStrategy);
-        config.IsolationStrategy.UseVpcPerEnvironment.ShouldBeTrue();
+        config.IsolationStrategy.VpcCidr.PrimaryCidr.ShouldBe("10.0.0.0/16");
     }
 
     [Fact]
@@ -256,7 +255,7 @@ public class EnvironmentConfigTests
     [Theory]
     [InlineData("Development", "123456789012", "us-east-1", AccountType.NonProduction)]
     [InlineData("Production", "987654321098", "us-west-2", AccountType.Production)]
-    [InlineData("Staging", "555666777888", "eu-west-1", AccountType.Production)]
+    [InlineData("Staging", "555666777888", "us-east-2", AccountType.Production)]
     public void EnvironmentConfig_ShouldAcceptVariousValidValues(string name, string accountId, string region, AccountType accountType)
     {
         // Arrange & Act

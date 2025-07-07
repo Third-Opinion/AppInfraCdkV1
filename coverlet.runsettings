@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>
+            <!-- Exclude infrastructure/deployment projects -->
+            [AppInfraCdkV1.Deploy]*,
+            [AppInfraCdkV1.Stacks]*,
+            <!-- Exclude test assemblies -->
+            [*Tests]*,
+            [*TestAdapter]*,
+            [xunit.*]*,
+            <!-- Exclude generated code -->
+            [*]*.Designer
+          </Exclude>
+          <Include>
+            <!-- Include only core business logic and apps -->
+            [AppInfraCdkV1.Core]*,
+            [AppInfraCdkV1.Apps]*
+          </Include>
+          <ExcludeByAttribute>
+            <!-- Exclude generated code attributes -->
+            Obsolete,
+            GeneratedCodeAttribute,
+            CompilerGeneratedAttribute
+          </ExcludeByAttribute>
+          <ExcludeByFile>
+            <!-- Exclude specific file patterns -->
+            **/Migrations/*.cs,
+            **/*.Designer.cs
+          </ExcludeByFile>
+          <IncludeTestAssembly>true</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

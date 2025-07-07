@@ -147,10 +147,7 @@ public abstract class Program
                 Console.WriteLine($"   Current environment: {context.Environment.Name}");
 
                 // Validate isolation strategy
-                if (context.Environment.IsolationStrategy.UseVpcPerEnvironment)
-                    Console.WriteLine("   🔒 Isolation: VPC per environment (recommended)");
-                else if (context.Environment.IsolationStrategy.UseSharedVpcWithSubnets)
-                    Console.WriteLine("   🔒 Isolation: Shared VPC with subnet isolation");
+                Console.WriteLine("   🔒 Isolation: VPC per environment");
 
                 // Validate CIDR ranges don't conflict
                 ValidateCidrRanges(context);
@@ -293,18 +290,9 @@ public abstract class Program
             Console.WriteLine(
                 $"   Other environments in this account: {string.Join(", ", siblings.Where(e => e != context.Environment.Name))}");
 
-        if (context.Environment.IsolationStrategy.UseVpcPerEnvironment)
-        {
-            Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
-            Console.WriteLine(
-                $"   VPC CIDR: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
-        }
-        else if (context.Environment.IsolationStrategy.UseSharedVpcWithSubnets)
-        {
-            Console.WriteLine("   VPC Strategy: Shared VPC with subnet isolation");
-            Console.WriteLine(
-                $"   Shared VPC ID: {context.Environment.IsolationStrategy.SharedVpcId}");
-        }
+        Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
+        Console.WriteLine(
+            $"   VPC CIDR: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
 
         Console.WriteLine();
     }
@@ -357,11 +345,11 @@ public abstract class Program
     {
         Console.Error.WriteLine("\n📋 Naming Convention Help:");
         Console.Error.WriteLine("Available environments:");
-        Console.Error.WriteLine("  Non-Production Account: Development, QA, Test, Integration");
+        Console.Error.WriteLine("  Non-Production Account: Development, Integration");
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
         Console.Error.WriteLine("Available applications: TrialFinderV2");
         Console.Error.WriteLine(
-            "Available regions: us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1");
+            "Available regions: us-east-1, us-east-2, us-west-1, us-west-2");
         Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
         Console.Error.WriteLine(
             "To add new environments, update appsettings.json and NamingConvention.cs");
@@ -466,11 +454,6 @@ public abstract class Program
         {
             envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
             {
-                UseVpcPerEnvironment
-                    = isolationSection.GetValue<bool>("UseVpcPerEnvironment", true),
-                UseSharedVpcWithSubnets
-                    = isolationSection.GetValue<bool>("UseSharedVpcWithSubnets", false),
-                SharedVpcId = isolationSection["SharedVpcId"],
                 UseEnvironmentSpecificIamRoles
                     = isolationSection.GetValue<bool>("UseEnvironmentSpecificIamRoles", true),
                 UseEnvironmentSpecificKmsKeys
