@@ -7,9 +7,7 @@ using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.RDS;
 using Amazon.CDK.AWS.S3;
 using AppInfraCdkV1.Core.Abstractions;
-using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
-using AppInfraCdkV1.Stacks.Services;
 using Constructs;
 using InstanceType = Amazon.CDK.AWS.EC2.InstanceType;
 
@@ -18,7 +16,6 @@ namespace AppInfraCdkV1.Stacks.WebApp;
 public class WebApplicationStack : Stack, IApplicationStack
 {
     private readonly DeploymentContext _context;
-    protected readonly EnvironmentResourceProvider EnvironmentResources;
 
     protected WebApplicationStack(Construct scope,
         string id,
@@ -29,14 +26,8 @@ public class WebApplicationStack : Stack, IApplicationStack
         _context = context;
         ApplicationName = context.Application.Name;
 
-        // Initialize environment resource provider
-        EnvironmentResources = new EnvironmentResourceProvider(this, context);
-
         // Validate naming convention before creating resources
         context.ValidateNamingContext();
-        
-        // Validate shared environment resources are available
-        EnvironmentResources.ValidateSharedResources();
 
         CreateResources(context);
     }
@@ -45,36 +36,117 @@ public class WebApplicationStack : Stack, IApplicationStack
 
     public void CreateResources(DeploymentContext context)
     {
-        Console.WriteLine($"🚀 Creating application resources for {ApplicationName}...");
-        
-        // Get shared VPC and security groups
-        var vpc = EnvironmentResources.GetSharedVpc();
-        var sharedSecurityGroups = GetSharedSecurityGroups();
-        
-        // Create application-specific resources
-        var cluster = CreateEcsCluster(vpc);
-        // var database = CreateDatabase(vpc, sharedSecurityGroups.DatabaseSg);
-        // var service = CreateWebService(cluster, database, sharedSecurityGroups);
+        //var vpc = CreateOrImportVpc();
+       // SecurityGroupBundle securityGroups = CreateSecurityGroups(vpc);
+       // var cluster = CreateEcsCluster(vpc);
+       // var database = CreateDatabase(vpc, securityGroups.DatabaseSg);
+       // S3BucketBundle s3Buckets = CreateS3Buckets();
+       // var service = CreateWebService(cluster, database, securityGroups);
+
 
         ApplyCommonTags();
-        
-        Console.WriteLine($"✅ Application resources created for {ApplicationName}");
     }
 
-    /// <summary>
-    /// Gets shared security groups from the environment base stack
-    /// </summary>
-    private SecurityGroupBundle GetSharedSecurityGroups()
+    private IVpc CreateOrImportVpc()
     {
-        return new SecurityGroupBundle(
-            EnvironmentResources.GetAlbSecurityGroup(),
-            EnvironmentResources.GetEcsSecurityGroup(),
-            EnvironmentResources.GetRdsSecurityGroup()
-        );
+        var vpcName = _context.Namer.Vpc();
+
+        // Try to find existing VPC for this environment
+        try
+        {
+            return Vpc.FromLookup(this, "Vpc", new VpcLookupOptions
+            {
+                VpcName = vpcName
+            });
+        }
+        catch
+        {
+            // If VPC doesn't exist, create it with default CIDR
+            Console.WriteLine(
+                $"Creating new VPC: {vpcName} with default CIDR");
+
+            return new Vpc(this, "Vpc", new VpcProps
+            {
+                IpAddresses = IpAddresses.Cidr("10.0.0.0/16"),
+                MaxAzs = 2,
+                NatGateways = _context.Environment.IsProductionClass ? 2 : 1,
+                SubnetConfiguration = new[]
+                {
+                    new SubnetConfiguration
+                    {
+                        Name = "Public",
+                        SubnetType = SubnetType.PUBLIC,
+                        CidrMask = 24
+                    },
+                    new SubnetConfiguration
+                    {
+                        Name = "Private",
+                        SubnetType = SubnetType.PRIVATE_ISOLATED,
+                        CidrMask = 24
+                    },
+                    new SubnetConfiguration
+                    {
+                        Name = "Isolated",
+                        SubnetType = SubnetType.PRIVATE_ISOLATED,
+                        CidrMask = 24
+                    }
+                }
+            });
+        }
     }
 
-    // Security groups are now provided by the shared environment base stack
-    // Individual applications no longer create their own security groups
+    private SecurityGroupBundle CreateSecurityGroups(IVpc vpc)
+    {
+        var albSg = new SecurityGroup(this, "AlbSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            SecurityGroupName = _context.Namer.SecurityGroupForAlb("web"),
+            Description
+                = $"Security group for {_context.Environment.Name} web application load balancer",
+            AllowAllOutbound = true
+        });
+
+        // Configure ALB access based on environment
+        ConfigureAlbSecurityGroup(albSg);
+
+        var ecsSg = new SecurityGroup(this, "EcsSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            SecurityGroupName = _context.Namer.SecurityGroupForEcs("web"),
+            Description
+                = $"Security group for {_context.Environment.Name} web application containers",
+            AllowAllOutbound = true
+        });
+
+        // Allow traffic from ALB to ECS
+        ecsSg.AddIngressRule(albSg, Port.AllTcp(), "Allow traffic from ALB");
+
+        var dbSg = new SecurityGroup(this, "DatabaseSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            SecurityGroupName = _context.Namer.SecurityGroupForRds("main"),
+            Description
+                = $"Security group for {_context.Environment.Name} main application database",
+            AllowAllOutbound = false
+        });
+
+        // Allow database access from ECS
+        dbSg.AddIngressRule(ecsSg, Port.Tcp(5432), "Allow PostgreSQL access from ECS");
+
+        return new SecurityGroupBundle(albSg, ecsSg, dbSg);
+    }
+
+    private void ConfigureAlbSecurityGroup(ISecurityGroup albSg)
+    {
+        // Allow HTTP and HTTPS traffic
+        albSg.AddIngressRule(Peer.AnyIpv4(), Port.AllTcp(), "Allow HTTP traffic");
+        albSg.AddIngressRule(Peer.AnyIpv4(), Port.AllTcp(), "Allow HTTPS traffic");
+
+        // Add environment-specific access rules
+        var allowedCidrs = _context.Application.Security.AllowedCidrBlocks;
+        foreach (var cidr in allowedCidrs)
+            albSg.AddIngressRule(Peer.Ipv4(cidr), Port.AllTcp(), $"Allow access from {cidr}");
+    }
 
 
     private ICluster CreateEcsCluster(IVpc vpc)
@@ -83,9 +155,17 @@ public class WebApplicationStack : Stack, IApplicationStack
         {
             Vpc = vpc,
             ClusterName = _context.Namer.EcsCluster(),
-            EnableFargateCapacityProviders = true,
-            ContainerInsightsV2 = ContainerInsights.ENABLED
+            EnableFargateCapacityProviders = true
         });
+
+        // Add environment-specific cluster configuration
+        if (_context.Environment.IsProductionClass)
+            cluster.AddCapacity("DefaultAutoScalingGroup", new AddCapacityOptions
+            {
+                InstanceType = new InstanceType("t3.medium"),
+                MinCapacity = 1,
+                MaxCapacity = 5
+            });
 
         return cluster;
     }
@@ -97,8 +177,8 @@ public class WebApplicationStack : Stack, IApplicationStack
             Description
                 = $"Subnet group for {ApplicationName} {_context.Environment.Name} database",
             Vpc = vpc,
-            VpcSubnets = EnvironmentResources.GetIsolatedSubnetSelection(),
-            SubnetGroupName = _context.Namer.Custom("dbsubnet", ResourcePurpose.Main)
+            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_ISOLATED },
+            SubnetGroupName = _context.Namer.Custom("dbsubnet", "main")
         });
 
         var backupRetention = _context.Application.MultiEnvironment
@@ -111,7 +191,7 @@ public class WebApplicationStack : Stack, IApplicationStack
             {
                 Version = PostgresEngineVersion.VER_17_3
             }),
-            InstanceIdentifier = _context.Namer.RdsInstance(ResourcePurpose.Main),
+            InstanceIdentifier = _context.Namer.RdsInstance("main"),
             // InstanceType = InstanceType.Of(InstanceClass.BURSTABLE3,
             //     GetInstanceSizeFromClass(_context.Application.Sizing.DatabaseInstanceClass)),
             Vpc = vpc,
@@ -130,6 +210,17 @@ public class WebApplicationStack : Stack, IApplicationStack
         });
     }
 
+    private InstanceSize GetInstanceSizeFromClass(string instanceClass)
+    {
+        return instanceClass switch
+        {
+            "db.t3.micro" => InstanceSize.MICRO,
+            "db.t3.small" => InstanceSize.SMALL,
+            "db.t3.medium" => InstanceSize.MEDIUM,
+            "db.t3.large" => InstanceSize.LARGE,
+            _ => InstanceSize.MICRO
+        };
+    }
 
     // private S3BucketBundle CreateS3Buckets()
     // {
@@ -157,18 +248,18 @@ public class WebApplicationStack : Stack, IApplicationStack
         // Create log group with proper naming
         var logGroup = new LogGroup(this, "ServiceLogGroup", new LogGroupProps
         {
-            LogGroupName = _context.Namer.LogGroup("ecs", ResourcePurpose.Web),
+            LogGroupName = _context.Namer.LogGroup("ecs", "web"),
             Retention = _context.Environment.IsProductionClass
                 ? RetentionDays.ONE_MONTH
                 : RetentionDays.ONE_WEEK,
             RemovalPolicy = RemovalPolicy.DESTROY
         });
 
-        var service = new ApplicationLoadBalancedFargateService(this, "Service",
+        return new ApplicationLoadBalancedFargateService(this, "Service",
             new ApplicationLoadBalancedFargateServiceProps
             {
                 Cluster = cluster,
-                ServiceName = _context.Namer.EcsService(ResourcePurpose.Web),
+                ServiceName = _context.Namer.EcsService("web"),
                 TaskImageOptions = new ApplicationLoadBalancedTaskImageOptions
                 {
                     Image = ContainerImage.FromRegistry($"{ApplicationName.ToLower()}:latest"),
@@ -178,24 +269,15 @@ public class WebApplicationStack : Stack, IApplicationStack
                         LogGroup = logGroup,
                         StreamPrefix = "ecs"
                     }),
-                    TaskRole = ImportTaskRole(),
-                    ExecutionRole = ImportExecutionRole()
+                    TaskRole = CreateTaskRole(),
+                    ExecutionRole = CreateExecutionRole()
                 },
               //  DesiredCount = sizing.MinCapacity,
                 PublicLoadBalancer = true,
                 Protocol = ApplicationProtocol.HTTPS,
                 RedirectHTTP = true,
-                TaskDefinition = CreateTaskDefinition(),
-                // Use shared security groups
-                SecurityGroups = new[] { securityGroups.AlbSg },
-                TaskSubnets = EnvironmentResources.GetPrivateSubnetSelection()
+                TaskDefinition = CreateTaskDefinition()
             });
-
-        // Additional security group configuration for ECS tasks
-        service.Service.Connections.AllowFromAnyIpv4(Port.Tcp(80), "Allow HTTP from ALB");
-        service.Service.Connections.AllowFromAnyIpv4(Port.Tcp(443), "Allow HTTPS from ALB");
-        
-        return service;
     }
 
     private Dictionary<string, string> CreateEnvironmentVariables(IDatabaseInstance database)
@@ -221,32 +303,37 @@ public class WebApplicationStack : Stack, IApplicationStack
     {
         return new FargateTaskDefinition(this, "TaskDefinition", new FargateTaskDefinitionProps
         {
-            Family = _context.Namer.EcsTaskDefinition(ResourcePurpose.Web),
+            Family = _context.Namer.EcsTaskDefinition("web"),
             // MemoryLimitMiB = _context.Application.Sizing.GetMemoryLimit(),
             // Cpu = _context.Application.Sizing.GetCpuLimit()
         });
     }
 
-    /// <summary>
-    /// Imports existing IAM role for ECS tasks from external resource
-    /// </summary>
-    private Amazon.CDK.AWS.IAM.IRole ImportTaskRole()
+    private Amazon.CDK.AWS.IAM.IRole CreateTaskRole()
     {
-        var roleName = _context.Namer.IamRole(IamPurpose.EcsTask);
-        var roleArn = $"arn:aws:iam::{_context.Environment.AccountId}:role/{roleName}";
-        
-        return Amazon.CDK.AWS.IAM.Role.FromRoleArn(this, "TaskRole", roleArn);
+        return new Amazon.CDK.AWS.IAM.Role(this, "TaskRole", new Amazon.CDK.AWS.IAM.RoleProps
+        {
+            RoleName = _context.Namer.IamRole("ecs-task"),
+            AssumedBy = new Amazon.CDK.AWS.IAM.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            Description
+                = $"ECS task role for {ApplicationName} {_context.Environment.Name} web service"
+        });
     }
 
-    /// <summary>
-    /// Imports existing IAM role for ECS execution from external resource
-    /// </summary>
-    private Amazon.CDK.AWS.IAM.IRole ImportExecutionRole()
+    private Amazon.CDK.AWS.IAM.IRole CreateExecutionRole()
     {
-        var roleName = _context.Namer.IamRole(IamPurpose.EcsExecution);
-        var roleArn = $"arn:aws:iam::{_context.Environment.AccountId}:role/{roleName}";
-        
-        return Amazon.CDK.AWS.IAM.Role.FromRoleArn(this, "ExecutionRole", roleArn);
+        return new Amazon.CDK.AWS.IAM.Role(this, "ExecutionRole", new Amazon.CDK.AWS.IAM.RoleProps
+        {
+            RoleName = _context.Namer.IamRole("ecs-execution"),
+            AssumedBy = new Amazon.CDK.AWS.IAM.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            ManagedPolicies = new[]
+            {
+                Amazon.CDK.AWS.IAM.ManagedPolicy.FromAwsManagedPolicyName(
+                    "service-role/AmazonECSTaskExecutionRolePolicy")
+            },
+            Description
+                = $"ECS execution role for {ApplicationName} {_context.Environment.Name} web service"
+        });
     }
 
     private void ApplyCommonTags()
