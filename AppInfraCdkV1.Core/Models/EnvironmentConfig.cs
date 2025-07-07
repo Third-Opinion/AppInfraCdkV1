@@ -9,7 +9,6 @@ public class EnvironmentConfig
     private string _region = string.Empty;
     private AccountType _accountType = AccountType.NonProduction;
     private Dictionary<string, string> _tags = new();
-    private EnvironmentIsolationStrategy _isolationStrategy = new();
 
     public string Name
     {
@@ -41,11 +40,6 @@ public class EnvironmentConfig
         set => _tags = value;
     }
 
-    public EnvironmentIsolationStrategy IsolationStrategy
-    {
-        get => _isolationStrategy;
-        set => _isolationStrategy = value;
-    }
 
     /// <summary>
     ///     Indicates if this is a production-class environment (staging, production, etc.)

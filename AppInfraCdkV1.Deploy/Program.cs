@@ -148,9 +148,6 @@ public abstract class Program
 
                 // Validate isolation strategy
                 Console.WriteLine("   🔒 Isolation: VPC per environment");
-
-                // Validate CIDR ranges don't conflict
-                ValidateCidrRanges(context);
             }
             else
             {
@@ -168,17 +165,8 @@ public abstract class Program
 
     private static void ValidateCidrRanges(DeploymentContext context)
     {
-        var cidr = context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr;
-        if (string.IsNullOrEmpty(cidr))
-        {
-            Console.WriteLine(
-                $"⚠️  Warning: No CIDR specified for {context.Environment.Name}, using default");
-            context.Environment.IsolationStrategy.VpcCidr
-                = VpcCidrConfig.GetDefaultForEnvironment(context.Environment.Name);
-        }
-
-        Console.WriteLine(
-            $"   🌐 VPC CIDR for {context.Environment.Name}: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
+        // CIDR validation removed - no longer using IsolationStrategy
+        Console.WriteLine("   🌐 VPC CIDR validation skipped - using default VPC configuration");
     }
 
     private static void ValidateAccountLevelUniqueness(DeploymentContext context)
@@ -291,9 +279,6 @@ public abstract class Program
                 $"   Other environments in this account: {string.Join(", ", siblings.Where(e => e != context.Environment.Name))}");
 
         Console.WriteLine("   VPC Strategy: Dedicated VPC per environment");
-        Console.WriteLine(
-            $"   VPC CIDR: {context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
-
         Console.WriteLine();
     }
 
@@ -448,40 +433,7 @@ public abstract class Program
             // Default based on environment name
             envConfig.AccountType = NamingConvention.GetAccountType(environmentName);
 
-        // Parse isolation strategy
-        var isolationSection = section.GetSection("IsolationStrategy");
-        if (isolationSection.Exists())
-        {
-            envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
-            {
-                UseEnvironmentSpecificIamRoles
-                    = isolationSection.GetValue<bool>("UseEnvironmentSpecificIamRoles", true),
-                UseEnvironmentSpecificKmsKeys
-                    = isolationSection.GetValue<bool>("UseEnvironmentSpecificKmsKeys", true)
-            };
-
-            // Parse VPC CIDR
-            var vpcCidrSection = isolationSection.GetSection("VpcCidr");
-            if (vpcCidrSection.Exists())
-                envConfig.IsolationStrategy.VpcCidr = new VpcCidrConfig
-                {
-                    PrimaryCidr = vpcCidrSection["PrimaryCidr"] ?? VpcCidrConfig
-                        .GetDefaultForEnvironment(environmentName).PrimaryCidr,
-                    SecondaryCidrs
-                        = vpcCidrSection.GetSection("SecondaryCidrs").Get<List<string>>() ?? new()
-                };
-            else
-                envConfig.IsolationStrategy.VpcCidr
-                    = VpcCidrConfig.GetDefaultForEnvironment(environmentName);
-        }
-        else
-        {
-            // Use defaults
-            envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
-            {
-                VpcCidr = VpcCidrConfig.GetDefaultForEnvironment(environmentName)
-            };
-        }
+        // IsolationStrategy parsing removed - no longer used
 
         // Validate the region is supported
         try

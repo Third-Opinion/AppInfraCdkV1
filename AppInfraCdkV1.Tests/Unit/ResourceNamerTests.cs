@@ -343,14 +343,7 @@ public class ResourceNamerTests
                 Name = environmentName,
                 AccountId = "123456789012",
                 Region = "us-east-2",
-                AccountType = environmentName == "Production" ? AccountType.Production : AccountType.NonProduction,
-                IsolationStrategy = new EnvironmentIsolationStrategy
-                {
-                    VpcCidr = new VpcCidrConfig
-                    {
-                        PrimaryCidr = "10.0.0.0/16"
-                    }
-                }
+                AccountType = environmentName == "Production" ? AccountType.Production : AccountType.NonProduction
             },
             Application = new ApplicationConfig
             {

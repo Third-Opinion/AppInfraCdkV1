@@ -61,13 +61,13 @@ public class WebApplicationStack : Stack, IApplicationStack
         }
         catch
         {
-            // If VPC doesn't exist, create it with environment-specific CIDR
+            // If VPC doesn't exist, create it with default CIDR
             Console.WriteLine(
-                $"Creating new VPC: {vpcName} with CIDR: {_context.Environment.IsolationStrategy.VpcCidr.PrimaryCidr}");
+                $"Creating new VPC: {vpcName} with default CIDR");
 
             return new Vpc(this, "Vpc", new VpcProps
             {
-                IpAddresses = IpAddresses.Cidr(_context.Environment.IsolationStrategy.VpcCidr?.PrimaryCidr ?? "10.0.0.0/16"),
+                IpAddresses = IpAddresses.Cidr("10.0.0.0/16"),
                 MaxAzs = 2,
                 NatGateways = _context.Environment.IsProductionClass ? 2 : 1,
                 SubnetConfiguration = new[]
@@ -340,7 +340,6 @@ public class WebApplicationStack : Stack, IApplicationStack
     {
         var tags = _context.GetCommonTags();
         tags["AccountType"] = _context.Environment.AccountType.ToString();
-        tags["IsolationStrategy"] = "VpcPerEnvironment";
 
         foreach (var tag in tags) Tags.SetTag(tag.Key, tag.Value);
     }
