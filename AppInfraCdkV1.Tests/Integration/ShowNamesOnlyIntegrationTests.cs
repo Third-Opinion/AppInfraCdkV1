@@ -201,6 +201,10 @@ public class ShowNamesOnlyIntegrationTests
     {
         // Arrange - No arguments, should use defaults from environment variables or fallbacks
         var arguments = "--show-names-only";
+        
+        // Get the expected environment from CDK_ENVIRONMENT or default to Development
+        var expectedEnvironment = Environment.GetEnvironmentVariable("CDK_ENVIRONMENT") ?? "Development";
+        var expectedPrefix = expectedEnvironment == "Production" ? "prod" : "dev";
 
         // Act
         var result = await ExecuteDeployCommand(arguments);
@@ -208,9 +212,9 @@ public class ShowNamesOnlyIntegrationTests
         // Assert
         result.ExitCode.ShouldBe(0);
         
-        // Should use default environment (Development) and application (TrialFinderV2)
-        result.StandardOutput.ShouldContain("Starting CDK deployment for TrialFinderV2 in Development");
-        result.StandardOutput.ShouldContain("dev-tfv2-");
+        // Should use environment from CDK_ENVIRONMENT or default (Development) and application (TrialFinderV2)
+        result.StandardOutput.ShouldContain($"Starting CDK deployment for TrialFinderV2 in {expectedEnvironment}");
+        result.StandardOutput.ShouldContain($"{expectedPrefix}-tfv2-");
     }
 
     [Fact]
