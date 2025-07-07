@@ -238,12 +238,6 @@ public class NamingValidationIntegrationTests
         else
             envConfig.AccountType = NamingConvention.GetAccountType(environmentName);
 
-        // Use default isolation strategy for tests
-        envConfig.IsolationStrategy = new EnvironmentIsolationStrategy
-        {
-            VpcCidr = VpcCidrConfig.GetDefaultForEnvironment(environmentName)
-        };
-
         return envConfig;
     }
 
