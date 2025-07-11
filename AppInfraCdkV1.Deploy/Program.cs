@@ -201,12 +201,12 @@ public abstract class Program
         var violations = new List<string>();
 
         // Check S3 bucket name length (3-63 characters)
-        var s3Name = context.Namer.S3Bucket("app");
+        var s3Name = context.Namer.S3Bucket(StoragePurpose.App);
         if (s3Name.Length > 63)
             violations.Add($"S3 bucket name too long: {s3Name} ({s3Name.Length} chars, max 63)");
 
         // Check RDS identifier length (max 63 characters)
-        var rdsName = context.Namer.RdsInstance("main");
+        var rdsName = context.Namer.RdsInstance(ResourcePurpose.Main);
         if (rdsName.Length > 63)
             violations.Add($"RDS identifier too long: {rdsName} ({rdsName.Length} chars, max 63)");
 

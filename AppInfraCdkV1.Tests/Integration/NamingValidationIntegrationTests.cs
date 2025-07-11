@@ -1,4 +1,5 @@
 using AppInfraCdkV1.Apps.TrialFinderV2;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
 using Microsoft.Extensions.Configuration;
@@ -39,8 +40,8 @@ public class NamingValidationIntegrationTests
         var stackName = GenerateStackName(context);
         var vpcName = context.Namer.Vpc();
         var ecsClusterName = context.Namer.EcsCluster();
-        var webServiceName = context.Namer.EcsService("web");
-        var databaseName = context.Namer.RdsInstance("main");
+        var webServiceName = context.Namer.EcsService(ResourcePurpose.Web);
+        var databaseName = context.Namer.RdsInstance(ResourcePurpose.Main);
 
         // Assert
         stackName.ShouldStartWith($"{expectedPrefix}-tfv2-");
@@ -66,8 +67,8 @@ public class NamingValidationIntegrationTests
         var context = CreateDeploymentContext(environment, application);
 
         // Act
-        var s3Name = context.Namer.S3Bucket("app");
-        var rdsName = context.Namer.RdsInstance("main");
+        var s3Name = context.Namer.S3Bucket(StoragePurpose.App);
+        var rdsName = context.Namer.RdsInstance(ResourcePurpose.Main);
         var ecsName = context.Namer.EcsCluster();
 
         // Assert - Check AWS resource name limits
@@ -133,9 +134,9 @@ public class NamingValidationIntegrationTests
         var expectedPrefix = environment == "Development" ? "dev" : "prod";
 
         // Act
-        var albSecurityGroup = context.Namer.SecurityGroupForAlb("web");
-        var ecsSecurityGroup = context.Namer.SecurityGroupForEcs("web");
-        var rdsSecurityGroup = context.Namer.SecurityGroupForRds("main");
+        var albSecurityGroup = context.Namer.SecurityGroupForAlb(ResourcePurpose.Web);
+        var ecsSecurityGroup = context.Namer.SecurityGroupForEcs(ResourcePurpose.Web);
+        var rdsSecurityGroup = context.Namer.SecurityGroupForRds(ResourcePurpose.Main);
 
         // Assert
         albSecurityGroup.ShouldStartWith($"{expectedPrefix}-tfv2-sg-alb-");
@@ -158,15 +159,15 @@ public class NamingValidationIntegrationTests
         var expectedPrefix = environment == "Development" ? "dev" : "prod";
 
         // Act
-        var ecsTaskRole = context.Namer.IamRole("ecs-task");
-        var ecsExecutionRole = context.Namer.IamRole("ecs-execution");
+        var ecsTaskRole = context.Namer.IamRole(IamPurpose.EcsTask);
+        var ecsExecutionRole = context.Namer.IamRole(IamPurpose.EcsExecution);
 
         // Assert
         ecsTaskRole.ShouldStartWith($"{expectedPrefix}-tfv2-role-");
         ecsExecutionRole.ShouldStartWith($"{expectedPrefix}-tfv2-role-");
 
         ecsTaskRole.ShouldContain("ecs-task");
-        ecsExecutionRole.ShouldContain("ecs-execution");
+        ecsExecutionRole.ShouldContain("ecs-exec");
     }
 
     [Theory]
@@ -179,7 +180,7 @@ public class NamingValidationIntegrationTests
         var expectedPrefix = environment == "Development" ? "dev" : "prod";
 
         // Act
-        var logGroup = context.Namer.LogGroup("ecs", "web");
+        var logGroup = context.Namer.LogGroup("ecs", ResourcePurpose.Web);
 
         // Assert
         logGroup.ShouldStartWith("/aws/ecs/");
