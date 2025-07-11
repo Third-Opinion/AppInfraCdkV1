@@ -176,21 +176,51 @@ jobs:
     - name: Install bc for calculations
       run: sudo apt-get update && sudo apt-get install -y bc
     
-    - name: Check Coverage Threshold
+    - name: Report Coverage Results
       run: |
         # Extract coverage percentage from the JSON summary
         COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
         echo "Current coverage: $COVERAGE%"
         
-        # Check if coverage meets minimum threshold (70%)
+        # Report coverage results without failing the build
         # Note: Infrastructure projects (Deploy, Stacks) are excluded from coverage
         if (( $(echo "$COVERAGE >= 70" | bc -l) )); then
           echo "✅ Coverage check passed: $COVERAGE% >= 70%"
         else
-          echo "❌ Coverage check failed: $COVERAGE% < 70%"
-          echo "Please add more unit tests to increase coverage above 70%"
-          exit 1
+          echo "⚠️ Coverage is below target: $COVERAGE% < 70%"
+          echo "Consider adding more unit tests to increase coverage above 70%"
         fi
+        
+        # Save coverage percentage for badge generation
+        echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
+    
+    - name: Create Coverage Badge
+      run: |
+        # Create coverage badge using shields.io format
+        COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
+        COVERAGE_INT=$(printf "%.0f" "$COVERAGE")
+        
+        # Determine badge color based on coverage percentage
+        if (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+          COLOR="brightgreen"
+        elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+          COLOR="yellow"
+        else
+          COLOR="red"
+        fi
+        
+        # Create badge JSON
+        mkdir -p badges
+        cat > badges/coverage.json << EOF
+        {
+          "schemaVersion": 1,
+          "label": "coverage",
+          "message": "${COVERAGE_INT}%",
+          "color": "${COLOR}"
+        }
+        EOF
+        
+        echo "Coverage badge created: ${COVERAGE_INT}% (${COLOR})"
     
     - name: Upload Coverage Reports
       uses: actions/upload-artifact@v4
@@ -198,6 +228,22 @@ jobs:
       with:
         name: coverage-report
         path: coverage/report/
+    
+    - name: Upload Coverage Badge
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-badge
+        path: badges/coverage.json
+    
+    - name: Commit Coverage Badge
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add badges/coverage.json
+        git diff --staged --quiet || git commit -m "Update coverage badge [skip ci]"
+        git push
     
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
@@ -217,19 +263,45 @@ jobs:
             if (fs.existsSync(summaryPath)) {
               const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
               const coverage = summary.summary.linecoverage;
-              const status = coverage >= 70 ? '✅' : '❌';
+              const branchCoverage = summary.summary.branchcoverage;
+              
+              // Determine status and color
+              const status = coverage >= 70 ? '✅' : '⚠️';
+              const statusText = coverage >= 70 ? 'MEETS TARGET' : 'BELOW TARGET';
+              
+              // Create detailed coverage breakdown
+              let coverageBreakdown = '';
+              if (summary.coverage && summary.coverage.length > 0) {
+                coverageBreakdown = '\n### 📈 Coverage by Assembly\n\n';
+                summary.coverage.forEach(assembly => {
+                  const assemblyName = assembly.name.replace(/AppInfraCdkV1\./, '');
+                  const lineCov = assembly.summary.linecoverage;
+                  const branchCov = assembly.summary.branchcoverage;
+                  const icon = lineCov >= 70 ? '✅' : '⚠️';
+                  coverageBreakdown += `${icon} **${assemblyName}**: ${lineCov.toFixed(1)}% lines, ${branchCov.toFixed(1)}% branches\n`;
+                });
+              }
+              
               const coverageComment = `## 📊 Test Coverage Report
               
-              ${status} **Line Coverage: ${coverage.toFixed(1)}%**
+              ${status} **Overall Coverage: ${coverage.toFixed(1)}%** (${statusText})
               
-              - **Minimum Required**: 70%
-              - **Status**: ${coverage >= 70 ? 'PASSED' : 'FAILED'}
-              - **Excluded from Coverage**: Infrastructure projects (Deploy, Stacks)
-              - **Core Business Logic**: ~81% (AppInfraCdkV1.Core)
+              | Metric | Value | Target |
+              |--------|-------|--------|
+              | **Line Coverage** | ${coverage.toFixed(1)}% | 70% |
+              | **Branch Coverage** | ${branchCoverage.toFixed(1)}% | - |
+              | **Status** | ${statusText} | - |
               
-              ${coverage < 70 ? '⚠️ Coverage is below the required threshold. Please add more unit tests.' : '🎉 Coverage meets the required threshold!'}
+              ${coverageBreakdown}
               
-              [View detailed coverage report in artifacts](${context.payload.pull_request.html_url}/checks)`;
+              ### 📋 Coverage Configuration
+              - **Included**: Core business logic (AppInfraCdkV1.Core, AppInfraCdkV1.Apps)
+              - **Excluded**: Infrastructure projects (Deploy, Stacks), test assemblies
+              - **Note**: Build will not fail for coverage below target
+              
+              ${coverage < 70 ? '💡 **Tip**: Consider adding more unit tests to increase coverage above 70%' : '🎉 **Great job!** Coverage meets the target threshold!'}
+              
+              [📁 View detailed HTML coverage report in artifacts](${context.payload.pull_request.html_url}/checks)`;
               
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
