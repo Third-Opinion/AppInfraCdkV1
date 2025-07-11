@@ -113,8 +113,8 @@ public class EnvironmentBaseStack : Stack
         });
         
         // Allow HTTP from anywhere (matches existing)
-        albSg.AddIngressRule(Peer.AnyIpv4(), Port.Http(), "Allow HTTP from anywhere");
-        albSg.AddIngressRule(Peer.AnyIpv4(), Port.Https(), "Allow HTTPS from anywhere");
+        albSg.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(80), "Allow HTTP from anywhere");
+        albSg.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(443), "Allow HTTPS from anywhere");
         
         SharedSecurityGroups["alb"] = albSg;
         
@@ -167,7 +167,7 @@ public class EnvironmentBaseStack : Stack
         });
         
         // Allow HTTPS from ECS to VPC endpoints
-        vpcEndpointSg.AddIngressRule(ecsSg, Port.Https(), "Allow HTTPS from ECS to VPC endpoints");
+        vpcEndpointSg.AddIngressRule(ecsSg, Port.Tcp(443), "Allow HTTPS from ECS to VPC endpoints");
         
         SharedSecurityGroups["vpc-endpoints"] = vpcEndpointSg;
         

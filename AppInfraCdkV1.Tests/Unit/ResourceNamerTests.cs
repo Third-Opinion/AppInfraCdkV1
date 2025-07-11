@@ -155,7 +155,7 @@ public class ResourceNamerTests
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-role");
-        result.ShouldContain("ecs-task");
+        result.ShouldContain("ecs-exec");
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public class ResourceNamerTests
     public void SecurityGroupForEcs_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.SecurityGroupForEcs("api");
+        var result = _resourceNamer.SecurityGroupForEcs(ResourcePurpose.Api);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -210,7 +210,7 @@ public class ResourceNamerTests
     public void SecurityGroupForRds_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.SecurityGroupForRds("primary");
+        var result = _resourceNamer.SecurityGroupForRds(ResourcePurpose.Primary);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -234,21 +234,21 @@ public class ResourceNamerTests
     public void S3Bucket_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.S3Bucket("documents");
+        var result = _resourceNamer.S3Bucket(StoragePurpose.Documents);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("thirdopinion.io");
         result.ShouldContain("dev");
         result.ShouldContain("tfv2");
-        result.ShouldContain("documents");
+        result.ShouldContain("docs");
     }
 
     [Fact]
     public void LogGroup_WithServiceTypeAndPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.LogGroup("ecs", "web");
+        var result = _resourceNamer.LogGroup("ecs", ResourcePurpose.Web);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -262,7 +262,7 @@ public class ResourceNamerTests
     public void SnsTopics_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.SnsTopics("notifications");
+        var result = _resourceNamer.SnsTopics(NotificationPurpose.General);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -274,7 +274,7 @@ public class ResourceNamerTests
     public void SqsQueue_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.SqsQueue("processing");
+        var result = _resourceNamer.SqsQueue(QueuePurpose.Processing);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -286,36 +286,36 @@ public class ResourceNamerTests
     public void SecretsManager_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.SecretsManager("database");
+        var result = _resourceNamer.SecretsManager(ResourcePurpose.Primary);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-secret");
-        result.ShouldContain("database");
+        result.ShouldContain("primary");
     }
 
     [Fact]
     public void ParameterStore_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.ParameterStore("config");
+        var result = _resourceNamer.ParameterStore(ResourcePurpose.Main);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-param");
-        result.ShouldContain("config");
+        result.ShouldContain("main");
     }
 
     [Fact]
     public void Custom_WithResourceTypeAndPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.Custom("cloudfront", "cdn");
+        var result = _resourceNamer.Custom("cloudfront", ResourcePurpose.Web);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-cloudfront");
-        result.ShouldContain("cdn");
+        result.ShouldContain("web");
     }
 
     [Fact]
@@ -337,12 +337,12 @@ public class ResourceNamerTests
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
-        result.ShouldStartWith("dev-tfv2-iam-role");
+        result.ShouldStartWith("dev-tfv2-role");
         result.ShouldContain(purposeString);
-        result.ShouldEndWith("ue2"); // us-east-2 region code
+        result.ShouldEndWith(purposeString); // Should end with the purpose
         
-        // Validate the full expected format: {env}-{app}-iam-role-{purpose}-{region}
-        var expectedPattern = $"dev-tfv2-iam-role-{purposeString}-ue2";
+        // Validate the full expected format: {env}-{app}-role-{region}-{purpose}
+        var expectedPattern = $"dev-tfv2-role-ue2-{purposeString}";
         result.ShouldBe(expectedPattern);
         
         Console.WriteLine($"✅ IAM Role name validation passed: {result}");
