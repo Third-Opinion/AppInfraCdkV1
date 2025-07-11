@@ -51,7 +51,7 @@ public class EnvironmentBaseStack : Stack
     {
         Console.WriteLine("🌐 Creating shared VPC with standardized naming...");
         
-        var vpcName = _context.Namer.Vpc();
+        var vpcName = _context.Namer.SharedVpc();
         
         // Create VPC with exact CIDR match
         Vpc = new Vpc(this, "SharedVpc", new VpcProps
@@ -103,12 +103,12 @@ public class EnvironmentBaseStack : Stack
     {
         Console.WriteLine("🔒 Creating shared security groups to match existing ones...");
         
-        // ALB Security Group - matches sg-04e0ab70e85194e27 (AlbSecurityGroup)
+        // ALB Security Group - shared across applications
         var albSg = new SecurityGroup(this, "AlbSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = "AlbSecurityGroup", // Match existing name
-            Description = "Inbound traffic Port 80 from Anywhere", // Match existing description
+            SecurityGroupName = _context.Namer.SharedSecurityGroup("alb"),
+            Description = "Shared ALB security group for all applications",
             AllowAllOutbound = true
         });
         
@@ -118,12 +118,12 @@ public class EnvironmentBaseStack : Stack
         
         SharedSecurityGroups["alb"] = albSg;
         
-        // ECS Security Group - matches sg-05787d59ddec14f04 (ContainerFromAlbSecurityGroup)
+        // ECS Security Group - shared across applications
         var ecsSg = new SecurityGroup(this, "ContainerFromAlbSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = "ContainerFromAlbSecurityGroup", // Match existing name
-            Description = "Inbound traffic from the AlbSecurityGroup", // Match existing description
+            SecurityGroupName = _context.Namer.SharedSecurityGroup("ecs"),
+            Description = "Shared ECS security group for all applications",
             AllowAllOutbound = true
         });
         
@@ -157,12 +157,12 @@ public class EnvironmentBaseStack : Stack
         
         SharedSecurityGroups["ecs-to-rds"] = ecsToRdsSg;
         
-        // VPC Endpoint Security Group - matches sg-056af56a32e37dce2 (vpc-endpoint-from-ecs-security-group)
+        // VPC Endpoint Security Group - shared across applications
         var vpcEndpointSg = new SecurityGroup(this, "VpcEndpointSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = "vpc-endpoint-from-ecs-security-group", // Match existing name
-            Description = "All 443 from ECS SG to VPC endpoints", // Match existing description
+            SecurityGroupName = _context.Namer.SharedSecurityGroup("vpc-endpoints"),
+            Description = "Shared VPC endpoint security group for all applications",
             AllowAllOutbound = false
         });
         
