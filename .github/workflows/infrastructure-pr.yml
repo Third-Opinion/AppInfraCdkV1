@@ -115,21 +115,41 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --verbosity normal
     
-    - name: CDK Synth with Naming Validation
+    - name: CDK Synth Base Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🏗️  Synthesizing CDK template with naming validation..."
+        echo "🏗️  Synthesizing base stack (shared infrastructure)..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
-        cdk synth
-        echo "✅ CDK synthesis completed with naming conventions enforced"
+        export CDK_APPLICATION=${{ matrix.app }}
+        CDK_DEPLOY_BASE=true cdk synth
+        echo "✅ Base stack synthesis completed"
     
-    - name: CDK Diff (if not destructive)
+    - name: CDK Synth Application Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking for infrastructure changes..."
+        echo "🏗️  Synthesizing application stack..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        cdk synth
+        echo "✅ Application stack synthesis completed with naming conventions enforced"
+    
+    - name: CDK Diff Base Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking for base stack infrastructure changes..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        CDK_DEPLOY_BASE=true cdk diff || true
+        echo "✅ Base stack diff completed"
+    
+    - name: CDK Diff Application Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking for application stack infrastructure changes..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
         cdk diff || true
-        echo "✅ Infrastructure diff completed"
+        echo "✅ Application stack diff completed"
 
   test:
     runs-on: ubuntu-latest
