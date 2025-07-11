@@ -13,6 +13,7 @@
 ### Code Quality (all branches)
 [![Claude Code Review](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/claude-code-review.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/claude-code-review.yml)
 [![Infrastructure Validation - Overall](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml/badge.svg)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
+[![Coverage Status](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FThird-Opinion%2FAppInfraCdkV1%2Fmaster%2Fbadges%2Fcoverage.json&query=message&label=coverage&color=brightgreen)](https://github.com/Third-Opinion/AppInfraCdkV1/actions/workflows/infrastructure-pr.yml)
 
 ## Overview
 
