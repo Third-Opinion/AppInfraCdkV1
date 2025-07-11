@@ -24,9 +24,9 @@ public class EnvironmentBaseStack : Stack
         _context = context;
         
         Console.WriteLine($"🏗️  Creating environment base stack for {context.Environment.Name}");
-        Console.WriteLine($"   Recreating infrastructure to match existing VPC vpc-085a37ab90d4186ac");
+        Console.WriteLine($"   Creating standardized infrastructure using naming conventions");
         
-        // Create shared VPC matching existing hello-world-vpc
+        // Create shared VPC with standardized naming
         CreateSharedVpc();
         
         // Create shared security groups matching existing ones
@@ -49,9 +49,9 @@ public class EnvironmentBaseStack : Stack
 
     private void CreateSharedVpc()
     {
-        Console.WriteLine("🌐 Creating shared VPC to match existing vpc-085a37ab90d4186ac...");
+        Console.WriteLine("🌐 Creating shared VPC with standardized naming...");
         
-        var vpcName = "hello-world-vpc"; // Match existing VPC name
+        var vpcName = _context.Namer.Vpc();
         
         // Create VPC with exact CIDR match
         Vpc = new Vpc(this, "SharedVpc", new VpcProps
