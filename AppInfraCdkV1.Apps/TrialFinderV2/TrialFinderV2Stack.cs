@@ -2,6 +2,8 @@ using Amazon.CDK;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.SNS;
 using Amazon.CDK.AWS.SQS;
+using AppInfraCdkV1.Core.Enums;
+using AppInfraCdkV1.Core.ExternalResources;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Stacks.WebApp;
 using Constructs;
@@ -16,6 +18,9 @@ public class TrialFinderV2Stack : WebApplicationStack
         DeploymentContext context)
         : base(scope, id, props, context)
     {
+        // Validate external dependencies before creating resources
+        ValidateExternalDependencies(context);
+        
         // Add TrialFinderV2-specific resources here
         CreateTrialFinderSpecificResources(context);
     }
@@ -32,9 +37,9 @@ public class TrialFinderV2Stack : WebApplicationStack
     private void CreateTrialDocumentStorage(DeploymentContext context)
     {
         // Document storage for trial PDFs, protocols, etc.
-        var documentsBucket = new Bucket(this, "CDKTestDocumentsBucket", new BucketProps
+        Bucket documentsBucket = new Bucket(this, "CDKTestDocumentsBucket", new BucketProps
         {
-            BucketName = context.Namer.S3Bucket("documents"),
+            BucketName = context.Namer.S3Bucket(StoragePurpose.Documents),
             Versioned = false,
             RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
             AutoDeleteObjects = false,
@@ -70,14 +75,14 @@ public class TrialFinderV2Stack : WebApplicationStack
         // Dead letter queue for failed processing
         var deadLetterQueue = new Queue(this, "ProcessingDeadLetterQueue", new QueueProps
         {
-            QueueName = context.Namer.SqsQueue("processing-dlq"),
+            QueueName = context.Namer.SqsQueue(QueuePurpose.DeadLetter),
             RetentionPeriod = Duration.Days(14)
         });
 
         // Main processing queue for trial data imports
         var processingQueue = new Queue(this, "TrialProcessingQueue", new QueueProps
         {
-            QueueName = context.Namer.SqsQueue("processing"),
+            QueueName = context.Namer.SqsQueue(QueuePurpose.Processing),
             VisibilityTimeout = Duration.Minutes(15),
             DeadLetterQueue = new DeadLetterQueue
             {
@@ -89,7 +94,7 @@ public class TrialFinderV2Stack : WebApplicationStack
         // High priority queue for urgent updates
         var urgentQueue = new Queue(this, "UrgentProcessingQueue", new QueueProps
         {
-            QueueName = context.Namer.SqsQueue("urgent"),
+            QueueName = context.Namer.SqsQueue(QueuePurpose.Urgent),
             VisibilityTimeout = Duration.Minutes(5),
             DeadLetterQueue = new DeadLetterQueue
             {
@@ -104,22 +109,71 @@ public class TrialFinderV2Stack : WebApplicationStack
         // SNS topic for trial status updates
         var trialUpdatesTopic = new Topic(this, "TrialUpdatesTopic", new TopicProps
         {
-            TopicName = context.Namer.SnsTopics("trial-updates"),
+            TopicName = context.Namer.SnsTopics(NotificationPurpose.TrialUpdates),
             DisplayName = "Clinical Trial Updates"
         });
 
         // SNS topic for system alerts
         var alertsTopic = new Topic(this, "SystemAlertsTopic", new TopicProps
         {
-            TopicName = context.Namer.SnsTopics("system-alerts"),
+            TopicName = context.Namer.SnsTopics(NotificationPurpose.SystemAlerts),
             DisplayName = "System Alerts and Monitoring"
         });
 
         // SNS topic for user notifications
         var userNotificationsTopic = new Topic(this, "UserNotificationsTopic", new TopicProps
         {
-            TopicName = context.Namer.SnsTopics("user-notifications"),
+            TopicName = context.Namer.SnsTopics(NotificationPurpose.UserNotifications),
             DisplayName = "User Notifications"
         });
+    }
+
+    /// <summary>
+    /// Validates that all required external resources exist and are properly configured
+    /// </summary>
+    private void ValidateExternalDependencies(DeploymentContext context)
+    {
+        Console.WriteLine("🔍 Validating TrialFinderV2 external dependencies...");
+        
+        var requirements = new TrialFinderV2ExternalDependencies();
+        var requirementsList = requirements.GetRequirements(context);
+        
+        // Check if external resources are expected to exist
+        if (!context.AllExternalResourcesValid && requirementsList.Any())
+        {
+            Console.WriteLine("⚠️  External resource validation not completed - assuming resources exist");
+            Console.WriteLine("   Run external resource validation before deployment in production");
+            
+            // In development/testing, we'll proceed with warnings
+            foreach (var requirement in requirementsList)
+            {
+                Console.WriteLine($"   Expected: {requirement.ResourceType} - {requirement.ExpectedName}");
+                Console.WriteLine($"   ARN: {requirement.ExpectedArn}");
+            }
+        }
+        else if (context.AllExternalResourcesValid)
+        {
+            Console.WriteLine("✅ All TrialFinderV2 external dependencies validated");
+        }
+        else if (context.ExternalResourceErrors.Any())
+        {
+            Console.WriteLine("❌ External resource validation failed:");
+            foreach (var error in context.ExternalResourceErrors)
+            {
+                Console.WriteLine($"   {error}");
+            }
+            
+            // Generate creation commands for missing resources
+            Console.WriteLine("\n📋 To create missing resources, run:");
+            var validator = new ExternalResourceValidator();
+            foreach (var requirement in requirementsList)
+            {
+                var commands = validator.GenerateCreationCommands(requirement, context);
+                Console.WriteLine(commands);
+                Console.WriteLine();
+            }
+            
+            throw new InvalidOperationException("External resource dependencies not met. See console output for details.");
+        }
     }
 }

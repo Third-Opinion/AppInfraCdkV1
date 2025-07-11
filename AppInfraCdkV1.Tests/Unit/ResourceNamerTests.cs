@@ -1,3 +1,4 @@
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
 using Shouldly;
@@ -39,7 +40,7 @@ public class ResourceNamerTests
     public void EcsCluster_WithCustomPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.EcsCluster("api");
+        var result = _resourceNamer.EcsCluster(ResourcePurpose.Api);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -51,7 +52,7 @@ public class ResourceNamerTests
     public void EcsTaskDefinition_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.EcsTaskDefinition("web");
+        var result = _resourceNamer.EcsTaskDefinition(ResourcePurpose.Web);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -63,7 +64,7 @@ public class ResourceNamerTests
     public void EcsService_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.EcsService("api");
+        var result = _resourceNamer.EcsService(ResourcePurpose.Api);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -75,7 +76,7 @@ public class ResourceNamerTests
     public void ApplicationLoadBalancer_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.ApplicationLoadBalancer("web");
+        var result = _resourceNamer.ApplicationLoadBalancer(ResourcePurpose.Web);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -87,7 +88,7 @@ public class ResourceNamerTests
     public void NetworkLoadBalancer_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.NetworkLoadBalancer("internal");
+        var result = _resourceNamer.NetworkLoadBalancer(ResourcePurpose.Internal);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -111,7 +112,7 @@ public class ResourceNamerTests
     public void RdsInstance_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.RdsInstance("primary");
+        var result = _resourceNamer.RdsInstance(ResourcePurpose.Primary);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -120,9 +121,9 @@ public class ResourceNamerTests
     }
 
     [Theory]
-    [InlineData("cache")]
-    [InlineData("session")]
-    public void ElastiCache_WithPurpose_ShouldGenerateCorrectName(string purpose)
+    [InlineData(StoragePurpose.Cache, "cache")]
+    [InlineData(StoragePurpose.Session, "session")]
+    public void ElastiCache_WithPurpose_ShouldGenerateCorrectName(StoragePurpose purpose, string expectedString)
     {
         // Act
         var result = _resourceNamer.ElastiCache(purpose);
@@ -130,26 +131,26 @@ public class ResourceNamerTests
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-cache");
-        result.ShouldContain(purpose);
+        result.ShouldContain(expectedString);
     }
 
     [Fact]
     public void Lambda_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.Lambda("processor");
+        var result = _resourceNamer.Lambda(ResourcePurpose.Api); // Changed from processor to Api since processor isn't in enum
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-lambda");
-        result.ShouldContain("processor");
+        result.ShouldContain("api");
     }
 
     [Fact]
     public void IamRole_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.IamRole("ecs-task");
+        var result = _resourceNamer.IamRole(IamPurpose.EcsExecution);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -161,7 +162,7 @@ public class ResourceNamerTests
     public void IamUser_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.IamUser("service");
+        var result = _resourceNamer.IamUser(IamPurpose.Service);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -173,7 +174,7 @@ public class ResourceNamerTests
     public void IamPolicy_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.IamPolicy("s3-access");
+        var result = _resourceNamer.IamPolicy(IamPurpose.S3Access);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -185,7 +186,7 @@ public class ResourceNamerTests
     public void SecurityGroupForAlb_WithPurpose_ShouldGenerateCorrectName()
     {
         // Act
-        var result = _resourceNamer.SecurityGroupForAlb("web");
+        var result = _resourceNamer.SecurityGroupForAlb(ResourcePurpose.Web);
 
         // Assert
         result.ShouldNotBeNullOrEmpty();
@@ -315,6 +316,36 @@ public class ResourceNamerTests
         result.ShouldNotBeNullOrEmpty();
         result.ShouldStartWith("dev-tfv2-cloudfront");
         result.ShouldContain("cdn");
+    }
+
+    [Fact]
+    public void IamRole_WithPurpose_ShouldGenerateCorrectNameAndPrintToConsole()
+    {
+        // Arrange
+        var purpose = IamPurpose.EcsExecution;
+        var purposeString = "ecs-exec"; // Expected string representation
+        Console.WriteLine($"🧪 Testing IAM Role creation with purpose: {purpose}");
+        
+        // Act
+        var result = _resourceNamer.IamRole(purpose);
+        
+        // Log the generated name to console
+        Console.WriteLine($"✅ Generated IAM Role name: {result}");
+        Console.WriteLine($"🔍 Environment: {_testContext.Environment.Name}");
+        Console.WriteLine($"🏷️  Application: {_testContext.Application.Name}");
+        Console.WriteLine($"🌍 Region: {_testContext.Environment.Region}");
+
+        // Assert
+        result.ShouldNotBeNullOrEmpty();
+        result.ShouldStartWith("dev-tfv2-iam-role");
+        result.ShouldContain(purposeString);
+        result.ShouldEndWith("ue2"); // us-east-2 region code
+        
+        // Validate the full expected format: {env}-{app}-iam-role-{purpose}-{region}
+        var expectedPattern = $"dev-tfv2-iam-role-{purposeString}-ue2";
+        result.ShouldBe(expectedPattern);
+        
+        Console.WriteLine($"✅ IAM Role name validation passed: {result}");
     }
 
     [Theory]

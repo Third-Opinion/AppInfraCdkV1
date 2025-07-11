@@ -1,5 +1,6 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
 using Microsoft.Extensions.Configuration;
@@ -231,22 +232,22 @@ public abstract class Program
         Console.WriteLine($"   Stack: {GenerateStackName(context)}");
         Console.WriteLine($"   VPC: {context.Namer.Vpc()}");
         Console.WriteLine($"   ECS Cluster: {context.Namer.EcsCluster()}");
-        Console.WriteLine($"   Web Service: {context.Namer.EcsService("web")}");
-        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition("web")}");
-        Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer("web")}");
-        Console.WriteLine($"   Database: {context.Namer.RdsInstance("main")}");
-        Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket("app")}");
-        Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket("uploads")}");
-        Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket("backups")}");
+        Console.WriteLine($"   Web Service: {context.Namer.EcsService(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Database: {context.Namer.RdsInstance(ResourcePurpose.Main)}");
+        Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket(StoragePurpose.App)}");
+        Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket(StoragePurpose.Uploads)}");
+        Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket(StoragePurpose.Backups)}");
         Console.WriteLine("\n📋 Security Groups:");
-        Console.WriteLine($"   ALB Security Group: {context.Namer.SecurityGroupForAlb("web")}");
-        Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs("web")}");
-        Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds("main")}");
+        Console.WriteLine($"   ALB Security Group: {context.Namer.SecurityGroupForAlb(ResourcePurpose.Web)}");
+        Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs(ResourcePurpose.Web)}");
+        Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds(ResourcePurpose.Main)}");
         Console.WriteLine("\n🔐 IAM Roles:");
-        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole("ecs-task")}");
-        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole("ecs-execution")}");
+        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}");
+        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}");
         Console.WriteLine("\n📊 CloudWatch:");
-        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", "web")}");
+        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}");
 
         // Show TrialFinderV2-specific resources if applicable
         if (context.Application.Name == "TrialFinderV2")
