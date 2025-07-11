@@ -8,7 +8,7 @@ The Environment Base Stack recreates the existing VPC infrastructure (vpc-085a37
 
 ```
 Environment Base Stack (Recreating vpc-085a37ab90d4186ac)
-├── Shared VPC (10.0.0.0/16) - "hello-world-vpc"
+├── Shared VPC (10.0.0.0/16) - follows naming convention (e.g., "dev-tfv2-vpc-ue2-main")
 │   ├── Public Subnets (/20) - us-east-2a, us-east-2b
 │   ├── Private Subnets (/20) - us-east-2a, us-east-2b  
 │   ├── Isolated Subnets (/25) - us-east-2a, us-east-2b, us-east-2c
