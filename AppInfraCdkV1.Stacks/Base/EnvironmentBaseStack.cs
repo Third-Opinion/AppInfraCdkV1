@@ -279,6 +279,14 @@ public class EnvironmentBaseStack : Stack
             Description = "CIDR block for shared environment VPC"
         });
         
+        // Export availability zones
+        new CfnOutput(this, "VpcAvailabilityZones", new CfnOutputProps
+        {
+            Value = Fn.Join(",", Vpc.AvailabilityZones),
+            ExportName = $"{_context.Environment.Name}-vpc-azs",
+            Description = "Comma-separated availability zones"
+        });
+        
         // Export subnet IDs
         var publicSubnetIds = string.Join(",", Vpc.PublicSubnets.Select(s => s.SubnetId));
         new CfnOutput(this, "PublicSubnetIds", new CfnOutputProps

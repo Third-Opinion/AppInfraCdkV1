@@ -32,11 +32,23 @@ public class EnvironmentResourceProvider
         if (_resourceCache.ContainsKey(cacheKey))
             return (IVpc)_resourceCache[cacheKey];
 
+        // Import VPC attributes from base stack exports
         var vpcId = Fn.ImportValue($"{_context.Environment.Name}-vpc-id");
+        var vpcCidr = Fn.ImportValue($"{_context.Environment.Name}-vpc-cidr");
+        var availabilityZones = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-vpc-azs"));
+        var publicSubnetIds = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-public-subnet-ids"));
+        var privateSubnetIds = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-private-subnet-ids"));
+        var isolatedSubnetIds = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-isolated-subnet-ids"));
         
-        var vpc = Vpc.FromLookup(_scope, "SharedVpc", new VpcLookupOptions
+        // Use FromVpcAttributes instead of FromLookup (works with CloudFormation tokens)
+        var vpc = Vpc.FromVpcAttributes(_scope, "SharedVpc", new VpcAttributes
         {
-            VpcId = vpcId
+            VpcId = vpcId,
+            VpcCidrBlock = vpcCidr,
+            AvailabilityZones = availabilityZones,
+            PublicSubnetIds = publicSubnetIds,
+            PrivateSubnetIds = privateSubnetIds,
+            IsolatedSubnetIds = isolatedSubnetIds
         });
         
         _resourceCache[cacheKey] = vpc;
@@ -98,25 +110,8 @@ public class EnvironmentResourceProvider
     /// </summary>
     public ISubnet[] GetPublicSubnets()
     {
-        var cacheKey = "public-subnets";
-        
-        if (_resourceCache.ContainsKey(cacheKey))
-            return (ISubnet[])_resourceCache[cacheKey];
-
-        var subnetIds = Fn.ImportValue($"{_context.Environment.Name}-public-subnet-ids");
-        var subnetIdList = Fn.Split(",", subnetIds);
-        
-        var subnets = new List<ISubnet>();
-        for (int i = 0; i < 3; i++) // Assume 3 AZs
-        {
-            var subnetId = Fn.Select(i, subnetIdList);
-            var subnet = Subnet.FromSubnetId(_scope, $"PublicSubnet{i}", subnetId);
-            subnets.Add(subnet);
-        }
-        
-        var subnetArray = subnets.ToArray();
-        _resourceCache[cacheKey] = subnetArray;
-        return subnetArray;
+        // Get subnets directly from the shared VPC (already imported via VPC attributes)
+        return GetSharedVpc().PublicSubnets.ToArray();
     }
 
     /// <summary>
@@ -124,25 +119,8 @@ public class EnvironmentResourceProvider
     /// </summary>
     public ISubnet[] GetPrivateSubnets()
     {
-        var cacheKey = "private-subnets";
-        
-        if (_resourceCache.ContainsKey(cacheKey))
-            return (ISubnet[])_resourceCache[cacheKey];
-
-        var subnetIds = Fn.ImportValue($"{_context.Environment.Name}-private-subnet-ids");
-        var subnetIdList = Fn.Split(",", subnetIds);
-        
-        var subnets = new List<ISubnet>();
-        for (int i = 0; i < 3; i++) // Assume 3 AZs
-        {
-            var subnetId = Fn.Select(i, subnetIdList);
-            var subnet = Subnet.FromSubnetId(_scope, $"PrivateSubnet{i}", subnetId);
-            subnets.Add(subnet);
-        }
-        
-        var subnetArray = subnets.ToArray();
-        _resourceCache[cacheKey] = subnetArray;
-        return subnetArray;
+        // Get subnets directly from the shared VPC (already imported via VPC attributes)
+        return GetSharedVpc().PrivateSubnets.ToArray();
     }
 
     /// <summary>
@@ -150,25 +128,8 @@ public class EnvironmentResourceProvider
     /// </summary>
     public ISubnet[] GetIsolatedSubnets()
     {
-        var cacheKey = "isolated-subnets";
-        
-        if (_resourceCache.ContainsKey(cacheKey))
-            return (ISubnet[])_resourceCache[cacheKey];
-
-        var subnetIds = Fn.ImportValue($"{_context.Environment.Name}-isolated-subnet-ids");
-        var subnetIdList = Fn.Split(",", subnetIds);
-        
-        var subnets = new List<ISubnet>();
-        for (int i = 0; i < 3; i++) // Assume 3 AZs
-        {
-            var subnetId = Fn.Select(i, subnetIdList);
-            var subnet = Subnet.FromSubnetId(_scope, $"IsolatedSubnet{i}", subnetId);
-            subnets.Add(subnet);
-        }
-        
-        var subnetArray = subnets.ToArray();
-        _resourceCache[cacheKey] = subnetArray;
-        return subnetArray;
+        // Get subnets directly from the shared VPC (already imported via VPC attributes)
+        return GetSharedVpc().IsolatedSubnets.ToArray();
     }
 
     /// <summary>
