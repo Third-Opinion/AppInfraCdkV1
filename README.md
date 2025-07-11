@@ -119,48 +119,94 @@ Edit `AppInfraCdkV1.Deploy/appsettings.json` to configure your deployment:
 
 ## Usage
 
-### Deploy Infrastructure
+### Two-Stage Deployment Process
+
+This project uses a two-stage deployment approach for proper separation of shared and application-specific resources:
+
+1. **Base Stack**: Shared infrastructure (VPC, security groups, shared resources)
+2. **Application Stack**: Application-specific resources (ECS services, databases, etc.)
+
+### Prerequisites
 
 1. Bootstrap your AWS environment (first time only):
-### The bootsrap command is likely done for each of the AWS accounts you will deploy to
 ```bash
 cd AppInfraCdkV1.Deploy
 cdk bootstrap aws://ACCOUNT-ID/REGION
 ```
 
-2. Synthesize the CloudFormation template:
+2. Ensure OIDC authentication is set up (see [GitHub Environment Setup](GITHUB_ENVIRONMENTS_SETUP.md))
+
+### Deploy Base Stack First
+
 ```bash
-cdk synth
+cd AppInfraCdkV1.Deploy
+
+# Deploy shared infrastructure for the environment
+dotnet run -- --deploy-base
+
+# Or using CDK directly with environment variable
+CDK_DEPLOY_BASE=true cdk deploy
 ```
 
-3. Review the changes:
+### Deploy Application Stack
+
 ```bash
+# Deploy application stack (requires base stack to be deployed first)
+dotnet run
+
+# Or using CDK directly
+cdk deploy
+```
+
+### Environment-Specific Deployment
+
+The deployment automatically detects the environment based on environment variables:
+
+```bash
+# Set environment variables (if not using defaults)
+export CDK_ENVIRONMENT=Development  # or Production
+export CDK_APPLICATION=TrialFinderV2
+
+# Deploy base stack
+dotnet run -- --deploy-base
+
+# Deploy application stack
+dotnet run
+```
+
+### Validation and Testing
+
+```bash
+# Validate naming conventions only
+dotnet run -- --validate-only
+
+# Show resource names that would be created
+dotnet run -- --show-names-only
+
+# List available environments
+dotnet run -- --list-environments
+```
+
+### Review Changes
+
+```bash
+# Review base stack changes
+CDK_DEPLOY_BASE=true cdk diff
+
+# Review application stack changes  
 cdk diff
-```
-
-4. Deploy the stack:
-```bash
-cdk deploy
-```
-
-### Deploy to Different Environments
-
-Set environment variables or modify appsettings.json:
-
-```bash
-# Deploy to Development TODO why set ASPNETCORE_ENVIRONMENT?
-export ASPNETCORE_ENVIRONMENT=Development
-cdk deploy
-
-# Deploy to Production
-export ASPNETCORE_ENVIRONMENT=Production
-cdk deploy --require-approval never
 ```
 
 ### Destroy Infrastructure
 
+⚠️ **Important**: Destroy in reverse order to avoid dependency issues.
+
 ```bash
+# 1. Destroy application stack first
 cdk destroy
+
+# 2. Then destroy base stack
+CDK_DEPLOY_BASE=true cdk destroy
 ```
 
 ## Resource Naming Convention
@@ -182,7 +228,28 @@ Examples:
 - **Security Groups**: Least-privilege security group rules
 - **Encryption**: All data at rest is encrypted by default
 - **IAM Roles**: Task-specific IAM roles with minimal permissions
+- **OIDC Authentication**: GitHub Actions authenticate using OIDC (no stored credentials)
 - **Secrets Management**: Integration with AWS Secrets Manager for sensitive data
+
+## Documentation
+
+### Setup and Configuration
+- [GitHub Environment Setup](GITHUB_ENVIRONMENTS_SETUP.md) - OIDC authentication and environment configuration
+- [GitHub OIDC Setup Guide](docs/github-oidc-setup-guide.md) - Detailed OIDC setup instructions
+- [Base Stack Deployment](docs/BaseStackDeployment.md) - Shared infrastructure deployment guide
+
+### Development and Testing
+- [Integration Testing Plan](docs/integration-testing-plan.md) - Testing strategy and plans
+- [Active Tasks](docs/active-tasks.md) - Current development tasks
+- [Completed Tasks](docs/completed-tasks.md) - Historical task completion record
+
+### Historical Reference
+- [Historical IAM Users Setup](docs/historical-iam-users-setup.md) - Deprecated IAM user setup (pre-OIDC)
+- [IAM Roles Migration Proposal](docs/iam-roles-migration-proposal.md) - Migration planning document
+
+### Additional Resources
+- [Branch Protection Setup](docs/branch-protection-setup.md) - GitHub branch protection configuration
+- [GitHub Actions Badges](docs/github-actions-badges.md) - Badge setup and configuration
 
 ## Extending the Framework
 
