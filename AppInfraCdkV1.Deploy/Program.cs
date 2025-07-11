@@ -3,6 +3,7 @@ using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
+using AppInfraCdkV1.Stacks.Base;
 using Microsoft.Extensions.Configuration;
 using Environment = System.Environment;
 
@@ -20,6 +21,7 @@ public abstract class Program
             bool validateOnly = HasFlag(args, "--validate-only");
             bool showNamesOnly = HasFlag(args, "--show-names-only");
             bool listEnvironments = HasFlag(args, "--list-environments");
+            bool deployBase = HasFlag(args, "--deploy-base") || Environment.GetEnvironmentVariable("CDK_DEPLOY_BASE") == "true";
 
             if (listEnvironments)
             {
@@ -58,6 +60,23 @@ public abstract class Program
             if (showNamesOnly) return;
 
             var app = new App();
+
+            if (deployBase)
+            {
+                // Deploy base stack for shared environment resources
+                string baseStackName = GenerateBaseStackName(context);
+                var baseStack = new EnvironmentBaseStack(app, baseStackName, new StackProps
+                {
+                    Env = environmentConfig.ToAwsEnvironment(),
+                    Description = $"Base infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                    Tags = context.GetCommonTags(),
+                    StackName = baseStackName
+                }, context);
+                
+                Console.WriteLine($"✅ Base stack '{baseStackName}' configured successfully");
+                app.Synth();
+                return;
+            }
 
             string stackName = GenerateStackName(context);
 
@@ -378,6 +397,15 @@ public abstract class Program
         var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
 
         return $"{envPrefix}-{appCode}-stack-{regionCode}";
+    }
+
+    private static string GenerateBaseStackName(DeploymentContext context)
+    {
+        // Base stack names follow environment-only convention
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(context.Environment.Name);
+        var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
+
+        return $"{envPrefix}-base-stack-{regionCode}";
     }
 
     private static IConfiguration BuildConfiguration(string[] args)
