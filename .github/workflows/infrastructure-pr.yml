@@ -124,6 +124,15 @@ jobs:
         CDK_DEPLOY_BASE=true cdk synth
         echo "✅ Base stack synthesis completed"
     
+    - name: Deploy Base Stack (for validation only)
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying base stack for validation purposes..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        CDK_DEPLOY_BASE=true cdk deploy --require-approval never
+        echo "✅ Base stack deployed for validation"
+    
     - name: CDK Synth Application Stack
       run: |
         cd AppInfraCdkV1.Deploy
@@ -133,15 +142,6 @@ jobs:
         cdk synth
         echo "✅ Application stack synthesis completed with naming conventions enforced"
     
-    - name: CDK Diff Base Stack
-      run: |
-        cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking for base stack infrastructure changes..."
-        export CDK_ENVIRONMENT=${{ matrix.environment }}
-        export CDK_APPLICATION=${{ matrix.app }}
-        CDK_DEPLOY_BASE=true cdk diff || true
-        echo "✅ Base stack diff completed"
-    
     - name: CDK Diff Application Stack
       run: |
         cd AppInfraCdkV1.Deploy
@@ -150,6 +150,16 @@ jobs:
         export CDK_APPLICATION=${{ matrix.app }}
         cdk diff || true
         echo "✅ Application stack diff completed"
+    
+    - name: Cleanup Base Stack
+      if: always()
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🧹 Cleaning up base stack after validation..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        CDK_DEPLOY_BASE=true cdk destroy --force || true
+        echo "✅ Base stack cleanup completed"
 
   test:
     runs-on: ubuntu-latest
