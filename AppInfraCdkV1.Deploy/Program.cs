@@ -401,11 +401,11 @@ public abstract class Program
 
     private static string GenerateBaseStackName(DeploymentContext context)
     {
-        // Base stack names follow environment-only convention
+        // Base stack names follow shared resource convention
         var envPrefix = NamingConvention.GetEnvironmentPrefix(context.Environment.Name);
         var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
 
-        return $"{envPrefix}-base-stack-{regionCode}";
+        return $"{envPrefix}-shared-stack-{regionCode}";
     }
 
     private static IConfiguration BuildConfiguration(string[] args)
