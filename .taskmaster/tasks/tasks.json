@@ -378,7 +378,7 @@
         "description": "Create a security group allowing HTTPS traffic from ECS services and deploy four VPC endpoints for AWS services, copying configuration from existing endpoints to ensure secure private connectivity within the VPC.",
         "details": "1. Create VPC Endpoints Security Group:\n   - Use AWS CLI with to-dev-admin profile to create new security group in the shared VPC\n   - Name: dev-vpc-endpoints-sg-ue2\n   - Description: \"Security group for VPC endpoints allowing HTTPS access from ECS services\"\n   - Add ingress rule: Protocol TCP, Port 443, Source: VPC CIDR block (retrieve from EnvironmentBaseStack)\n   - Add egress rule: Allow all outbound traffic (default)\n   - Tag with standard tags: Environment=dev, ManagedBy=cdk\n\n2. Inspect Existing VPC Endpoints:\n   - Run aws ec2 describe-vpc-endpoints for each endpoint ID:\n     * vpce-0d9d53b3e72551b76\n     * vpce-0ed96b383d694eb96\n     * vpce-09e1f74448c3da307\n     * vpce-0bd1406eb3344bc82\n   - Document service names, subnet configurations, and current security groups\n   - Identify route table associations and DNS settings\n\n3. Create Four New VPC Endpoints:\n   - S3 Gateway Endpoint:\n     * Service: com.amazonaws.us-east-2.s3\n     * Type: Gateway\n     * Route tables: Associate with private subnet route tables\n     * Policy: Full access (default)\n   - ECR API Interface Endpoint:\n     * Service: com.amazonaws.us-east-2.ecr.api\n     * Type: Interface\n     * Subnets: Deploy to all private subnets\n     * Security group: dev-vpc-endpoints-sg-ue2\n     * Enable private DNS\n   - ECR DKR Interface Endpoint:\n     * Service: com.amazonaws.us-east-2.ecr.dkr\n     * Type: Interface\n     * Subnets: Deploy to all private subnets\n     * Security group: dev-vpc-endpoints-sg-ue2\n     * Enable private DNS\n   - Secrets Manager Interface Endpoint:\n     * Service: com.amazonaws.us-east-2.secretsmanager\n     * Type: Interface\n     * Subnets: Deploy to all private subnets\n     * Security group: dev-vpc-endpoints-sg-ue2\n     * Enable private DNS\n\n4. Update CDK Code:\n   - Add VPC endpoint constructs to EnvironmentBaseStack\n   - Create security group construct with proper ingress rules\n   - Implement interface endpoints with DNS and security group configuration\n   - Add gateway endpoint for S3 with route table associations\n   - Export endpoint IDs and security group ID for use by other stacks",
         "testStrategy": "1. Verify Security Group Configuration:\n   - Run aws ec2 describe-security-groups to confirm the new security group exists\n   - Validate ingress rule allows HTTPS (443) from VPC CIDR\n   - Confirm security group is associated with all interface endpoints\n\n2. Test VPC Endpoints:\n   - Use aws ec2 describe-vpc-endpoints to verify all four endpoints are created\n   - Confirm each endpoint is in 'available' state\n   - Validate subnet associations match private subnet configuration\n   - Check DNS names are properly configured for interface endpoints\n\n3. Functional Testing:\n   - Deploy a test ECS task in the private subnet\n   - Attempt to pull an image from ECR using the VPC endpoint\n   - Test secret retrieval from Secrets Manager through VPC endpoint\n   - Verify S3 access works through gateway endpoint\n   - Monitor VPC Flow Logs to confirm traffic routes through endpoints\n\n4. DNS Resolution Testing:\n   - From an EC2 instance in the private subnet, run nslookup for service endpoints\n   - Confirm DNS resolves to private IP addresses within the VPC\n   - Validate no internet gateway traffic for AWS service calls",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           4,
           5
@@ -391,7 +391,7 @@
             "description": "Create a dedicated security group for VPC endpoints that allows HTTPS (port 443) ingress from the VPC CIDR range and appropriate egress rules",
             "dependencies": [],
             "details": "Define a new security group in CDK that will be used by all interface endpoints. Configure ingress rule for port 443 from VPC CIDR block, and egress rules as needed. Add proper tagging and naming conventions consistent with the existing infrastructure",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -481,7 +481,7 @@
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-12T20:02:26.084Z"
+      "updated": "2025-07-12T20:03:59.297Z"
     }
   }
 }
