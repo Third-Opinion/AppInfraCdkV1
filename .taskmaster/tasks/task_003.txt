@@ -1,0 +1,95 @@
+# Task ID: 3
+# Title: Create comprehensive ALB and ECS infrastructure for TrialFinderV2Stack
+# Status: pending
+# Dependencies: 1, 2
+# Priority: medium
+# Description: Implement Application Load Balancer, ECS Service/Task, security groups, and configuration management for TrialFinderV2Stack with comprehensive AWS resource setup.
+# Details:
+1. AWS CLI Resource Inspection:
+   - Inspect existing ALB (arn:aws:elasticloadbalancing:us-east-2:615299752206:loadbalancer/app/dev-ecs-alb/5e4db6036255c842) using aws elbv2 describe-load-balancers
+   - Examine ECS service (arn:aws:ecs:us-east-2:615299752206:service/dev-trail-finder-v2/trial-finder-service) configuration
+   - Review security group sg-05787d59ddec14f04 settings
+   - Document existing task definition and execution roles
+
+2. ALB Infrastructure:
+   - Create ALB in new VPC dev-shared-vpc-ue2-main using existing settings as template
+   - Deploy ALB in public subnets for internet accessibility
+   - Create dedicated S3 bucket for ALB access logs with proper bucket policy
+   - Implement ALB security group allowing HTTPS (443) ingress from 0.0.0.0/0
+   - Configure outbound rules for ALB to reach ECS targets
+
+3. ECS Service and Task Definition:
+   - Reference existing ECS cluster from WebApplicationStack
+   - Create new ECS service in private subnets of shared VPC
+   - Copy and adapt existing trial-finder-v2 task definition
+   - Configure service to use existing task and execution roles
+   - Set up target group (HTTP/80) and register with new ALB
+   - Configure health checks and service auto-scaling parameters
+
+4. Security Group Configuration:
+   - Create ECS security group based on sg-05787d59ddec14f04
+   - Allow ingress from ALB security group on container port
+   - Add loopback rule for port 8080 (127.0.0.1/32)
+   - Configure egress rules for outbound internet access
+
+5. Configuration Management:
+   - Create JSON configuration file for environment variables
+   - Structure config with container name as top-level key
+   - Update task definition to reference JSON configuration
+   - Implement parameter validation and type checking
+
+6. Documentation and TODOs:
+   - Add comprehensive inline comments explaining resource relationships
+   - Document missing configurations with //TODO comments
+   - Create summary of implemented vs required resources
+   - Note dependencies on future listener and certificate tasks
+
+# Test Strategy:
+1. Deploy TrialFinderV2Stack to development environment and verify all resources are created successfully
+2. Validate ALB is accessible and properly configured by checking AWS console and CLI
+3. Confirm ECS service starts successfully and registers healthy targets with ALB target group
+4. Test security group rules by attempting connections from ALB to ECS and verifying port 8080 loopback
+5. Verify S3 access logs are being written to the new bucket
+6. Validate JSON configuration is properly loaded by ECS task by checking container environment variables
+7. Test service scaling and health check functionality
+8. Confirm integration with existing WebApplicationStack ECS cluster
+9. Verify private subnet deployment and proper VPC networking
+10. Document any missing configurations or failed validations for future resolution
+
+# Subtasks:
+## 1. AWS resource inspection and documentation of existing infrastructure [pending]
+### Dependencies: None
+### Description: Inspect current AWS infrastructure including VPCs, subnets, security groups, and ECS clusters to document existing resources that will be referenced in ALB and ECS setup
+### Details:
+Use AWS CLI to gather information about existing WebApplicationStack cluster, VPC configuration, subnet layouts, and current security group configurations. Document findings to inform subsequent infrastructure creation steps.
+
+## 2. Security group setup for both ALB and ECS with proper ingress/egress rules [pending]
+### Dependencies: 3.1
+### Description: Create and configure security groups for ALB and ECS services with appropriate ingress/egress rules for secure communication
+### Details:
+Define security groups for ALB (allowing HTTP/HTTPS traffic) and ECS tasks (allowing traffic from ALB). Configure proper port mappings and source/destination rules based on discovered infrastructure.
+
+## 3. ALB creation with security groups and S3 logging configuration [pending]
+### Dependencies: 3.2
+### Description: Create Application Load Balancer with proper security group attachment and S3 access logging configuration
+### Details:
+Implement ALB creation using CDK constructs, attach security groups created in previous step, configure S3 bucket for access logs, and set up proper listener configurations for HTTP/HTTPS traffic.
+
+## 4. ECS task definition and service configuration referencing WebApplicationStack cluster [pending]
+### Dependencies: 3.2
+### Description: Create ECS task definition and service configuration that properly references the existing WebApplicationStack cluster
+### Details:
+Define ECS task with container specifications, CPU/memory allocation, and networking configuration. Create ECS service that references the existing cluster and uses the security groups configured earlier.
+
+## 5. JSON configuration management system implementation [pending]
+### Dependencies: 3.3, 3.4
+### Description: Implement a configuration management system using JSON files to manage ALB and ECS settings dynamically
+### Details:
+Create JSON configuration files for ALB and ECS parameters, implement CDK code to read and apply these configurations, and establish a system for environment-specific settings management.
+
+## 6. Integration testing and comprehensive documentation with TODO tracking [pending]
+### Dependencies: 3.5
+### Description: Perform integration testing of ALB and ECS setup, create comprehensive documentation, and implement TODO tracking system
+### Details:
+Test ALB routing to ECS services, verify security group rules, validate S3 logging functionality, document the complete infrastructure setup process, and create a TODO tracking system for ongoing maintenance tasks.
+

@@ -1,4 +1,10 @@
 using Amazon.CDK;
+using Amazon.CDK.AWS.EC2;
+using Amazon.CDK.AWS.ECS;
+using Amazon.CDK.AWS.ECS.Patterns;
+using Amazon.CDK.AWS.ElasticLoadBalancingV2;
+using Amazon.CDK.AWS.IAM;
+using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.SNS;
 using Amazon.CDK.AWS.SQS;
@@ -12,12 +18,16 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
 public class TrialFinderV2Stack : WebApplicationStack
 {
+    private readonly DeploymentContext _context;
+    
     public TrialFinderV2Stack(Construct scope,
         string id,
         IStackProps props,
         DeploymentContext context)
         : base(scope, id, props, context)
     {
+        _context = context;
+        
         // Validate external dependencies before creating resources
         ValidateExternalDependencies(context);
         
@@ -27,6 +37,24 @@ public class TrialFinderV2Stack : WebApplicationStack
 
     private void CreateTrialFinderSpecificResources(DeploymentContext context)
     {
+        // Use VPC lookup to find existing VPC instead of imports
+        var vpc = Vpc.FromLookup(this, "ExistingVpc", new VpcLookupOptions
+        {
+            VpcId = "vpc-085a37ab90d4186ac"  // Use the existing VPC we found
+        });
+        
+        var cluster = GetEcsCluster(vpc);
+        
+        // Create security groups for ALB and ECS
+        var securityGroups = CreateSecurityGroups(vpc, context);
+        
+        // Create ALB with S3 logging
+        var alb = CreateApplicationLoadBalancer(vpc, securityGroups.AlbSecurityGroup, context);
+        
+        // Create ECS service and task definition
+        var ecsService = CreateEcsService(cluster, alb, securityGroups.EcsSecurityGroup, context);
+        
+        // Create TrialFinder-specific storage and services
         CreateTrialDocumentStorage(context);
         // CreateAsyncProcessingQueue(context);
         // CreateNotificationServices(context);
@@ -175,5 +203,258 @@ public class TrialFinderV2Stack : WebApplicationStack
             
             throw new InvalidOperationException("External resource dependencies not met. See console output for details.");
         }
+    }
+
+    /// <summary>
+    /// Get the ECS cluster from the parent WebApplicationStack
+    /// </summary>
+    private ICluster GetEcsCluster(IVpc vpc)
+    {
+        // The cluster is created in the parent WebApplicationStack
+        // We need to reference it by name since it's in the same stack
+        return Cluster.FromClusterAttributes(this, "ImportedCluster", new ClusterAttributes
+        {
+            ClusterName = _context.Namer.EcsCluster(),
+            Vpc = vpc
+        });
+    }
+
+    /// <summary>
+    /// Create security groups for ALB and ECS based on existing patterns
+    /// </summary>
+    private (ISecurityGroup AlbSecurityGroup, ISecurityGroup EcsSecurityGroup) CreateSecurityGroups(IVpc vpc, DeploymentContext context)
+    {
+        // ALB Security Group - allows HTTPS traffic from internet
+        var albSecurityGroup = new SecurityGroup(this, "TrialFinderAlbSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            SecurityGroupName = context.Namer.SecurityGroupForAlb(ResourcePurpose.Web),
+            Description = "Security group for TrialFinder ALB - allows HTTPS from internet",
+            AllowAllOutbound = true
+        });
+
+        // Allow HTTPS inbound from anywhere
+        albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(443), "HTTPS from internet");
+        albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(80), "HTTP from internet (redirect to HTTPS)");
+
+        // ECS Security Group - allows traffic from ALB
+        var ecsSecurityGroup = new SecurityGroup(this, "TrialFinderEcsSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            SecurityGroupName = context.Namer.SecurityGroupForEcs(ResourcePurpose.Web),
+            Description = "Security group for TrialFinder ECS tasks - allows traffic from ALB",
+            AllowAllOutbound = true
+        });
+
+        // Allow traffic from ALB on container port 8080
+        ecsSecurityGroup.AddIngressRule(albSecurityGroup, Port.Tcp(8080), "HTTP from ALB");
+        
+        // Add loopback rule for port 8080 (matching existing pattern)
+        ecsSecurityGroup.AddIngressRule(ecsSecurityGroup, Port.Tcp(8080), "Loopback for health checks");
+
+        return (albSecurityGroup, ecsSecurityGroup);
+    }
+
+    /// <summary>
+    /// Create Application Load Balancer with S3 access logging
+    /// </summary>
+    private IApplicationLoadBalancer CreateApplicationLoadBalancer(IVpc vpc, ISecurityGroup securityGroup, DeploymentContext context)
+    {
+        // Create S3 bucket for ALB access logs
+        var albLogsBucket = new Bucket(this, "TrialFinderAlbLogsBucket", new BucketProps
+        {
+            BucketName = context.Namer.Custom("alb-logs", ResourcePurpose.Web),
+            RemovalPolicy = RemovalPolicy.DESTROY,
+            AutoDeleteObjects = true,
+            LifecycleRules = new[]
+            {
+                new LifecycleRule
+                {
+                    Id = "DeleteOldLogs",
+                    Enabled = true,
+                    Expiration = Duration.Days(30)
+                }
+            }
+        });
+
+        // Create Application Load Balancer
+        var alb = new ApplicationLoadBalancer(this, "TrialFinderAlb", new Amazon.CDK.AWS.ElasticLoadBalancingV2.ApplicationLoadBalancerProps
+        {
+            Vpc = vpc,
+            LoadBalancerName = context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web),
+            InternetFacing = true,
+            SecurityGroup = securityGroup,
+            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PUBLIC }
+        });
+
+        // Enable access logging to S3
+        alb.LogAccessLogs(albLogsBucket, "trial-finder-alb-logs");
+
+        return alb;
+    }
+
+    /// <summary>
+    /// Create ECS service and task definition
+    /// </summary>
+    private IBaseService CreateEcsService(ICluster cluster, IApplicationLoadBalancer alb, ISecurityGroup securityGroup, DeploymentContext context)
+    {
+        // Create log group for ECS tasks
+        var logGroup = new LogGroup(this, "TrialFinderLogGroup", new LogGroupProps
+        {
+            LogGroupName = context.Namer.LogGroup("trial-finder", ResourcePurpose.Web),
+            Retention = RetentionDays.ONE_WEEK,
+            RemovalPolicy = RemovalPolicy.DESTROY
+        });
+
+        // Create Fargate task definition
+        var taskDefinition = new FargateTaskDefinition(this, "TrialFinderTaskDefinition", new FargateTaskDefinitionProps
+        {
+            Family = context.Namer.EcsTaskDefinition(ResourcePurpose.Web),
+            MemoryLimitMiB = 512,
+            Cpu = 256,
+            TaskRole = CreateTaskRole(),
+            ExecutionRole = CreateExecutionRole()
+        });
+
+        // Add container to task definition
+        var container = taskDefinition.AddContainer("trial-finder-v2", new ContainerDefinitionOptions
+        {
+            Image = ContainerImage.FromRegistry("trial-finder-v2:latest"),
+            PortMappings = new[]
+            {
+                new PortMapping
+                {
+                    ContainerPort = 8080,
+                    Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
+                }
+            },
+            Environment = CreateEnvironmentVariables(context),
+            Logging = LogDriver.AwsLogs(new AwsLogDriverProps
+            {
+                LogGroup = logGroup,
+                StreamPrefix = "trial-finder"
+            }),
+            HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
+            {
+                Command = new[] { "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" },
+                Interval = Duration.Seconds(30),
+                Timeout = Duration.Seconds(5),
+                Retries = 3,
+                StartPeriod = Duration.Seconds(60)
+            }
+        });
+
+        // Create target group
+        var targetGroup = new ApplicationTargetGroup(this, "TrialFinderTargetGroup", new ApplicationTargetGroupProps
+        {
+            Port = 8080,
+            Protocol = ApplicationProtocol.HTTP,
+            Vpc = cluster.Vpc,
+            TargetGroupName = context.Namer.Custom("tg", ResourcePurpose.Web),
+            TargetType = TargetType.IP
+        });
+        
+        // Configure health check
+        targetGroup.ConfigureHealthCheck(new Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck
+        {
+            Path = "/health",
+            Protocol = Amazon.CDK.AWS.ElasticLoadBalancingV2.Protocol.HTTP,
+            Interval = Duration.Seconds(30),
+            HealthyThresholdCount = 2,
+            UnhealthyThresholdCount = 3
+        });
+
+        // Create ECS service
+        var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
+        {
+            Cluster = cluster,
+            ServiceName = context.Namer.EcsService(ResourcePurpose.Web),
+            TaskDefinition = taskDefinition,
+            DesiredCount = 1,
+            AssignPublicIp = false,
+            SecurityGroups = new[] { securityGroup },
+            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS },
+            EnableExecuteCommand = true
+        });
+
+        // Create ALB listener
+        var listener = alb.AddListener("TrialFinderListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
+        {
+            Port = 80,
+            Protocol = ApplicationProtocol.HTTP,
+            DefaultTargetGroups = new[] { targetGroup }
+        });
+
+        // Register ECS service with target group
+        service.AttachToApplicationTargetGroup(targetGroup);
+
+        return service;
+    }
+
+    /// <summary>
+    /// Create environment variables for the container
+    /// </summary>
+    private Dictionary<string, string> CreateEnvironmentVariables(DeploymentContext context)
+    {
+        return new Dictionary<string, string>
+        {
+            ["ENVIRONMENT"] = context.Environment.Name,
+            ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
+            ["APP_VERSION"] = context.Application.Version,
+            ["PORT"] = "8080",
+            ["HEALTH_CHECK_PATH"] = "/health"
+        };
+    }
+
+    /// <summary>
+    /// Create IAM role for ECS tasks
+    /// </summary>
+    private IRole CreateTaskRole()
+    {
+        var taskRole = new Role(this, "TrialFinderTaskRole", new RoleProps
+        {
+            RoleName = _context.Namer.IamRole(IamPurpose.EcsTask),
+            AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
+            ManagedPolicies = new[]
+            {
+                ManagedPolicy.FromAwsManagedPolicyName("service-role/AmazonECSTaskExecutionRolePolicy")
+            }
+        });
+
+        // Add permissions for Session Manager (ECS Exec)
+        taskRole.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"));
+        
+        return taskRole;
+    }
+
+    /// <summary>
+    /// Create IAM role for ECS execution
+    /// </summary>
+    private IRole CreateExecutionRole()
+    {
+        var executionRole = new Role(this, "TrialFinderExecutionRole", new RoleProps
+        {
+            RoleName = _context.Namer.IamRole(IamPurpose.EcsExecution),
+            AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
+            ManagedPolicies = new[]
+            {
+                ManagedPolicy.FromAwsManagedPolicyName("service-role/AmazonECSTaskExecutionRolePolicy")
+            }
+        });
+
+        // Add CloudWatch Logs permissions
+        executionRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:CreateLogGroup"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        return executionRole;
     }
 }
