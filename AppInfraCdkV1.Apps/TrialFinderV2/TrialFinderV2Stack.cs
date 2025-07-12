@@ -491,15 +491,15 @@ public class TrialFinderV2Stack : WebApplicationStack
             {
                 new Amazon.CDK.AWS.ECR.LifecycleRule
                 {
-                    Description = "Keep only the latest 10 images",
-                    MaxImageCount = 10,
+                    Description = "Delete untagged images after 1 day",
+                    MaxImageAge = Duration.Days(1),
+                    TagStatus = TagStatus.UNTAGGED,
                     RulePriority = 1
                 },
                 new Amazon.CDK.AWS.ECR.LifecycleRule
                 {
-                    Description = "Delete untagged images after 1 day",
-                    MaxImageAge = Duration.Days(1),
-                    TagStatus = TagStatus.UNTAGGED,
+                    Description = "Keep only the latest 10 images",
+                    MaxImageCount = 10,
                     RulePriority = 2
                 }
             },
