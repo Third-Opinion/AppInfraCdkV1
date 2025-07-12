@@ -305,7 +305,7 @@ public class EnvironmentBaseStack : Stack
             Description = "CIDR block for shared environment VPC"
         });
         
-        // Export availability zones
+        // Export availability zones as comma-separated for Fn.Split
         new CfnOutput(this, "VpcAvailabilityZones", new CfnOutputProps
         {
             Value = Fn.Join(",", Vpc.AvailabilityZones),
@@ -313,29 +313,26 @@ public class EnvironmentBaseStack : Stack
             Description = "Comma-separated availability zones"
         });
         
-        // Export subnet IDs
-        var publicSubnetIds = string.Join(",", Vpc.PublicSubnets.Select(s => s.SubnetId));
+        // Export subnet IDs as comma-separated for Fn.Split
         new CfnOutput(this, "PublicSubnetIds", new CfnOutputProps
         {
-            Value = publicSubnetIds,
+            Value = Fn.Join(",", Vpc.PublicSubnets.Select(s => s.SubnetId).ToArray()),
             ExportName = $"{_context.Environment.Name}-public-subnet-ids",
-            Description = "Public subnet IDs"
+            Description = "Comma-separated public subnet IDs"
         });
         
-        var privateSubnetIds = string.Join(",", Vpc.PrivateSubnets.Select(s => s.SubnetId));
         new CfnOutput(this, "PrivateSubnetIds", new CfnOutputProps
         {
-            Value = privateSubnetIds,
+            Value = Fn.Join(",", Vpc.PrivateSubnets.Select(s => s.SubnetId).ToArray()),
             ExportName = $"{_context.Environment.Name}-private-subnet-ids",
-            Description = "Private subnet IDs"
+            Description = "Comma-separated private subnet IDs"
         });
         
-        var isolatedSubnetIds = string.Join(",", Vpc.IsolatedSubnets.Select(s => s.SubnetId));
         new CfnOutput(this, "IsolatedSubnetIds", new CfnOutputProps
         {
-            Value = isolatedSubnetIds,
+            Value = Fn.Join(",", Vpc.IsolatedSubnets.Select(s => s.SubnetId).ToArray()),
             ExportName = $"{_context.Environment.Name}-isolated-subnet-ids",
-            Description = "Isolated subnet IDs for databases"
+            Description = "Comma-separated isolated subnet IDs for databases"
         });
         
         // Export security group IDs

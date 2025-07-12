@@ -35,12 +35,15 @@ public class EnvironmentResourceProvider
         // Import VPC attributes from base stack exports
         var vpcId = Fn.ImportValue($"{_context.Environment.Name}-vpc-id");
         var vpcCidr = Fn.ImportValue($"{_context.Environment.Name}-vpc-cidr");
+        
+        // Import subnet lists using Fn.Split - this is the recommended approach for CDK
         var availabilityZones = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-vpc-azs"));
         var publicSubnetIds = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-public-subnet-ids"));
         var privateSubnetIds = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-private-subnet-ids"));
         var isolatedSubnetIds = Fn.Split(",", Fn.ImportValue($"{_context.Environment.Name}-isolated-subnet-ids"));
         
-        // Use FromVpcAttributes instead of FromLookup (works with CloudFormation tokens)
+        // Use FromVpcAttributes - this will generate warnings about list tokens but it's the correct approach
+        // The warnings can be suppressed using context settings if needed
         var vpc = Vpc.FromVpcAttributes(_scope, "SharedVpc", new VpcAttributes
         {
             VpcId = vpcId,
