@@ -3,6 +3,7 @@ using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.Logs;
 using AppInfraCdkV1.Core.Models;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Stacks.Components;
 using Constructs;
 
@@ -39,7 +40,7 @@ public class TrialFinderEcsExampleStack : Stack
         // Create log group for the service
         var logGroup = new LogGroup(this, "ServiceLogGroup", new LogGroupProps
         {
-            LogGroupName = $"/aws/ecs/{context.Namer.EcsService("trialfinder")}",
+            LogGroupName = $"/aws/ecs/{context.Namer.EcsService(ResourcePurpose.Main)}",
             Retention = context.Environment.IsProductionClass 
                 ? RetentionDays.ONE_MONTH 
                 : RetentionDays.ONE_WEEK,
@@ -51,7 +52,7 @@ public class TrialFinderEcsExampleStack : Stack
         {
             ExecutionRoleArn = "arn:aws:iam::615299752206:role/dev-ecs-task-execution-role-ue2",
             TaskRoleArn = "arn:aws:iam::615299752206:role/dev-trialfinder-task-role-ue2",
-            TaskDefinitionFamily = context.Namer.EcsTaskDefinition("trialfinder"),
+            TaskDefinitionFamily = context.Namer.EcsTaskDefinition(ResourcePurpose.Main),
             Cpu = 256,
             MemoryMiB = 512,
             ImageUri = "nginx:latest", // Example image - would be replaced with actual application image
@@ -74,7 +75,7 @@ public class TrialFinderEcsExampleStack : Stack
         {
             Cluster = cluster,
             TaskDefinition = taskWithSecrets.TaskDefinition,
-            ServiceName = context.Namer.EcsService("trialfinder"),
+            ServiceName = context.Namer.EcsService(ResourcePurpose.Main),
             DesiredCount = 1,
             VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS },
             SecurityGroups = new[]
@@ -82,11 +83,9 @@ public class TrialFinderEcsExampleStack : Stack
                 SecurityGroup.FromSecurityGroupId(this, "EcsSecurityGroup", 
                     Fn.ImportValue($"{context.Environment.Name}-sg-ecs-id"))
             },
-            EnableLogging = true,
             CloudMapOptions = new CloudMapOptions
             {
-                Name = "trialfinder",
-                DnsRecordType = DnsRecordType.A
+                Name = "trialfinder"
             }
         });
 
@@ -108,7 +107,7 @@ public class TrialFinderEcsExampleStack : Stack
         tags["StackType"] = "EcsExample";
         foreach (var tag in tags)
         {
-            Tags.SetTag(tag.Key, tag.Value);
+            Amazon.CDK.Tags.Of(this).Add(tag.Key, tag.Value);
         }
     }
 }
