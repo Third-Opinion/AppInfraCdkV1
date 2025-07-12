@@ -1,6 +1,6 @@
 # Task ID: 5
 # Title: Deploy WebApplicationStack with ECS cluster infrastructure
-# Status: pending
+# Status: done
 # Dependencies: 4
 # Priority: medium
 # Description: Create and deploy ECS cluster with appropriate capacity providers, auto-scaling, and VPC integration to support TrialFinderV2Stack services.
