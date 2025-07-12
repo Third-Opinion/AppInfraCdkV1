@@ -65,6 +65,7 @@ public class WebApplicationStack : Stack, IApplicationStack
     /// Gets shared security groups from the environment base stack
     /// </summary>
     private SecurityGroupBundle GetSharedSecurityGroups()
+
     {
         return new SecurityGroupBundle(
             EnvironmentResources.GetAlbSecurityGroup(),
