@@ -256,7 +256,16 @@ public class EnvironmentBaseStack : Stack
             Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
         
-        Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, and CloudWatch Logs");
+        // Secrets Manager Interface Endpoint
+        var secretsManagerEndpoint = new InterfaceVpcEndpoint(this, "SecretsManagerVpcEndpoint", new InterfaceVpcEndpointProps
+        {
+            Vpc = Vpc,
+            Service = InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+            SecurityGroups = new[] { SharedSecurityGroups["vpc-endpoints"] },
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        
+        Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, CloudWatch Logs, and Secrets Manager");
     }
 
     private void ExportSharedResources()
