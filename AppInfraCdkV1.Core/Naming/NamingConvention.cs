@@ -182,6 +182,26 @@ public static class NamingConvention
     }
 
     /// <summary>
+    ///     Generates a shared resource name following the shared naming convention
+    ///     Pattern: {env-prefix}-shared-{resource-type}-{region-code}-{specific-name}
+    ///     Used for resources that are shared between applications in the same environment
+    /// </summary>
+    public static string GenerateSharedResourceName(DeploymentContext context,
+        string resourceType,
+        string specificName)
+    {
+        string envPrefix = GetEnvironmentPrefix(context.Environment.Name);
+        string regionCode = GetRegionCode(context.Environment.Region);
+
+        IEnumerable<string> parts
+            = new[] { envPrefix, "shared", resourceType, regionCode, specificName }
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Select(p => p.ToLowerInvariant());
+
+        return string.Join("-", parts);
+    }
+
+    /// <summary>
     ///     Generates a security group name with protected resource context
     ///     Pattern: {env-prefix}-{app-code}-sg-{protected-resource-type}-{specific-purpose}-{region-code}
     /// </summary>

@@ -192,7 +192,7 @@ public class EnvironmentBaseStack : Stack
         
         SharedLogGroup = new LogGroup(this, "SharedLogGroup", new LogGroupProps
         {
-            LogGroupName = _context.Namer.LogGroup("shared", ResourcePurpose.Main),
+            LogGroupName = _context.Namer.SharedLogGroup(),
             Retention = _context.Environment.IsProductionClass 
                 ? RetentionDays.ONE_MONTH 
                 : RetentionDays.ONE_WEEK,
