@@ -53,8 +53,8 @@ public class WebApplicationStack : Stack, IApplicationStack
         
         // Create application-specific resources
         var cluster = CreateEcsCluster(vpc);
-        var database = CreateDatabase(vpc, sharedSecurityGroups.DatabaseSg);
-        var service = CreateWebService(cluster, database, sharedSecurityGroups);
+        // var database = CreateDatabase(vpc, sharedSecurityGroups.DatabaseSg);
+        // var service = CreateWebService(cluster, database, sharedSecurityGroups);
 
         ApplyCommonTags();
         
@@ -85,15 +85,6 @@ public class WebApplicationStack : Stack, IApplicationStack
             ClusterName = _context.Namer.EcsCluster(),
             EnableFargateCapacityProviders = true
         });
-
-        // Add environment-specific cluster configuration
-        if (_context.Environment.IsProductionClass)
-            cluster.AddCapacity("DefaultAutoScalingGroup", new AddCapacityOptions
-            {
-                InstanceType = new InstanceType("t3.medium"),
-                MinCapacity = 1,
-                MaxCapacity = 5
-            });
 
         return cluster;
     }
@@ -138,17 +129,6 @@ public class WebApplicationStack : Stack, IApplicationStack
         });
     }
 
-    private InstanceSize GetInstanceSizeFromClass(string instanceClass)
-    {
-        return instanceClass switch
-        {
-            "db.t3.micro" => InstanceSize.MICRO,
-            "db.t3.small" => InstanceSize.SMALL,
-            "db.t3.medium" => InstanceSize.MEDIUM,
-            "db.t3.large" => InstanceSize.LARGE,
-            _ => InstanceSize.MICRO
-        };
-    }
 
     // private S3BucketBundle CreateS3Buckets()
     // {
