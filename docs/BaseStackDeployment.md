@@ -30,12 +30,24 @@ Environment Base Stack (Recreating vpc-085a37ab90d4186ac)
 └── Shared Log Group
 ```
 
+## Stack Naming Convention
+
+The deployment system automatically generates stack names using the naming convention:
+
+- **Base Stack**: `{env-prefix}-shared-stack-{region-code}` (e.g., `dev-shared-stack-ue2`)
+- **Application Stack**: `{env-prefix}-{app-code}-stack-{region-code}` (e.g., `dev-tfv2-stack-ue2`)
+
+Where:
+- `env-prefix`: Environment prefix (`dev`, `stg`, `prd`, etc.)
+- `app-code`: Application code (`tfv2` for TrialFinderV2)
+- `region-code`: Region code (`ue2` for us-east-2)
+
 ## Deployment Order
 
 **CRITICAL**: Deploy base stacks BEFORE application stacks.
 
-1. **Environment Base Stack** (`EnvironmentBaseStack`)
-2. **Application Stacks** (`WebApplicationStack`, etc.)
+1. **Environment Base Stack** (e.g., `dev-shared-stack-ue2`)
+2. **Application Stacks** (e.g., `dev-tfv2-stack-ue2`)
 
 ## Deployment Commands
 
@@ -43,20 +55,44 @@ Environment Base Stack (Recreating vpc-085a37ab90d4186ac)
 
 ```bash
 # Deploy base stack first
-aws-cdk deploy EnvironmentBaseStack-dev --profile to-dev-admin
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Development --deploy-base
+cdk deploy --profile to-dev-admin
 
 # Deploy application stacks (after base stack)
-aws-cdk deploy WebApplicationStack-dev --profile to-dev-admin
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Development
+cdk deploy --profile to-dev-admin
 ```
 
 ### Production Environment
 
 ```bash
 # Deploy base stack first  
-aws-cdk deploy EnvironmentBaseStack-prd --profile to-prd-admin
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Production --deploy-base
+cdk deploy --profile to-prd-admin
 
 # Deploy application stacks (after base stack)
-aws-cdk deploy WebApplicationStack-prd --profile to-prd-admin
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Production
+cdk deploy --profile to-prd-admin
+```
+
+### Available Environments
+
+To see all configured environments and their account mappings:
+
+```bash
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --list-environments
+```
+
+### Alternative Deployment Commands
+
+You can also use the CDK app command directly:
+
+```bash
+# Deploy base stack
+cdk deploy --app "dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Development --deploy-base" --profile to-dev-admin
+
+# Deploy application stack
+cdk deploy --app "dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Development" --profile to-dev-admin
 ```
 
 ## Resource Exports
@@ -67,22 +103,40 @@ The base stack exports these CloudFormation values for application stacks:
 |-------------|-------------|
 | `{env}-vpc-id` | VPC ID |
 | `{env}-vpc-cidr` | VPC CIDR block |
+| `{env}-vpc-azs` | Comma-separated availability zones |
 | `{env}-public-subnet-ids` | Comma-separated public subnet IDs |
 | `{env}-private-subnet-ids` | Comma-separated private subnet IDs |
 | `{env}-isolated-subnet-ids` | Comma-separated isolated subnet IDs |
 | `{env}-sg-alb-id` | ALB security group ID |
 | `{env}-sg-ecs-id` | ECS security group ID |
 | `{env}-sg-rds-id` | RDS security group ID |
-| `{env}-sg-bastion-id` | Bastion security group ID |
+| `{env}-sg-ecs-to-rds-id` | ECS to RDS security group ID |
+| `{env}-sg-vpc-endpoints-id` | VPC endpoints security group ID |
+| `{env}-sg-test-id` | Test security group ID |
 | `{env}-shared-log-group-name` | Shared log group name |
 
 ## Validation
 
+### Pre-deployment Validation
+
+You can validate the deployment configuration without actually deploying:
+
+```bash
+# Validate base stack configuration
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Development --deploy-base --validate-only
+
+# Show what resources will be created
+dotnet run --project AppInfraCdkV1.Deploy.csproj -- --app=TrialFinderV2 --environment=Development --deploy-base --show-names-only
+```
+
+### Post-deployment Validation
+
 Application stacks automatically validate shared resources exist during deployment. If validation fails:
 
 1. Ensure base stack is deployed
-2. Check CloudFormation exports exist
+2. Check CloudFormation exports exist in AWS Console
 3. Verify naming conventions match
+4. Confirm environment names are case-sensitive matches
 
 ## Important Notes
 
@@ -107,13 +161,17 @@ This base stack **recreates** the existing VPC infrastructure (vpc-085a37ab90d41
 - Check IAM permissions for VPC/security group creation
 - Verify CIDR block doesn't conflict with existing VPCs (10.0.0.0/16 is already in use)
 - Ensure availability zones are available in region
+- Check that the correct AWS profile is configured (`to-dev-admin` or `to-prd-admin`)
+- Verify the deployment context (environment name, application name)
 - Consider deploying to different region initially for testing
 
 ### Application Stack Can't Find Shared Resources
 - Confirm base stack deployment completed successfully
 - Check CloudFormation exports in AWS console
-- Verify environment name matches between stacks
-- Ensure EnvironmentResourceProvider is correctly configured
+- Verify environment name matches between stacks (case-sensitive)
+- Ensure the base stack was deployed with `--deploy-base` flag
+- Check that the generated stack names match (e.g., `dev-shared-stack-ue2`)
+- Verify AWS profile has CloudFormation read permissions for exports
 
 ### Security Group Rules
 Recreated security groups match existing ones:

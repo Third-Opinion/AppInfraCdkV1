@@ -1,7 +1,13 @@
 {
   "acknowledged-issue-numbers": [
     34892,
-    3489
+    3489,
+    34892,
+    null,
+    null,
+    null,
+    null,
+    null
   ],
   "availability-zones:account=615299752206:region=us-east-2": [
     "us-east-2a",
