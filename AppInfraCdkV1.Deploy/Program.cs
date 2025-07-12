@@ -37,8 +37,7 @@ public abstract class Program
             var context = new DeploymentContext
             {
                 Environment = environmentConfig,
-                Application = applicationConfig,
-                DeployedBy = Environment.GetEnvironmentVariable("GITHUB_ACTOR") ?? "Local"
+                Application = applicationConfig
             };
 
             ValidateNamingConventions(context);
