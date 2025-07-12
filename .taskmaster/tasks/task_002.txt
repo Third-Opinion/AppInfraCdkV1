@@ -1,0 +1,44 @@
+# Task ID: 2
+# Title: Enable Container Insights and enhanced observability for WebApplicationStack
+# Status: pending
+# Dependencies: 1, 4
+# Priority: medium
+# Description: Update the CDK WebApplicationStack to integrate AWS Container Insights with CloudWatch monitoring, custom metrics, and comprehensive logging for enhanced observability of containerized applications.
+# Details:
+1. Modify the WebApplicationStack class to enable Container Insights on ECS clusters:
+   - Add containerInsights: ecs.ContainerInsights.ENABLED to cluster configuration
+   - Configure CloudWatch log groups with appropriate retention policies
+   - Set up custom CloudWatch metrics for application performance monitoring
+
+2. Implement comprehensive logging strategy:
+   - Configure structured logging with JSON format for better parsing
+   - Set up log aggregation using CloudWatch Logs
+   - Add application-level metrics and tracing capabilities
+   - Configure log retention policies based on environment (dev/prod)
+
+3. Add monitoring and alerting infrastructure:
+   - Create CloudWatch dashboards for key application metrics
+   - Set up CloudWatch alarms for critical thresholds (CPU, memory, error rates)
+   - Configure SNS topics for alert notifications
+   - Implement custom metrics for business logic monitoring
+
+4. Update CDK constructs to include:
+   - Enhanced ECS task definitions with logging drivers
+   - CloudWatch agent configuration for detailed metrics collection
+   - X-Ray tracing integration for distributed tracing
+   - Cost optimization through appropriate log retention and metric filtering
+
+5. Environment-specific configuration:
+   - Different monitoring levels for development vs production
+   - Configurable alert thresholds based on environment
+   - Resource tagging strategy for cost allocation and filtering
+
+# Test Strategy:
+1. Deploy the updated stack to development environment and verify Container Insights is enabled in ECS console
+2. Validate CloudWatch metrics are being collected by checking the Container Insights dashboard
+3. Test log aggregation by generating application logs and confirming they appear in CloudWatch Logs with correct formatting
+4. Verify custom metrics are being published by triggering application events and checking CloudWatch metrics
+5. Test alerting by intentionally triggering threshold breaches and confirming SNS notifications are sent
+6. Validate X-Ray tracing by making application requests and reviewing trace data in X-Ray console
+7. Check cost impact by reviewing CloudWatch billing and ensuring retention policies are applied correctly
+8. Perform end-to-end monitoring test by simulating application failures and verifying detection through dashboards and alerts

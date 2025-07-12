@@ -83,7 +83,8 @@ public class WebApplicationStack : Stack, IApplicationStack
         {
             Vpc = vpc,
             ClusterName = _context.Namer.EcsCluster(),
-            EnableFargateCapacityProviders = true
+            EnableFargateCapacityProviders = true,
+            ContainerInsightsV2 = ContainerInsights.ENABLED
         });
 
         return cluster;

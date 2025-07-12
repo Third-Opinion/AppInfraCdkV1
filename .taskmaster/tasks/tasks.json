@@ -1,0 +1,214 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Review and update documentation files including README.md",
+        "description": "Conduct a comprehensive review of all *.md documentation files in the project and update README.md to ensure accuracy and completeness.",
+        "details": "1. Scan the entire project directory for all *.md files using find or glob patterns\n2. Read and analyze each documentation file to understand:\n   - Current project structure and components\n   - Installation and setup instructions\n   - Usage examples and API documentation\n   - Contributing guidelines\n   - License and project metadata\n3. Cross-reference documentation content with actual codebase to identify discrepancies\n4. Update README.md to include:\n   - Accurate project description and purpose\n   - Current installation instructions\n   - Updated usage examples\n   - Correct directory structure\n   - Valid links to other documentation\n   - Current dependencies and requirements\n   - Proper badges and status indicators\n5. Ensure consistency in formatting, style, and terminology across all documentation\n6. Remove outdated information and add missing sections\n7. Validate all external links and references",
+        "testStrategy": "1. Verify all installation instructions work on a clean environment\n2. Test all code examples provided in documentation\n3. Confirm all internal links navigate to correct locations\n4. Validate external links are accessible and current\n5. Check that README.md accurately reflects current project state\n6. Ensure all referenced files and directories exist\n7. Verify documentation is consistent with package.json, requirements files, and other configuration\n8. Review with team members for accuracy and completeness",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Discovery and inventory of all markdown files",
+            "description": "Scan the entire project directory to locate and catalog all markdown files including README.md, documentation directories, and any embedded docs",
+            "dependencies": [],
+            "details": "Use file search tools to find all .md files recursively. Create an inventory list with file paths, sizes, and last modified dates. Identify the main documentation structure and any orphaned or misplaced documentation files.\n<info added on 2025-07-12T00:40:17.153Z>\nDiscovery phase completed successfully. Total inventory: 34 markdown files identified across the project structure. File categorization reveals 5 main groups: Project root documentation (README.md, CLAUDE.md, AGENTS.md), centralized docs/ directory containing 12 files covering integration plans and GitHub setup guides, component-specific documentation in test and stack directories, infrastructure-related documentation, and AI assistant configuration files distributed across multiple IDE directories (.github/instructions/, .windsurf/rules/, .trae/rules/, .clinerules/). Notable size analysis shows taskmaster.md at 44K and dev_workflow.md at 32K as the largest files. Critical discovery: significant duplication of AI assistant rules and workflows across different IDE configuration directories, indicating need for consolidation strategy to reduce maintenance overhead and ensure consistency.\n</info added on 2025-07-12T00:40:17.153Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Analysis of existing documentation structure and content",
+            "description": "Review the current documentation organization, content quality, and identify gaps or outdated information",
+            "dependencies": [
+              1
+            ],
+            "details": "Examine the documentation hierarchy, table of contents, navigation structure. Assess content completeness, accuracy, and readability. Identify sections that need updates, removal, or expansion based on current project state.\n<info added on 2025-07-12T00:41:00.809Z>\nDocumentation structure analysis reveals comprehensive main README.md with proper sections including status badges, overview, architecture, prerequisites, installation, configuration, usage, and security. The docs/ directory demonstrates good organization with setup guides, testing plans, and historical references. Component-level READMEs maintain appropriate focus and scope.\n\nKey findings: AGENTS.md duplicates CLAUDE.md content and should be consolidated. AI assistant configuration shows significant duplication across multiple IDE directories (.github/instructions/, .windsurf/rules/, .trae/rules/, .clinerules/) creating maintenance overhead. While the overall documentation hierarchy follows logical organization principles, reducing duplication and consolidating AI configuration files would improve maintainability and reduce inconsistency risks.\n\nRecommendation: Consolidate duplicate AI configuration into a single authoritative source and establish clear referencing strategy for IDE-specific needs.\n</info added on 2025-07-12T00:41:00.809Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Cross-referencing documentation with actual codebase state",
+            "description": "Verify that documentation accurately reflects the current code implementation, APIs, and project structure",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Compare documented APIs, configuration options, file structures, and code examples against actual implementation. Identify discrepancies between documented and actual behavior. Check that all referenced files, classes, and methods exist and function as described.\n<info added on 2025-07-12T00:41:50.722Z>\nCross-referenced documentation with codebase and found comprehensive alignment. README.md project structure accurately matches actual directories. Configuration examples align with appsettings.json structure including account IDs, regions, and environment names. Prerequisites correctly specify .NET 8.0 as confirmed in csproj files. Installation commands (dotnet restore, dotnet build) are valid. Usage commands match Program.cs implementation including --deploy-base and --validate-only flags. Architecture description accurately reflects code structure (Core/Stacks/Apps/Deploy). Naming conventions documentation matches NamingConvention.cs implementation. Security features documentation aligns with actual IAM/VPC implementation in stacks. No significant discrepancies identified between documentation and current codebase state.\n</info added on 2025-07-12T00:41:50.722Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Updating README.md with accurate project information",
+            "description": "Revise the main README.md file to ensure it contains current, accurate, and comprehensive project information",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Update project description, installation instructions, usage examples, API documentation, configuration details, and any project-specific information. Ensure the README serves as an effective entry point for new users and developers.\n<info added on 2025-07-12T00:42:52.518Z>\nImplementation completed successfully. README.md updated with corrected clone URL pointing to Third-Opinion organization and fixed GitHub Environment Setup documentation link to include proper docs/ directory path. Verified all other sections remain accurate including project structure, configuration examples, prerequisites, and commands. Documentation now fully synchronized with current codebase state.\n</info added on 2025-07-12T00:42:52.518Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Ensuring consistency and formatting across all docs",
+            "description": "Standardize formatting, style, and structure across all documentation files for a cohesive experience",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Apply consistent markdown formatting, heading structures, code block styling, and link formatting. Ensure uniform tone and style across all documentation. Fix any formatting inconsistencies or broken markdown syntax.\n<info added on 2025-07-12T00:43:33.016Z>\nSuccessfully completed documentation formatting and consistency improvements. Removed duplicate AGENTS.md file that was identical to CLAUDE.md content. Corrected test command in AppInfraCdkV1.Tests/README.md from incorrect directory path to proper 'dotnet test' command. Standardized markdown structure across all documentation files with consistent headers, code block formatting, and navigation patterns. All documentation now maintains unified style and proper markdown syntax throughout the project.\n</info added on 2025-07-12T00:43:33.016Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Validation and testing of all documentation content including links and examples",
+            "description": "Test all links, code examples, and instructions to ensure they work correctly and provide accurate guidance",
+            "dependencies": [
+              3,
+              4,
+              5
+            ],
+            "details": "Verify all external and internal links are functional. Test code examples and snippets to ensure they execute correctly. Validate installation and setup instructions. Check that all referenced resources are accessible and current.\n<info added on 2025-07-12T00:44:25.019Z>\nDocumentation validation completed successfully. All core commands verified functional: dotnet build executes without errors, dotnet run with --validate-only and --show-names-only flags work as documented and produce expected outputs, dotnet test performs test discovery correctly. Installation procedures and usage instructions tested and confirmed accurate. All code examples and command snippets execute properly. Documentation now provides reliable guidance for end users.\n</info added on 2025-07-12T00:44:25.019Z>",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Enable Container Insights and enhanced observability for WebApplicationStack",
+        "description": "Update the CDK WebApplicationStack to integrate AWS Container Insights with CloudWatch monitoring, custom metrics, and comprehensive logging for enhanced observability of containerized applications.",
+        "details": "1. Modify the WebApplicationStack class to enable Container Insights on ECS clusters:\n   - Add containerInsights: ecs.ContainerInsights.ENABLED to cluster configuration\n   - Configure CloudWatch log groups with appropriate retention policies\n   - Set up custom CloudWatch metrics for application performance monitoring\n\n2. Implement comprehensive logging strategy:\n   - Configure structured logging with JSON format for better parsing\n   - Set up log aggregation using CloudWatch Logs\n   - Add application-level metrics and tracing capabilities\n   - Configure log retention policies based on environment (dev/prod)\n\n3. Add monitoring and alerting infrastructure:\n   - Create CloudWatch dashboards for key application metrics\n   - Set up CloudWatch alarms for critical thresholds (CPU, memory, error rates)\n   - Configure SNS topics for alert notifications\n   - Implement custom metrics for business logic monitoring\n\n4. Update CDK constructs to include:\n   - Enhanced ECS task definitions with logging drivers\n   - CloudWatch agent configuration for detailed metrics collection\n   - X-Ray tracing integration for distributed tracing\n   - Cost optimization through appropriate log retention and metric filtering\n\n5. Environment-specific configuration:\n   - Different monitoring levels for development vs production\n   - Configurable alert thresholds based on environment\n   - Resource tagging strategy for cost allocation and filtering",
+        "testStrategy": "1. Deploy the updated stack to development environment and verify Container Insights is enabled in ECS console\n2. Validate CloudWatch metrics are being collected by checking the Container Insights dashboard\n3. Test log aggregation by generating application logs and confirming they appear in CloudWatch Logs with correct formatting\n4. Verify custom metrics are being published by triggering application events and checking CloudWatch metrics\n5. Test alerting by intentionally triggering threshold breaches and confirming SNS notifications are sent\n6. Validate X-Ray tracing by making application requests and reviewing trace data in X-Ray console\n7. Check cost impact by reviewing CloudWatch billing and ensuring retention policies are applied correctly\n8. Perform end-to-end monitoring test by simulating application failures and verifying detection through dashboards and alerts",
+        "status": "pending",
+        "dependencies": [
+          1,
+          "4",
+          "5"
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Create comprehensive ALB and ECS infrastructure for TrialFinderV2Stack",
+        "description": "Implement Application Load Balancer, ECS Service/Task, security groups, and configuration management for TrialFinderV2Stack with comprehensive AWS resource setup.",
+        "details": "1. AWS CLI Resource Inspection:\n   - Inspect existing ALB (arn:aws:elasticloadbalancing:us-east-2:615299752206:loadbalancer/app/dev-ecs-alb/5e4db6036255c842) using aws elbv2 describe-load-balancers\n   - Examine ECS service (arn:aws:ecs:us-east-2:615299752206:service/dev-trail-finder-v2/trial-finder-service) configuration\n   - Review security group sg-05787d59ddec14f04 settings\n   - Document existing task definition and execution roles\n\n2. ALB Infrastructure:\n   - Create ALB in new VPC dev-shared-vpc-ue2-main using existing settings as template\n   - Deploy ALB in public subnets for internet accessibility\n   - Create dedicated S3 bucket for ALB access logs with proper bucket policy\n   - Implement ALB security group allowing HTTPS (443) ingress from 0.0.0.0/0\n   - Configure outbound rules for ALB to reach ECS targets\n\n3. ECS Service and Task Definition:\n   - Reference existing ECS cluster from WebApplicationStack\n   - Create new ECS service in private subnets of shared VPC\n   - Copy and adapt existing trial-finder-v2 task definition\n   - Configure service to use existing task and execution roles\n   - Set up target group (HTTP/80) and register with new ALB\n   - Configure health checks and service auto-scaling parameters\n\n4. Security Group Configuration:\n   - Create ECS security group based on sg-05787d59ddec14f04\n   - Allow ingress from ALB security group on container port\n   - Add loopback rule for port 8080 (127.0.0.1/32)\n   - Configure egress rules for outbound internet access\n\n5. Configuration Management:\n   - Create JSON configuration file for environment variables\n   - Structure config with container name as top-level key\n   - Update task definition to reference JSON configuration\n   - Implement parameter validation and type checking\n\n6. Documentation and TODOs:\n   - Add comprehensive inline comments explaining resource relationships\n   - Document missing configurations with //TODO comments\n   - Create summary of implemented vs required resources\n   - Note dependencies on future listener and certificate tasks",
+        "testStrategy": "1. Deploy TrialFinderV2Stack to development environment and verify all resources are created successfully\n2. Validate ALB is accessible and properly configured by checking AWS console and CLI\n3. Confirm ECS service starts successfully and registers healthy targets with ALB target group\n4. Test security group rules by attempting connections from ALB to ECS and verifying port 8080 loopback\n5. Verify S3 access logs are being written to the new bucket\n6. Validate JSON configuration is properly loaded by ECS task by checking container environment variables\n7. Test service scaling and health check functionality\n8. Confirm integration with existing WebApplicationStack ECS cluster\n9. Verify private subnet deployment and proper VPC networking\n10. Document any missing configurations or failed validations for future resolution",
+        "status": "pending",
+        "dependencies": [
+          1,
+          "2"
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "AWS resource inspection and documentation of existing infrastructure",
+            "description": "Inspect current AWS infrastructure including VPCs, subnets, security groups, and ECS clusters to document existing resources that will be referenced in ALB and ECS setup",
+            "dependencies": [],
+            "details": "Use AWS CLI to gather information about existing WebApplicationStack cluster, VPC configuration, subnet layouts, and current security group configurations. Document findings to inform subsequent infrastructure creation steps.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Security group setup for both ALB and ECS with proper ingress/egress rules",
+            "description": "Create and configure security groups for ALB and ECS services with appropriate ingress/egress rules for secure communication",
+            "dependencies": [
+              1
+            ],
+            "details": "Define security groups for ALB (allowing HTTP/HTTPS traffic) and ECS tasks (allowing traffic from ALB). Configure proper port mappings and source/destination rules based on discovered infrastructure.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "ALB creation with security groups and S3 logging configuration",
+            "description": "Create Application Load Balancer with proper security group attachment and S3 access logging configuration",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement ALB creation using CDK constructs, attach security groups created in previous step, configure S3 bucket for access logs, and set up proper listener configurations for HTTP/HTTPS traffic.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "ECS task definition and service configuration referencing WebApplicationStack cluster",
+            "description": "Create ECS task definition and service configuration that properly references the existing WebApplicationStack cluster",
+            "dependencies": [
+              2
+            ],
+            "details": "Define ECS task with container specifications, CPU/memory allocation, and networking configuration. Create ECS service that references the existing cluster and uses the security groups configured earlier.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "JSON configuration management system implementation",
+            "description": "Implement a configuration management system using JSON files to manage ALB and ECS settings dynamically",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create JSON configuration files for ALB and ECS parameters, implement CDK code to read and apply these configurations, and establish a system for environment-specific settings management.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Integration testing and comprehensive documentation with TODO tracking",
+            "description": "Perform integration testing of ALB and ECS setup, create comprehensive documentation, and implement TODO tracking system",
+            "dependencies": [
+              5
+            ],
+            "details": "Test ALB routing to ECS services, verify security group rules, validate S3 logging functionality, document the complete infrastructure setup process, and create a TODO tracking system for ongoing maintenance tasks.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Deploy EnvironmentBaseStack with shared VPC infrastructure",
+        "description": "Deploy the foundational networking infrastructure including VPC, subnets, NAT gateways, and security groups to support ALB and ECS deployments.",
+        "details": "1. Deploy EnvironmentBaseStack using CDK:\n   - Execute 'cdk deploy EnvironmentBaseStack' using to-dev-admin profile\n   - Verify stack deployment creates dev-shared-vpc-ue2-main VPC\n   - Confirm public and private subnets are created across multiple AZs\n   - Validate NAT gateways are provisioned for private subnet internet access\n   - Ensure shared security groups are created with appropriate ingress/egress rules\n\n2. AWS CLI Validation:\n   - Use 'aws ec2 describe-vpcs' to verify VPC creation and configuration\n   - Check subnet configuration with 'aws ec2 describe-subnets'\n   - Validate NAT gateway deployment with 'aws ec2 describe-nat-gateways'\n   - Inspect security groups using 'aws ec2 describe-security-groups'\n   - Confirm route tables are properly configured for public/private routing\n\n3. Infrastructure Verification:\n   - Document VPC ID, subnet IDs, and security group IDs for reference\n   - Verify internet gateway attachment and routing configuration\n   - Confirm cross-AZ redundancy for high availability\n   - Validate CIDR block allocation aligns with organizational standards",
+        "testStrategy": "1. Verify successful CDK deployment by checking AWS CloudFormation console for EnvironmentBaseStack completion status\n2. Validate VPC infrastructure using AWS CLI commands to confirm all networking components are created\n3. Test internet connectivity from private subnets through NAT gateways using EC2 instances or VPC endpoints\n4. Confirm security group rules allow appropriate traffic flows for ALB and ECS services\n5. Document all resource ARNs and IDs for use in dependent application infrastructure tasks\n6. Perform cleanup test by destroying and redeploying stack to ensure reproducibility",
+        "status": "pending",
+        "dependencies": [
+          1
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Deploy WebApplicationStack with ECS cluster infrastructure",
+        "description": "Create and deploy ECS cluster with appropriate capacity providers, auto-scaling, and VPC integration to support TrialFinderV2Stack services.",
+        "details": "1. Deploy WebApplicationStack using CDK:\n   - Execute 'cdk deploy WebApplicationStack' using to-dev-admin profile\n   - Create ECS cluster with appropriate naming convention (dev-web-app-cluster-ue2)\n   - Configure cluster with EC2 and Fargate capacity providers for flexible workload placement\n   - Set up cluster auto-scaling policies for cost optimization and performance\n   - Integrate cluster with shared VPC infrastructure from EnvironmentBaseStack\n\n2. Cluster Configuration:\n   - Enable cluster auto-scaling with target utilization thresholds\n   - Configure capacity providers with managed scaling enabled\n   - Set up appropriate IAM roles for cluster operations and task execution\n   - Ensure cluster is deployed in private subnets for security\n   - Configure cluster tags for resource management and cost allocation\n\n3. Infrastructure Validation:\n   - Verify cluster creation using 'aws ecs describe-clusters' CLI command\n   - Document cluster ARN for reference by TrialFinderV2Stack services\n   - Confirm capacity providers are properly registered and active\n   - Validate cluster networking connectivity within VPC\n   - Prepare cluster for Container Insights enablement in subsequent tasks",
+        "testStrategy": "1. Verify successful CDK deployment by checking AWS CloudFormation console for WebApplicationStack completion status\n2. Validate ECS cluster creation using 'aws ecs describe-clusters --clusters <cluster-name>' to confirm cluster is active\n3. Test capacity providers are properly configured using 'aws ecs describe-capacity-providers'\n4. Confirm cluster networking by verifying it's deployed in correct VPC and subnets\n5. Validate auto-scaling configuration is active and properly configured\n6. Document cluster ARN and verify it can be referenced by dependent services\n7. Test cluster readiness by attempting to run a simple task definition to ensure infrastructure is functional",
+        "status": "pending",
+        "dependencies": [
+          4
+        ],
+        "priority": "medium",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0",
+      "created": "2025-01-12T00:21:00.000Z",
+      "description": "Tasks for master context",
+      "updated": "2025-07-12T01:36:54.183Z"
+    }
+  }
+}
