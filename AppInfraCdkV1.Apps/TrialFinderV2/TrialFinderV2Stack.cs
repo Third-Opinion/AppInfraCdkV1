@@ -272,7 +272,7 @@ public class TrialFinderV2Stack : WebApplicationStack
             AutoDeleteObjects = true,
             LifecycleRules = new[]
             {
-                new LifecycleRule
+                new Amazon.CDK.AWS.S3.LifecycleRule
                 {
                     Id = "DeleteOldLogs",
                     Enabled = true,
@@ -489,13 +489,13 @@ public class TrialFinderV2Stack : WebApplicationStack
             ImageScanOnPush = true,
             LifecycleRules = new[]
             {
-                new LifecycleRule
+                new Amazon.CDK.AWS.ECR.LifecycleRule
                 {
                     Description = "Keep only the latest 10 images",
                     MaxImageCount = 10,
                     RulePriority = 1
                 },
-                new LifecycleRule
+                new Amazon.CDK.AWS.ECR.LifecycleRule
                 {
                     Description = "Delete untagged images after 1 day",
                     MaxImageAge = Duration.Days(1),
