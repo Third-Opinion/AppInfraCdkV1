@@ -247,4 +247,32 @@ public class ResourceNamer
         var topicName = SnsTopics(purpose);
         return $"arn:aws:sns:{_context.Environment.Region}:{_context.Environment.AccountId}:{topicName}";
     }
+
+    // Shared resource naming methods
+    
+    /// <summary>
+    /// Generates a shared VPC name using shared resource naming convention
+    /// </summary>
+    public string SharedVpc(string specificName = "main")
+    {
+        return NamingConvention.GenerateSharedResourceName(_context, NamingConvention.ResourceTypes.Vpc, specificName);
+    }
+
+    /// <summary>
+    /// Generates a shared security group name using shared resource naming convention
+    /// </summary>
+    public string SharedSecurityGroup(string specificName)
+    {
+        return NamingConvention.GenerateSharedResourceName(_context, NamingConvention.ResourceTypes.SecurityGroup, specificName);
+    }
+
+    /// <summary>
+    /// Generates a shared log group name using shared resource naming convention
+    /// Pattern: /aws/{service-type}/{env-prefix}-shared-{specific-name}
+    /// </summary>
+    public string SharedLogGroup(string serviceType = "shared", string specificName = "main")
+    {
+        string envPrefix = NamingConvention.GetEnvironmentPrefix(_context.Environment.Name);
+        return $"/aws/{serviceType.ToLowerInvariant()}/{envPrefix}-shared-{specificName.ToLowerInvariant()}";
+    }
 }
