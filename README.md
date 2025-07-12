@@ -77,7 +77,7 @@ AppInfraCdkV1/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourorg/AppInfraCdkV1.git
+git clone https://github.com/Third-Opinion/AppInfraCdkV1.git
 cd AppInfraCdkV1
 ```
 
@@ -134,7 +134,7 @@ cd AppInfraCdkV1.Deploy
 cdk bootstrap aws://ACCOUNT-ID/REGION
 ```
 
-2. Ensure OIDC authentication is set up (see [GitHub Environment Setup](GITHUB_ENVIRONMENTS_SETUP.md))
+2. Ensure OIDC authentication is set up (see [GitHub Environment Setup](docs/GITHUB_ENVIRONMENTS_SETUP.md))
 
 ### Deploy Base Stack First
 
@@ -234,7 +234,7 @@ Examples:
 ## Documentation
 
 ### Setup and Configuration
-- [GitHub Environment Setup](GITHUB_ENVIRONMENTS_SETUP.md) - OIDC authentication and environment configuration
+- [GitHub Environment Setup](docs/GITHUB_ENVIRONMENTS_SETUP.md) - OIDC authentication and environment configuration
 - [GitHub OIDC Setup Guide](docs/github-oidc-setup-guide.md) - Detailed OIDC setup instructions
 - [Base Stack Deployment](docs/BaseStackDeployment.md) - Shared infrastructure deployment guide
 
