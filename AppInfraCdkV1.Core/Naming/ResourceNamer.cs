@@ -184,6 +184,13 @@ public class ResourceNamer
             NamingConvention.ResourceTypes.ParameterStore, purpose.ToStringValue());
     }
 
+    // ECR repositories
+    public string EcrRepository(string repositoryType)
+    {
+        var applicationName = _context.Application.Name.ToLowerInvariant();
+        return $"thirdopinion/{applicationName}/{repositoryType}";
+    }
+
     /// <summary>
     ///     Custom resource name for resources not covered by standard types
     /// </summary>

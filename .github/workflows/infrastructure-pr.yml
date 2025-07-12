@@ -85,6 +85,9 @@ jobs:
     - name: Install CDK CLI
       run: npm install -g aws-cdk
     
+    - name: Install jq for JSON comparison
+      run: sudo apt-get update && sudo apt-get install -y jq
+    
     - name: Debug GitHub Context
       run: |
         echo "GitHub Actor: ${{ github.actor }}"
@@ -124,14 +127,84 @@ jobs:
         CDK_DEPLOY_BASE=true cdk synth
         echo "✅ Base stack synthesis completed"
     
-    - name: Deploy Base Stack (for validation only)
+    - name: Validate Base Stack Changes (No Deploy)
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying base stack for validation purposes..."
+        echo "🔍 Checking for base stack changes..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
         export CDK_APPLICATION=${{ matrix.app }}
-        CDK_DEPLOY_BASE=true cdk deploy --require-approval never
-        echo "✅ Base stack deployed for validation"
+        
+        # Generate current base stack template
+        CDK_DEPLOY_BASE=true cdk synth > current-base-stack.json 2>/dev/null || {
+          echo "❌ Failed to synthesize base stack"
+          exit 1
+        }
+        
+        # Check if we have a reference template in the repo
+        REFERENCE_FILE="../.github/templates/base-stack-template.json"
+        if [ ! -f "$REFERENCE_FILE" ]; then
+          echo "⚠️  No reference base stack template found at $REFERENCE_FILE"
+          echo "📋 Creating initial reference template..."
+          mkdir -p ../.github/templates
+          cp current-base-stack.json "$REFERENCE_FILE"
+          echo "✅ Initial reference template created."
+          echo "🔄 This template will be used for future base stack change detection."
+          echo "✅ Base stack synthesis completed successfully."
+          exit 0
+        fi
+        
+        # Compare templates (ignore metadata that changes on every synth)
+        echo "🔄 Comparing current base stack with reference template..."
+        
+        # Use jq to normalize templates for comparison (remove volatile metadata)
+        if command -v jq >/dev/null 2>&1; then
+          # Remove CDK metadata and version info that changes between synths
+          jq 'del(.Rules, .Metadata, .Parameters)' current-base-stack.json > current-normalized.json
+          jq 'del(.Rules, .Metadata, .Parameters)' "$REFERENCE_FILE" > reference-normalized.json
+          
+          if diff -q current-normalized.json reference-normalized.json >/dev/null; then
+            echo "✅ Base stack unchanged - validation passed"
+          else
+            echo "❌ BASE STACK HAS CHANGED!"
+            echo ""
+            echo "🚨 The base stack template has been modified."
+            echo "📋 This indicates changes to shared infrastructure (VPC, security groups, etc.)"
+            echo ""
+            echo "🛠️  To deploy base stack changes:"
+            echo "   1. Create a PR to 'develop' or 'master' branch"
+            echo "   2. The deployment workflow will handle base stack updates"
+            echo "   3. Merge the PR to apply the changes"
+            echo ""
+            echo "📝 Base stack changes detected in normalized comparison:"
+            echo "ℹ️  Showing first 50 lines of differences:"
+            diff current-normalized.json reference-normalized.json | head -50 || true
+            echo ""
+            echo "❌ Failing validation to prevent unexpected base stack changes"
+            exit 1
+          fi
+        else
+          # Fallback comparison without jq
+          echo "⚠️  jq not available, using direct file comparison"
+          if diff -q current-base-stack.json "$REFERENCE_FILE" >/dev/null; then
+            echo "✅ Base stack unchanged - validation passed"
+          else
+            echo "❌ BASE STACK HAS CHANGED!"
+            echo ""
+            echo "🚨 The base stack template has been modified."
+            echo "📋 This indicates changes to shared infrastructure (VPC, security groups, etc.)"
+            echo ""
+            echo "🛠️  To deploy base stack changes:"
+            echo "   1. Create a PR to 'develop' or 'master' branch"
+            echo "   2. The deployment workflow will handle base stack updates"
+            echo "   3. Merge the PR to apply the changes"
+            echo ""
+            echo "📝 First 30 lines of detected changes:"
+            diff current-base-stack.json "$REFERENCE_FILE" | head -30 || true
+            echo ""
+            echo "❌ Failing validation to prevent unexpected base stack changes"
+            exit 1
+          fi
+        fi
     
     - name: CDK Synth Application Stack
       run: |
@@ -151,15 +224,6 @@ jobs:
         cdk diff || true
         echo "✅ Application stack diff completed"
     
-    - name: Cleanup Base Stack
-      if: always()
-      run: |
-        cd AppInfraCdkV1.Deploy
-        echo "🧹 Cleaning up base stack after validation..."
-        export CDK_ENVIRONMENT=${{ matrix.environment }}
-        export CDK_APPLICATION=${{ matrix.app }}
-        CDK_DEPLOY_BASE=true cdk destroy --force || true
-        echo "✅ Base stack cleanup completed"
 
   test:
     runs-on: ubuntu-latest
