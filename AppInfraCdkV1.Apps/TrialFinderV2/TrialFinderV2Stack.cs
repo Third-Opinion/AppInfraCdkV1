@@ -1,5 +1,6 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
+using Amazon.CDK.AWS.ECR;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ECS.Patterns;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
@@ -51,8 +52,11 @@ public class TrialFinderV2Stack : WebApplicationStack
         // Create ALB with S3 logging
         var alb = CreateApplicationLoadBalancer(vpc, securityGroups.AlbSecurityGroup, context);
         
+        // Create ECR repository for container images
+        var ecrRepository = CreateEcrRepository(context);
+        
         // Create ECS service and task definition
-        var ecsService = CreateEcsService(cluster, alb, securityGroups.EcsSecurityGroup, context);
+        var ecsService = CreateEcsService(cluster, alb, securityGroups.EcsSecurityGroup, context, ecrRepository);
         
         // Create TrialFinder-specific storage and services
         CreateTrialDocumentStorage(context);
@@ -296,7 +300,7 @@ public class TrialFinderV2Stack : WebApplicationStack
     /// <summary>
     /// Create ECS service and task definition
     /// </summary>
-    private IBaseService CreateEcsService(ICluster cluster, IApplicationLoadBalancer alb, ISecurityGroup securityGroup, DeploymentContext context)
+    private IBaseService CreateEcsService(ICluster cluster, IApplicationLoadBalancer alb, ISecurityGroup securityGroup, DeploymentContext context, IRepository ecrRepository)
     {
         // Create log group for ECS tasks
         var logGroup = new LogGroup(this, "TrialFinderLogGroup", new LogGroupProps
@@ -319,7 +323,7 @@ public class TrialFinderV2Stack : WebApplicationStack
         // Add container to task definition
         var container = taskDefinition.AddContainer("trial-finder-v2", new ContainerDefinitionOptions
         {
-            Image = ContainerImage.FromRegistry("trial-finder-v2:latest"),
+            Image = ContainerImage.FromEcrRepository(ecrRepository, "latest"),
             PortMappings = new[]
             {
                 new PortMapping
@@ -455,6 +459,58 @@ public class TrialFinderV2Stack : WebApplicationStack
             Resources = new[] { "*" }
         }));
 
+        // Add ECR permissions for pulling images
+        executionRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage"
+            },
+            Resources = new[] { "*" }
+        }));
+
         return executionRole;
+    }
+
+    /// <summary>
+    /// Create ECR repository for TrialFinder container images
+    /// </summary>
+    private IRepository CreateEcrRepository(DeploymentContext context)
+    {
+        var repositoryName = context.Namer.EcrRepository("web");
+        
+        var repository = new Repository(this, "TrialFinderRepository", new RepositoryProps
+        {
+            RepositoryName = repositoryName,
+            ImageScanOnPush = true,
+            LifecycleRules = new[]
+            {
+                new LifecycleRule
+                {
+                    Description = "Keep only the latest 10 images",
+                    MaxImageCount = 10,
+                    RulePriority = 1
+                },
+                new LifecycleRule
+                {
+                    Description = "Delete untagged images after 1 day",
+                    MaxImageAge = Duration.Days(1),
+                    TagStatus = TagStatus.UNTAGGED,
+                    RulePriority = 2
+                }
+            },
+            RemovalPolicy = context.Environment.IsProductionClass 
+                ? RemovalPolicy.RETAIN 
+                : RemovalPolicy.DESTROY
+        });
+
+        // Note: ECR pull permissions will be granted to the ECS execution role 
+        // when the task definition is created
+
+        return repository;
     }
 }
