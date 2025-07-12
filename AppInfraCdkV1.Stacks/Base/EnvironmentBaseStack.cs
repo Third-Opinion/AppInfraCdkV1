@@ -123,12 +123,26 @@ public class EnvironmentBaseStack : Stack
         {
             Vpc = Vpc,
             SecurityGroupName = _context.Namer.SharedSecurityGroup("ecs"),
-            Description = "Shared ECS security group for all applications",
-            AllowAllOutbound = true
+            Description = "Security group for ECS containers allowing traffic from ALB and internal communication",
+            AllowAllOutbound = false
         });
         
-        // Allow traffic from ALB (matches existing)
-        ecsSg.AddIngressRule(albSg, Port.AllTcp(), "Allow traffic from ALB");
+        // Inbound Rules
+        // Allow traffic from ALB on all TCP ports
+        ecsSg.AddIngressRule(albSg, Port.AllTcp(), "FromALB");
+        
+        // Allow container-to-container communication on port 8080 (self-reference)
+        ecsSg.AddIngressRule(ecsSg, Port.Tcp(8080), "Loopback");
+        
+        // Outbound Rules
+        // Allow HTTP for package downloads
+        ecsSg.AddEgressRule(Peer.AnyIpv4(), Port.Tcp(80), "HTTP for package downloads");
+        
+        // Allow HTTPS for external API calls
+        ecsSg.AddEgressRule(Peer.AnyIpv4(), Port.Tcp(443), "HTTPS for external API calls");
+        
+        // Allow traffic back to ALB for health checks
+        ecsSg.AddEgressRule(albSg, Port.AllTcp(), "Health checks to ALB");
         
         SharedSecurityGroups["ecs"] = ecsSg;
         
@@ -168,6 +182,9 @@ public class EnvironmentBaseStack : Stack
         
         // Allow HTTPS from ECS to VPC endpoints
         vpcEndpointSg.AddIngressRule(ecsSg, Port.Tcp(443), "Allow HTTPS from ECS to VPC endpoints");
+        
+        // Allow ECS to reach VPC endpoints
+        ecsSg.AddEgressRule(vpcEndpointSg, Port.Tcp(443), "HTTPS to VPC endpoints for AWS services");
         
         SharedSecurityGroups["vpc-endpoints"] = vpcEndpointSg;
         
