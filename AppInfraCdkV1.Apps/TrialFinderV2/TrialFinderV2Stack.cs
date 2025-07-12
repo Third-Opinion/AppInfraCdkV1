@@ -375,6 +375,8 @@ public class TrialFinderV2Stack : WebApplicationStack
             ServiceName = context.Namer.EcsService(ResourcePurpose.Web),
             TaskDefinition = taskDefinition,
             DesiredCount = 1,
+            MinHealthyPercent = 50, // Explicitly set to avoid CDK warning
+            MaxHealthyPercent = 200,
             AssignPublicIp = false,
             SecurityGroups = new[] { securityGroup },
             VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS },

@@ -1,5 +1,5 @@
 {
-  "app": "dotnet run --project src/HelloCdk/HelloCdk.csproj",
+  "app": "dotnet run --project AppInfraCdkV1.Deploy.csproj",
   "watch": {
     "include": [
       "**"
@@ -90,6 +90,12 @@
     "@aws-cdk/s3-notifications:addS3TrustKeyPolicyForSnsSubscriptions": true,
     "@aws-cdk/aws-ec2:requirePrivateSubnetsForEgressOnlyInternetGateway": true,
     "@aws-cdk/aws-s3:publicAccessBlockedByDefault": true,
-    "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true
+    "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true,
+    "@aws-cdk/aws-ec2:vpcAttributeIsListTokenavailabilityZones": false,
+    "@aws-cdk/aws-ec2:vpcAttributeIsListTokenisolatedSubnetIds": false,
+    "@aws-cdk/aws-ec2:vpcAttributeIsListTokenprivateSubnetIds": false,
+    "@aws-cdk/aws-ec2:vpcAttributeIsListTokenpublicSubnetIds": false,
+    "@aws-cdk/aws-ec2:noSubnetRouteTableId": false,
+    "@aws-cdk/aws-ecs:minHealthyPercent": false
   }
 }
