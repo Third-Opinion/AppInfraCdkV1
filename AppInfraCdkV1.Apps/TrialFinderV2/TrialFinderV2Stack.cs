@@ -69,9 +69,10 @@ public class TrialFinderV2Stack : WebApplicationStack
     private void CreateTrialDocumentStorage(DeploymentContext context)
     {
         // Document storage for trial PDFs, protocols, etc.
-        Bucket documentsBucket = new Bucket(this, "CDKTestDocumentsBucket", new BucketProps
+        Bucket documentsBucket = new Bucket(this, "TrialDocumentsBucket", new BucketProps
         {
-            BucketName = context.Namer.S3Bucket(StoragePurpose.Documents),
+            // Use auto-generated bucket name to avoid conflicts
+            // BucketName = context.Namer.S3Bucket(StoragePurpose.Documents),
             Versioned = false,
             RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
             AutoDeleteObjects = false,
