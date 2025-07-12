@@ -1,7 +1,7 @@
 # Task ID: 2
 # Title: Enable Container Insights and enhanced observability for WebApplicationStack
-# Status: pending
-# Dependencies: 1, 4
+# Status: done
+# Dependencies: 1, 4, 5
 # Priority: medium
 # Description: Update the CDK WebApplicationStack to integrate AWS Container Insights with CloudWatch monitoring, custom metrics, and comprehensive logging for enhanced observability of containerized applications.
 # Details:

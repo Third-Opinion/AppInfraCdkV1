@@ -1,0 +1,1499 @@
+{
+ "Description": "Base infrastructure for Development environment (Account: NonProduction)",
+ "Resources": {
+  "SharedVpc96F0F614": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-vpc-ue2-main"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/Resource"
+   }
+  },
+  "SharedVpcpublicSubnet1Subnet8B290348": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2a",
+    "CidrBlock": "10.0.0.0/20",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet1/Subnet"
+   }
+  },
+  "SharedVpcpublicSubnet1RouteTable02281047": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet1/RouteTable"
+   }
+  },
+  "SharedVpcpublicSubnet1RouteTableAssociation7BFDFDFE": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcpublicSubnet1RouteTable02281047"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcpublicSubnet1Subnet8B290348"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet1/RouteTableAssociation"
+   }
+  },
+  "SharedVpcpublicSubnet1DefaultRoute52DB3CDD": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "SharedVpcIGW869E5885"
+    },
+    "RouteTableId": {
+     "Ref": "SharedVpcpublicSubnet1RouteTable02281047"
+    }
+   },
+   "DependsOn": [
+    "SharedVpcVPCGW9C69B7A5"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet1/DefaultRoute"
+   }
+  },
+  "SharedVpcpublicSubnet1EIP05C300B0": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet1/EIP"
+   }
+  },
+  "SharedVpcpublicSubnet1NATGatewayE91D769E": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "SharedVpcpublicSubnet1EIP05C300B0",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcpublicSubnet1Subnet8B290348"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet1"
+     }
+    ]
+   },
+   "DependsOn": [
+    "SharedVpcpublicSubnet1DefaultRoute52DB3CDD",
+    "SharedVpcpublicSubnet1RouteTableAssociation7BFDFDFE"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet1/NATGateway"
+   }
+  },
+  "SharedVpcpublicSubnet2SubnetE497BB00": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2b",
+    "CidrBlock": "10.0.16.0/20",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet2/Subnet"
+   }
+  },
+  "SharedVpcpublicSubnet2RouteTable7C5D1097": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet2/RouteTable"
+   }
+  },
+  "SharedVpcpublicSubnet2RouteTableAssociation50161D4C": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcpublicSubnet2RouteTable7C5D1097"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcpublicSubnet2SubnetE497BB00"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet2/RouteTableAssociation"
+   }
+  },
+  "SharedVpcpublicSubnet2DefaultRouteDF4DAA30": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "SharedVpcIGW869E5885"
+    },
+    "RouteTableId": {
+     "Ref": "SharedVpcpublicSubnet2RouteTable7C5D1097"
+    }
+   },
+   "DependsOn": [
+    "SharedVpcVPCGW9C69B7A5"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet2/DefaultRoute"
+   }
+  },
+  "SharedVpcpublicSubnet3Subnet39EC300F": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2c",
+    "CidrBlock": "10.0.32.0/20",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet3/Subnet"
+   }
+  },
+  "SharedVpcpublicSubnet3RouteTable593FCC65": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/publicSubnet3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet3/RouteTable"
+   }
+  },
+  "SharedVpcpublicSubnet3RouteTableAssociation1C2D7CCF": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcpublicSubnet3RouteTable593FCC65"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcpublicSubnet3Subnet39EC300F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet3/RouteTableAssociation"
+   }
+  },
+  "SharedVpcpublicSubnet3DefaultRouteC98EF5B8": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "SharedVpcIGW869E5885"
+    },
+    "RouteTableId": {
+     "Ref": "SharedVpcpublicSubnet3RouteTable593FCC65"
+    }
+   },
+   "DependsOn": [
+    "SharedVpcVPCGW9C69B7A5"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/publicSubnet3/DefaultRoute"
+   }
+  },
+  "SharedVpcprivateSubnet1Subnet51E913CA": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2a",
+    "CidrBlock": "10.0.48.0/20",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/privateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet1/Subnet"
+   }
+  },
+  "SharedVpcprivateSubnet1RouteTable51D7A30B": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/privateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet1/RouteTable"
+   }
+  },
+  "SharedVpcprivateSubnet1RouteTableAssociationE44D436F": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcprivateSubnet1RouteTable51D7A30B"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcprivateSubnet1Subnet51E913CA"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet1/RouteTableAssociation"
+   }
+  },
+  "SharedVpcprivateSubnet1DefaultRoute87475E84": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "SharedVpcpublicSubnet1NATGatewayE91D769E"
+    },
+    "RouteTableId": {
+     "Ref": "SharedVpcprivateSubnet1RouteTable51D7A30B"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet1/DefaultRoute"
+   }
+  },
+  "SharedVpcprivateSubnet2Subnet50406F86": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2b",
+    "CidrBlock": "10.0.64.0/20",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/privateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet2/Subnet"
+   }
+  },
+  "SharedVpcprivateSubnet2RouteTable538229F1": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/privateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet2/RouteTable"
+   }
+  },
+  "SharedVpcprivateSubnet2RouteTableAssociation9C4B4B82": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcprivateSubnet2RouteTable538229F1"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcprivateSubnet2Subnet50406F86"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet2/RouteTableAssociation"
+   }
+  },
+  "SharedVpcprivateSubnet2DefaultRoute261AECCB": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "SharedVpcpublicSubnet1NATGatewayE91D769E"
+    },
+    "RouteTableId": {
+     "Ref": "SharedVpcprivateSubnet2RouteTable538229F1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet2/DefaultRoute"
+   }
+  },
+  "SharedVpcprivateSubnet3Subnet103F5BAD": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2c",
+    "CidrBlock": "10.0.80.0/20",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/privateSubnet3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet3/Subnet"
+   }
+  },
+  "SharedVpcprivateSubnet3RouteTable29A6F4F8": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/privateSubnet3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet3/RouteTable"
+   }
+  },
+  "SharedVpcprivateSubnet3RouteTableAssociationA5D8ACDD": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcprivateSubnet3RouteTable29A6F4F8"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcprivateSubnet3Subnet103F5BAD"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet3/RouteTableAssociation"
+   }
+  },
+  "SharedVpcprivateSubnet3DefaultRoute6B44D784": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "SharedVpcpublicSubnet1NATGatewayE91D769E"
+    },
+    "RouteTableId": {
+     "Ref": "SharedVpcprivateSubnet3RouteTable29A6F4F8"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/privateSubnet3/DefaultRoute"
+   }
+  },
+  "SharedVpcisolatedSubnet1Subnet0A8AF9AC": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2a",
+    "CidrBlock": "10.0.96.0/25",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet1/Subnet"
+   }
+  },
+  "SharedVpcisolatedSubnet1RouteTable2D80C6D9": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet1/RouteTable"
+   }
+  },
+  "SharedVpcisolatedSubnet1RouteTableAssociation2F977BC1": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcisolatedSubnet1RouteTable2D80C6D9"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcisolatedSubnet1Subnet0A8AF9AC"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet1/RouteTableAssociation"
+   }
+  },
+  "SharedVpcisolatedSubnet2SubnetB4E457F8": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2b",
+    "CidrBlock": "10.0.96.128/25",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet2/Subnet"
+   }
+  },
+  "SharedVpcisolatedSubnet2RouteTableCEB3B7D3": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet2/RouteTable"
+   }
+  },
+  "SharedVpcisolatedSubnet2RouteTableAssociationA435FDDA": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcisolatedSubnet2RouteTableCEB3B7D3"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcisolatedSubnet2SubnetB4E457F8"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet2/RouteTableAssociation"
+   }
+  },
+  "SharedVpcisolatedSubnet3SubnetD5F4AC17": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-2c",
+    "CidrBlock": "10.0.97.0/25",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet3/Subnet"
+   }
+  },
+  "SharedVpcisolatedSubnet3RouteTableDE1FAEA0": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet3/RouteTable"
+   }
+  },
+  "SharedVpcisolatedSubnet3RouteTableAssociation5ED0FC45": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "SharedVpcisolatedSubnet3RouteTableDE1FAEA0"
+    },
+    "SubnetId": {
+     "Ref": "SharedVpcisolatedSubnet3SubnetD5F4AC17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/isolatedSubnet3/RouteTableAssociation"
+   }
+  },
+  "SharedVpcIGW869E5885": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "dev-shared-vpc-ue2-main"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/IGW"
+   }
+  },
+  "SharedVpcVPCGW9C69B7A5": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "SharedVpcIGW869E5885"
+    },
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/VPCGW"
+   }
+  },
+  "SharedVpcRestrictDefaultSecurityGroupCustomResourceEA2A7FD4": {
+   "Type": "Custom::VpcRestrictDefaultSG",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E",
+      "Arn"
+     ]
+    },
+    "DefaultSecurityGroupId": {
+     "Fn::GetAtt": [
+      "SharedVpc96F0F614",
+      "DefaultSecurityGroup"
+     ]
+    },
+    "Account": "615299752206"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedVpc/RestrictDefaultSecurityGroupCustomResource/Default"
+   }
+  },
+  "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+     }
+    ],
+    "Policies": [
+     {
+      "PolicyName": "Inline",
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Action": [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress"
+         ],
+         "Resource": [
+          {
+           "Fn::Join": [
+            "",
+            [
+             "arn:aws:ec2:us-east-2:615299752206:security-group/",
+             {
+              "Fn::GetAtt": [
+               "SharedVpc96F0F614",
+               "DefaultSecurityGroup"
+              ]
+             }
+            ]
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role"
+   }
+  },
+  "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-615299752206-us-east-2",
+     "S3Key": "7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200.zip"
+    },
+    "Timeout": 900,
+    "MemorySize": 128,
+    "Handler": "__entrypoint__.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Description": "Lambda function for removing all inbound/outbound rules from the VPC default security group"
+   },
+   "DependsOn": [
+    "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler",
+    "aws:asset:path": "asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200",
+    "aws:asset:property": "Code"
+   }
+  },
+  "AlbSecurityGroup86A59E99": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Shared ALB security group for all applications",
+    "GroupName": "dev-shared-sg-ue2-alb",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow HTTP from anywhere",
+      "FromPort": 80,
+      "IpProtocol": "tcp",
+      "ToPort": 80
+     },
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow HTTPS from anywhere",
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/AlbSecurityGroup/Resource"
+   }
+  },
+  "ContainerFromAlbSecurityGroup8FA51B6A": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Shared ECS security group for all applications",
+    "GroupName": "dev-shared-sg-ue2-ecs",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/ContainerFromAlbSecurityGroup/Resource"
+   }
+  },
+  "ContainerFromAlbSecurityGroupfromdevsharedstackue2AlbSecurityGroup07AD6091ALLPORTS2FAF851B": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow traffic from ALB",
+    "FromPort": 0,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "ContainerFromAlbSecurityGroup8FA51B6A",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "AlbSecurityGroup86A59E99",
+      "GroupId"
+     ]
+    },
+    "ToPort": 65535
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/ContainerFromAlbSecurityGroup/from devsharedstackue2AlbSecurityGroup07AD6091:ALL PORTS"
+   }
+  },
+  "RdsSecurityGroup632A77E4": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group attached to database to allow EC2 instances with specific security groups attached to connect to the database",
+    "GroupName": "rds-ec2-1",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "255.255.255.255/32",
+      "Description": "Disallow all traffic",
+      "FromPort": 252,
+      "IpProtocol": "icmp",
+      "ToPort": 86
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/RdsSecurityGroup/Resource"
+   }
+  },
+  "RdsSecurityGroupfromdevsharedstackue2ContainerFromAlbSecurityGroupAB68FD715432D2127C77": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow PostgreSQL from ECS",
+    "FromPort": 5432,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "RdsSecurityGroup632A77E4",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "ContainerFromAlbSecurityGroup8FA51B6A",
+      "GroupId"
+     ]
+    },
+    "ToPort": 5432
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/RdsSecurityGroup/from devsharedstackue2ContainerFromAlbSecurityGroupAB68FD71:5432"
+   }
+  },
+  "EcsToRdsSecurityGroupC1BB9165": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Created by RDS management console",
+    "GroupName": "ecs-to-rds-security-group",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/EcsToRdsSecurityGroup/Resource"
+   }
+  },
+  "VpcEndpointSecurityGroup02EA44AC": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Shared VPC endpoint security group for all applications",
+    "GroupName": "dev-shared-sg-ue2-vpc-endpoints",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "255.255.255.255/32",
+      "Description": "Disallow all traffic",
+      "FromPort": 252,
+      "IpProtocol": "icmp",
+      "ToPort": 86
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": {
+       "Fn::GetAtt": [
+        "SharedVpc96F0F614",
+        "CidrBlock"
+       ]
+      },
+      "Description": {
+       "Fn::Join": [
+        "",
+        [
+         "from ",
+         {
+          "Fn::GetAtt": [
+           "SharedVpc96F0F614",
+           "CidrBlock"
+          ]
+         },
+         ":443"
+        ]
+       ]
+      },
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/VpcEndpointSecurityGroup/Resource"
+   }
+  },
+  "VpcEndpointSecurityGroupfromdevsharedstackue2ContainerFromAlbSecurityGroupAB68FD71443CE585C72": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow HTTPS from ECS to VPC endpoints",
+    "FromPort": 443,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "VpcEndpointSecurityGroup02EA44AC",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "ContainerFromAlbSecurityGroup8FA51B6A",
+      "GroupId"
+     ]
+    },
+    "ToPort": 443
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/VpcEndpointSecurityGroup/from devsharedstackue2ContainerFromAlbSecurityGroupAB68FD71:443"
+   }
+  },
+  "TestSecurityGroup880B57C0": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "All access to linux host for testing",
+    "GroupName": "dev-test-trail-finder-v2-security-group",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/TestSecurityGroup/Resource"
+   }
+  },
+  "SharedLogGroup74BE6F74": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/aws/shared/dev-shared-main",
+    "RetentionInDays": 7
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/SharedLogGroup/Resource"
+   }
+  },
+  "S3VpcEndpoint1F0CDE18": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "RouteTableIds": [
+     {
+      "Ref": "SharedVpcprivateSubnet1RouteTable51D7A30B"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet2RouteTable538229F1"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet3RouteTable29A6F4F8"
+     },
+     {
+      "Ref": "SharedVpcisolatedSubnet1RouteTable2D80C6D9"
+     },
+     {
+      "Ref": "SharedVpcisolatedSubnet2RouteTableCEB3B7D3"
+     },
+     {
+      "Ref": "SharedVpcisolatedSubnet3RouteTableDE1FAEA0"
+     }
+    ],
+    "ServiceName": {
+     "Fn::Join": [
+      "",
+      [
+       "com.amazonaws.",
+       {
+        "Ref": "AWS::Region"
+       },
+       ".s3"
+      ]
+     ]
+    },
+    "VpcEndpointType": "Gateway",
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/S3VpcEndpoint/Resource"
+   }
+  },
+  "DynamoDbVpcEndpointD1E29A7E": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "RouteTableIds": [
+     {
+      "Ref": "SharedVpcprivateSubnet1RouteTable51D7A30B"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet2RouteTable538229F1"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet3RouteTable29A6F4F8"
+     },
+     {
+      "Ref": "SharedVpcisolatedSubnet1RouteTable2D80C6D9"
+     },
+     {
+      "Ref": "SharedVpcisolatedSubnet2RouteTableCEB3B7D3"
+     },
+     {
+      "Ref": "SharedVpcisolatedSubnet3RouteTableDE1FAEA0"
+     }
+    ],
+    "ServiceName": {
+     "Fn::Join": [
+      "",
+      [
+       "com.amazonaws.",
+       {
+        "Ref": "AWS::Region"
+       },
+       ".dynamodb"
+      ]
+     ]
+    },
+    "VpcEndpointType": "Gateway",
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/DynamoDbVpcEndpoint/Resource"
+   }
+  },
+  "EcrApiVpcEndpointFCB424DC": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "PrivateDnsEnabled": true,
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "VpcEndpointSecurityGroup02EA44AC",
+       "GroupId"
+      ]
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-2.ecr.api",
+    "SubnetIds": [
+     {
+      "Ref": "SharedVpcprivateSubnet1Subnet51E913CA"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet2Subnet50406F86"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet3Subnet103F5BAD"
+     }
+    ],
+    "VpcEndpointType": "Interface",
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/EcrApiVpcEndpoint/Resource"
+   }
+  },
+  "EcrDkrVpcEndpoint68071A14": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "PrivateDnsEnabled": true,
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "VpcEndpointSecurityGroup02EA44AC",
+       "GroupId"
+      ]
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-2.ecr.dkr",
+    "SubnetIds": [
+     {
+      "Ref": "SharedVpcprivateSubnet1Subnet51E913CA"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet2Subnet50406F86"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet3Subnet103F5BAD"
+     }
+    ],
+    "VpcEndpointType": "Interface",
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/EcrDkrVpcEndpoint/Resource"
+   }
+  },
+  "LogsVpcEndpointA8B83DEB": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "PrivateDnsEnabled": true,
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "VpcEndpointSecurityGroup02EA44AC",
+       "GroupId"
+      ]
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-2.logs",
+    "SubnetIds": [
+     {
+      "Ref": "SharedVpcprivateSubnet1Subnet51E913CA"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet2Subnet50406F86"
+     },
+     {
+      "Ref": "SharedVpcprivateSubnet3Subnet103F5BAD"
+     }
+    ],
+    "VpcEndpointType": "Interface",
+    "VpcId": {
+     "Ref": "SharedVpc96F0F614"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/LogsVpcEndpoint/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/+1Y224aMRD9lvixcjaQVmmF1AcCUYqUAoKIhyJUGe9AXMzY9WUpRfvvlfcCJE3aRkmarRrxsN6xOXNm7BnP7HF0XKtHtQO2soc8XhxKMY02Q8f4grKV/bwBfhxtRpqPNwSQTSW00X5Q1iFbgiUNZzzQ3czQa62MK+VCN+PYgLVhKXlFKFmyb83v5Qsyd84crNi6lFg/RXAthTMx94Y5oZA0xhsStF1bcrnWQdD3Uyk4oYSL2HxkdlEsMmDBJBCTxoxJCyn9BYQRCXPwIIyOVZI5iH8PMqEk0bxb4qQT2prhqN+iuSXDDHW8ISxhQrKpkMKtPykstSaad+JiHDSdSsUXW9fqHKSje3jBPPKr3T4kJ60by5m1Yo4dnZwUe9TDloHC5YEarQiLjEgcd7eHhTTG5BWZVIZgNVhUhkg1WOSRlcdTGA2Ud3AZ0tROvpM1rVVcZADbxWFw1umHx+7s0SJdPHqgZunh+X3+MBrVYVIRGtVhUhEa1WHyQuOFRqVpZBdYBx0YhO31k1eLxVvTOcavloCODoF7I9z63Civx5vAtNQjpVo1pex5N1Ue4/JejcFyI/RWHyV2H2NXoublVwfngeTAS8gqcs6wg1Ig5JIckytE4AGyLOg9iq8eCqdl8Z+Jy/LtiXCf2Pqw/h4ai0PwN1Xe38hnMOCxdz+j+c8iP+J25qXv/txPgsIIWmSSkeZnGGsl0F1LHqF5FRxIY6/3Tcvm12bm39pMB4Nu75DTG8Y+iYayqy5tolkanTEOf2CozjW00bZhxrzcfs3Y6/7zjxwF1X2/2qI53bPgLgPu9MP/Q2CSUqnmNtpcqHl5c8li2N3pMrBUCZN9JQVfk0YIBGfUOptxgHlAvM13vURKUzoAq7zhMJ7QlrdOLbeCjF/o8wrBjfm+UYmIwZwyC7RpLbihY3OB8/Cfnnfau5S2leuCO3oX1aL6m6Ooe3bZUgaaWh+OwFih8H3yOqof1aNa+B18sUIcGo9OLCEa5M8fRYI6tHwTAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-shared-stack-ue2/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "VpcId": {
+   "Description": "VPC ID for shared environment VPC",
+   "Value": {
+    "Ref": "SharedVpc96F0F614"
+   },
+   "Export": {
+    "Name": "Development-vpc-id"
+   }
+  },
+  "VpcCidr": {
+   "Description": "CIDR block for shared environment VPC",
+   "Value": {
+    "Fn::GetAtt": [
+     "SharedVpc96F0F614",
+     "CidrBlock"
+    ]
+   },
+   "Export": {
+    "Name": "Development-vpc-cidr"
+   }
+  },
+  "VpcAvailabilityZones": {
+   "Description": "Comma-separated availability zones",
+   "Value": "us-east-2a,us-east-2b,us-east-2c",
+   "Export": {
+    "Name": "Development-vpc-azs"
+   }
+  },
+  "PublicSubnetIds": {
+   "Description": "Public subnet IDs",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Ref": "SharedVpcpublicSubnet1Subnet8B290348"
+      },
+      ",",
+      {
+       "Ref": "SharedVpcpublicSubnet2SubnetE497BB00"
+      },
+      ",",
+      {
+       "Ref": "SharedVpcpublicSubnet3Subnet39EC300F"
+      }
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "Development-public-subnet-ids"
+   }
+  },
+  "PrivateSubnetIds": {
+   "Description": "Private subnet IDs",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Ref": "SharedVpcprivateSubnet1Subnet51E913CA"
+      },
+      ",",
+      {
+       "Ref": "SharedVpcprivateSubnet2Subnet50406F86"
+      },
+      ",",
+      {
+       "Ref": "SharedVpcprivateSubnet3Subnet103F5BAD"
+      }
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "Development-private-subnet-ids"
+   }
+  },
+  "IsolatedSubnetIds": {
+   "Description": "Isolated subnet IDs for databases",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Ref": "SharedVpcisolatedSubnet1Subnet0A8AF9AC"
+      },
+      ",",
+      {
+       "Ref": "SharedVpcisolatedSubnet2SubnetB4E457F8"
+      },
+      ",",
+      {
+       "Ref": "SharedVpcisolatedSubnet3SubnetD5F4AC17"
+      }
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "Development-isolated-subnet-ids"
+   }
+  },
+  "albSecurityGroupId": {
+   "Description": "Security group ID for alb",
+   "Value": {
+    "Fn::GetAtt": [
+     "AlbSecurityGroup86A59E99",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Development-sg-alb-id"
+   }
+  },
+  "ecsSecurityGroupId": {
+   "Description": "Security group ID for ecs",
+   "Value": {
+    "Fn::GetAtt": [
+     "ContainerFromAlbSecurityGroup8FA51B6A",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Development-sg-ecs-id"
+   }
+  },
+  "rdsSecurityGroupId": {
+   "Description": "Security group ID for rds",
+   "Value": {
+    "Fn::GetAtt": [
+     "RdsSecurityGroup632A77E4",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Development-sg-rds-id"
+   }
+  },
+  "ecstordsSecurityGroupId": {
+   "Description": "Security group ID for ecs-to-rds",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsToRdsSecurityGroupC1BB9165",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Development-sg-ecs-to-rds-id"
+   }
+  },
+  "vpcendpointsSecurityGroupId": {
+   "Description": "Security group ID for vpc-endpoints",
+   "Value": {
+    "Fn::GetAtt": [
+     "VpcEndpointSecurityGroup02EA44AC",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Development-sg-vpc-endpoints-id"
+   }
+  },
+  "testSecurityGroupId": {
+   "Description": "Security group ID for test",
+   "Value": {
+    "Fn::GetAtt": [
+     "TestSecurityGroup880B57C0",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "Development-sg-test-id"
+   }
+  },
+  "SharedLogGroupName": {
+   "Description": "Shared log group name",
+   "Value": {
+    "Ref": "SharedLogGroup74BE6F74"
+   },
+   "Export": {
+    "Name": "Development-shared-log-group-name"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

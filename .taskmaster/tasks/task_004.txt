@@ -1,6 +1,6 @@
 # Task ID: 4
 # Title: Deploy EnvironmentBaseStack with shared VPC infrastructure
-# Status: pending
+# Status: done
 # Dependencies: 1
 # Priority: medium
 # Description: Deploy the foundational networking infrastructure including VPC, subnets, NAT gateways, and security groups to support ALB and ECS deployments.
