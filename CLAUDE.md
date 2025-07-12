@@ -2,7 +2,6 @@
 
 Always build and run tests after making changes to the codebase, especially when working with Task Master AI and Claude Code.
 
-
 # AWS CLI Usage Guidelines
 - aws cli commands should use the appropriate profile:
     - For development tasks, use `to-dev-admin` for account: 615299752206
