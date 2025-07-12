@@ -1,7 +1,9 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
+using AppInfraCdkV1.Stacks.Base;
 using Microsoft.Extensions.Configuration;
 using Environment = System.Environment;
 
@@ -19,6 +21,7 @@ public abstract class Program
             bool validateOnly = HasFlag(args, "--validate-only");
             bool showNamesOnly = HasFlag(args, "--show-names-only");
             bool listEnvironments = HasFlag(args, "--list-environments");
+            bool deployBase = HasFlag(args, "--deploy-base") || Environment.GetEnvironmentVariable("CDK_DEPLOY_BASE") == "true";
 
             if (listEnvironments)
             {
@@ -34,8 +37,7 @@ public abstract class Program
             var context = new DeploymentContext
             {
                 Environment = environmentConfig,
-                Application = applicationConfig,
-                DeployedBy = Environment.GetEnvironmentVariable("GITHUB_ACTOR") ?? "Local"
+                Application = applicationConfig
             };
 
             ValidateNamingConventions(context);
@@ -57,6 +59,23 @@ public abstract class Program
             if (showNamesOnly) return;
 
             var app = new App();
+
+            if (deployBase)
+            {
+                // Deploy base stack for shared environment resources
+                string baseStackName = GenerateBaseStackName(context);
+                var baseStack = new EnvironmentBaseStack(app, baseStackName, new StackProps
+                {
+                    Env = environmentConfig.ToAwsEnvironment(),
+                    Description = $"Base infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                    Tags = context.GetCommonTags(),
+                    StackName = baseStackName
+                }, context);
+                
+                Console.WriteLine($"✅ Base stack '{baseStackName}' configured successfully");
+                app.Synth();
+                return;
+            }
 
             string stackName = GenerateStackName(context);
 
@@ -200,12 +219,12 @@ public abstract class Program
         var violations = new List<string>();
 
         // Check S3 bucket name length (3-63 characters)
-        var s3Name = context.Namer.S3Bucket("app");
+        var s3Name = context.Namer.S3Bucket(StoragePurpose.App);
         if (s3Name.Length > 63)
             violations.Add($"S3 bucket name too long: {s3Name} ({s3Name.Length} chars, max 63)");
 
         // Check RDS identifier length (max 63 characters)
-        var rdsName = context.Namer.RdsInstance("main");
+        var rdsName = context.Namer.RdsInstance(ResourcePurpose.Main);
         if (rdsName.Length > 63)
             violations.Add($"RDS identifier too long: {rdsName} ({rdsName.Length} chars, max 63)");
 
@@ -231,22 +250,22 @@ public abstract class Program
         Console.WriteLine($"   Stack: {GenerateStackName(context)}");
         Console.WriteLine($"   VPC: {context.Namer.Vpc()}");
         Console.WriteLine($"   ECS Cluster: {context.Namer.EcsCluster()}");
-        Console.WriteLine($"   Web Service: {context.Namer.EcsService("web")}");
-        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition("web")}");
-        Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer("web")}");
-        Console.WriteLine($"   Database: {context.Namer.RdsInstance("main")}");
-        Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket("app")}");
-        Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket("uploads")}");
-        Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket("backups")}");
+        Console.WriteLine($"   Web Service: {context.Namer.EcsService(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Database: {context.Namer.RdsInstance(ResourcePurpose.Main)}");
+        Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket(StoragePurpose.App)}");
+        Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket(StoragePurpose.Uploads)}");
+        Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket(StoragePurpose.Backups)}");
         Console.WriteLine("\n📋 Security Groups:");
-        Console.WriteLine($"   ALB Security Group: {context.Namer.SecurityGroupForAlb("web")}");
-        Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs("web")}");
-        Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds("main")}");
+        Console.WriteLine($"   ALB Security Group: {context.Namer.SecurityGroupForAlb(ResourcePurpose.Web)}");
+        Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs(ResourcePurpose.Web)}");
+        Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds(ResourcePurpose.Main)}");
         Console.WriteLine("\n🔐 IAM Roles:");
-        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole("ecs-task")}");
-        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole("ecs-execution")}");
+        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}");
+        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}");
         Console.WriteLine("\n📊 CloudWatch:");
-        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", "web")}");
+        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}");
 
         // Show TrialFinderV2-specific resources if applicable
         if (context.Application.Name == "TrialFinderV2")
@@ -377,6 +396,15 @@ public abstract class Program
         var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
 
         return $"{envPrefix}-{appCode}-stack-{regionCode}";
+    }
+
+    private static string GenerateBaseStackName(DeploymentContext context)
+    {
+        // Base stack names follow shared resource convention
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(context.Environment.Name);
+        var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
+
+        return $"{envPrefix}-shared-stack-{regionCode}";
     }
 
     private static IConfiguration BuildConfiguration(string[] args)
