@@ -2,5 +2,6 @@ namespace AppInfraCdkV1.Core.Naming;
 
 public enum ApplicationType
 {
-    TrialFinderV2
+    TrialFinderV2,
+    Cdk
 }

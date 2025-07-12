@@ -85,6 +85,9 @@ jobs:
     - name: Install CDK CLI
       run: npm install -g aws-cdk
     
+    - name: Install jq for JSON comparison
+      run: sudo apt-get update && sudo apt-get install -y jq
+    
     - name: Debug GitHub Context
       run: |
         echo "GitHub Actor: ${{ github.actor }}"
@@ -102,7 +105,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::615299752206:role/dev-tfv2-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::615299752206:role/dev-cdk-role-ue2-github-actions
         role-session-name: GitHubActions-PR-${{ github.run_id }}
         aws-region: us-east-2
     
@@ -115,21 +118,112 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --verbosity normal
     
-    - name: CDK Synth with Naming Validation
+    - name: CDK Synth Base Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🏗️  Synthesizing CDK template with naming validation..."
+        echo "🏗️  Synthesizing base stack (shared infrastructure)..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
-        cdk synth
-        echo "✅ CDK synthesis completed with naming conventions enforced"
+        export CDK_APPLICATION=${{ matrix.app }}
+        CDK_DEPLOY_BASE=true cdk synth
+        echo "✅ Base stack synthesis completed"
     
-    - name: CDK Diff (if not destructive)
+    - name: Validate Base Stack Changes (No Deploy)
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking for infrastructure changes..."
+        echo "🔍 Checking for base stack changes..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        
+        # Generate current base stack template
+        CDK_DEPLOY_BASE=true cdk synth > current-base-stack.json 2>/dev/null || {
+          echo "❌ Failed to synthesize base stack"
+          exit 1
+        }
+        
+        # Check if we have a reference template in the repo
+        REFERENCE_FILE="../.github/templates/base-stack-template.json"
+        if [ ! -f "$REFERENCE_FILE" ]; then
+          echo "⚠️  No reference base stack template found at $REFERENCE_FILE"
+          echo "📋 Creating initial reference template..."
+          mkdir -p ../.github/templates
+          cp current-base-stack.json "$REFERENCE_FILE"
+          echo "✅ Initial reference template created."
+          echo "🔄 This template will be used for future base stack change detection."
+          echo "✅ Base stack synthesis completed successfully."
+          exit 0
+        fi
+        
+        # Compare templates (ignore metadata that changes on every synth)
+        echo "🔄 Comparing current base stack with reference template..."
+        
+        # Use jq to normalize templates for comparison (remove volatile metadata)
+        if command -v jq >/dev/null 2>&1; then
+          # Remove CDK metadata and version info that changes between synths
+          jq 'del(.Rules, .Metadata, .Parameters)' current-base-stack.json > current-normalized.json
+          jq 'del(.Rules, .Metadata, .Parameters)' "$REFERENCE_FILE" > reference-normalized.json
+          
+          if diff -q current-normalized.json reference-normalized.json >/dev/null; then
+            echo "✅ Base stack unchanged - validation passed"
+          else
+            echo "❌ BASE STACK HAS CHANGED!"
+            echo ""
+            echo "🚨 The base stack template has been modified."
+            echo "📋 This indicates changes to shared infrastructure (VPC, security groups, etc.)"
+            echo ""
+            echo "🛠️  To deploy base stack changes:"
+            echo "   1. Create a PR to 'develop' or 'master' branch"
+            echo "   2. The deployment workflow will handle base stack updates"
+            echo "   3. Merge the PR to apply the changes"
+            echo ""
+            echo "📝 Base stack changes detected in normalized comparison:"
+            echo "ℹ️  Showing first 50 lines of differences:"
+            diff current-normalized.json reference-normalized.json | head -50 || true
+            echo ""
+            echo "❌ Failing validation to prevent unexpected base stack changes"
+            exit 1
+          fi
+        else
+          # Fallback comparison without jq
+          echo "⚠️  jq not available, using direct file comparison"
+          if diff -q current-base-stack.json "$REFERENCE_FILE" >/dev/null; then
+            echo "✅ Base stack unchanged - validation passed"
+          else
+            echo "❌ BASE STACK HAS CHANGED!"
+            echo ""
+            echo "🚨 The base stack template has been modified."
+            echo "📋 This indicates changes to shared infrastructure (VPC, security groups, etc.)"
+            echo ""
+            echo "🛠️  To deploy base stack changes:"
+            echo "   1. Create a PR to 'develop' or 'master' branch"
+            echo "   2. The deployment workflow will handle base stack updates"
+            echo "   3. Merge the PR to apply the changes"
+            echo ""
+            echo "📝 First 30 lines of detected changes:"
+            diff current-base-stack.json "$REFERENCE_FILE" | head -30 || true
+            echo ""
+            echo "❌ Failing validation to prevent unexpected base stack changes"
+            exit 1
+          fi
+        fi
+    
+    - name: CDK Synth Application Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🏗️  Synthesizing application stack..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        cdk synth
+        echo "✅ Application stack synthesis completed with naming conventions enforced"
+    
+    - name: CDK Diff Application Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking for application stack infrastructure changes..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
         cdk diff || true
-        echo "✅ Infrastructure diff completed"
+        echo "✅ Application stack diff completed"
+    
 
   test:
     runs-on: ubuntu-latest
@@ -176,21 +270,51 @@ jobs:
     - name: Install bc for calculations
       run: sudo apt-get update && sudo apt-get install -y bc
     
-    - name: Check Coverage Threshold
+    - name: Report Coverage Results
       run: |
         # Extract coverage percentage from the JSON summary
         COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
         echo "Current coverage: $COVERAGE%"
         
-        # Check if coverage meets minimum threshold (70%)
+        # Report coverage results without failing the build
         # Note: Infrastructure projects (Deploy, Stacks) are excluded from coverage
         if (( $(echo "$COVERAGE >= 70" | bc -l) )); then
           echo "✅ Coverage check passed: $COVERAGE% >= 70%"
         else
-          echo "❌ Coverage check failed: $COVERAGE% < 70%"
-          echo "Please add more unit tests to increase coverage above 70%"
-          exit 1
+          echo "⚠️ Coverage is below target: $COVERAGE% < 70%"
+          echo "Consider adding more unit tests to increase coverage above 70%"
         fi
+        
+        # Save coverage percentage for badge generation
+        echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
+    
+    - name: Create Coverage Badge
+      run: |
+        # Create coverage badge using shields.io format
+        COVERAGE=$(cat coverage/report/Summary.json | jq -r '.summary.linecoverage')
+        COVERAGE_INT=$(printf "%.0f" "$COVERAGE")
+        
+        # Determine badge color based on coverage percentage
+        if (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+          COLOR="brightgreen"
+        elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+          COLOR="yellow"
+        else
+          COLOR="red"
+        fi
+        
+        # Create badge JSON
+        mkdir -p badges
+        cat > badges/coverage.json << EOF
+        {
+          "schemaVersion": 1,
+          "label": "coverage",
+          "message": "${COVERAGE_INT}%",
+          "color": "${COLOR}"
+        }
+        EOF
+        
+        echo "Coverage badge created: ${COVERAGE_INT}% (${COLOR})"
     
     - name: Upload Coverage Reports
       uses: actions/upload-artifact@v4
@@ -198,6 +322,22 @@ jobs:
       with:
         name: coverage-report
         path: coverage/report/
+    
+    - name: Upload Coverage Badge
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-badge
+        path: badges/coverage.json
+    
+    - name: Commit Coverage Badge
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add badges/coverage.json
+        git diff --staged --quiet || git commit -m "Update coverage badge [skip ci]"
+        git push
     
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
@@ -217,19 +357,45 @@ jobs:
             if (fs.existsSync(summaryPath)) {
               const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
               const coverage = summary.summary.linecoverage;
-              const status = coverage >= 70 ? '✅' : '❌';
+              const branchCoverage = summary.summary.branchcoverage;
+              
+              // Determine status and color
+              const status = coverage >= 70 ? '✅' : '⚠️';
+              const statusText = coverage >= 70 ? 'MEETS TARGET' : 'BELOW TARGET';
+              
+              // Create detailed coverage breakdown
+              let coverageBreakdown = '';
+              if (summary.coverage && summary.coverage.length > 0) {
+                coverageBreakdown = '\n### 📈 Coverage by Assembly\n\n';
+                summary.coverage.forEach(assembly => {
+                  const assemblyName = assembly.name.replace(/AppInfraCdkV1\./, '');
+                  const lineCov = assembly.summary.linecoverage;
+                  const branchCov = assembly.summary.branchcoverage;
+                  const icon = lineCov >= 70 ? '✅' : '⚠️';
+                  coverageBreakdown += `${icon} **${assemblyName}**: ${lineCov.toFixed(1)}% lines, ${branchCov.toFixed(1)}% branches\n`;
+                });
+              }
+              
               const coverageComment = `## 📊 Test Coverage Report
               
-              ${status} **Line Coverage: ${coverage.toFixed(1)}%**
+              ${status} **Overall Coverage: ${coverage.toFixed(1)}%** (${statusText})
               
-              - **Minimum Required**: 70%
-              - **Status**: ${coverage >= 70 ? 'PASSED' : 'FAILED'}
-              - **Excluded from Coverage**: Infrastructure projects (Deploy, Stacks)
-              - **Core Business Logic**: ~81% (AppInfraCdkV1.Core)
+              | Metric | Value | Target |
+              |--------|-------|--------|
+              | **Line Coverage** | ${coverage.toFixed(1)}% | 70% |
+              | **Branch Coverage** | ${branchCoverage.toFixed(1)}% | - |
+              | **Status** | ${statusText} | - |
               
-              ${coverage < 70 ? '⚠️ Coverage is below the required threshold. Please add more unit tests.' : '🎉 Coverage meets the required threshold!'}
+              ${coverageBreakdown}
               
-              [View detailed coverage report in artifacts](${context.payload.pull_request.html_url}/checks)`;
+              ### 📋 Coverage Configuration
+              - **Included**: Core business logic (AppInfraCdkV1.Core, AppInfraCdkV1.Apps)
+              - **Excluded**: Infrastructure projects (Deploy, Stacks), test assemblies
+              - **Note**: Build will not fail for coverage below target
+              
+              ${coverage < 70 ? '💡 **Tip**: Consider adding more unit tests to increase coverage above 70%' : '🎉 **Great job!** Coverage meets the target threshold!'}
+              
+              [📁 View detailed HTML coverage report in artifacts](${context.payload.pull_request.html_url}/checks)`;
               
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,

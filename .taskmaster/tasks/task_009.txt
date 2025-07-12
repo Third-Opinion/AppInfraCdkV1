@@ -1,0 +1,79 @@
+# Task ID: 9
+# Title: Create VPC endpoints and security group for secure AWS service access
+# Status: pending
+# Dependencies: 4, 5
+# Priority: medium
+# Description: Create a security group allowing HTTPS traffic from ECS services and deploy four VPC endpoints for AWS services, copying configuration from existing endpoints to ensure secure private connectivity within the VPC.
+# Details:
+1. Create VPC Endpoints Security Group:
+   - Use AWS CLI with to-dev-admin profile to create new security group in the shared VPC
+   - Name: dev-vpc-endpoints-sg-ue2
+   - Description: "Security group for VPC endpoints allowing HTTPS access from ECS services"
+   - Add ingress rule: Protocol TCP, Port 443, Source: VPC CIDR block (retrieve from EnvironmentBaseStack)
+   - Add egress rule: Allow all outbound traffic (default)
+   - Tag with standard tags: Environment=dev, ManagedBy=cdk
+
+2. Inspect Existing VPC Endpoints:
+   - Run aws ec2 describe-vpc-endpoints for each endpoint ID:
+     * vpce-0d9d53b3e72551b76
+     * vpce-0ed96b383d694eb96
+     * vpce-09e1f74448c3da307
+     * vpce-0bd1406eb3344bc82
+   - Document service names, subnet configurations, and current security groups
+   - Identify route table associations and DNS settings
+
+3. Create Four New VPC Endpoints:
+   - S3 Gateway Endpoint:
+     * Service: com.amazonaws.us-east-2.s3
+     * Type: Gateway
+     * Route tables: Associate with private subnet route tables
+     * Policy: Full access (default)
+   - ECR API Interface Endpoint:
+     * Service: com.amazonaws.us-east-2.ecr.api
+     * Type: Interface
+     * Subnets: Deploy to all private subnets
+     * Security group: dev-vpc-endpoints-sg-ue2
+     * Enable private DNS
+   - ECR DKR Interface Endpoint:
+     * Service: com.amazonaws.us-east-2.ecr.dkr
+     * Type: Interface
+     * Subnets: Deploy to all private subnets
+     * Security group: dev-vpc-endpoints-sg-ue2
+     * Enable private DNS
+   - Secrets Manager Interface Endpoint:
+     * Service: com.amazonaws.us-east-2.secretsmanager
+     * Type: Interface
+     * Subnets: Deploy to all private subnets
+     * Security group: dev-vpc-endpoints-sg-ue2
+     * Enable private DNS
+
+4. Update CDK Code:
+   - Add VPC endpoint constructs to EnvironmentBaseStack
+   - Create security group construct with proper ingress rules
+   - Implement interface endpoints with DNS and security group configuration
+   - Add gateway endpoint for S3 with route table associations
+   - Export endpoint IDs and security group ID for use by other stacks
+
+# Test Strategy:
+1. Verify Security Group Configuration:
+   - Run aws ec2 describe-security-groups to confirm the new security group exists
+   - Validate ingress rule allows HTTPS (443) from VPC CIDR
+   - Confirm security group is associated with all interface endpoints
+
+2. Test VPC Endpoints:
+   - Use aws ec2 describe-vpc-endpoints to verify all four endpoints are created
+   - Confirm each endpoint is in 'available' state
+   - Validate subnet associations match private subnet configuration
+   - Check DNS names are properly configured for interface endpoints
+
+3. Functional Testing:
+   - Deploy a test ECS task in the private subnet
+   - Attempt to pull an image from ECR using the VPC endpoint
+   - Test secret retrieval from Secrets Manager through VPC endpoint
+   - Verify S3 access works through gateway endpoint
+   - Monitor VPC Flow Logs to confirm traffic routes through endpoints
+
+4. DNS Resolution Testing:
+   - From an EC2 instance in the private subnet, run nslookup for service endpoints
+   - Confirm DNS resolves to private IP addresses within the VPC
+   - Validate no internet gateway traffic for AWS service calls

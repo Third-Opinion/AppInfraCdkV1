@@ -24,8 +24,6 @@ public class DeploymentContextTests
         tags["Application"].ShouldBe("TrialFinderV2");
         tags.ShouldContainKey("Version");
         tags["Version"].ShouldBe("1.0.0");
-        tags.ShouldContainKey("DeployedBy");
-        tags["DeployedBy"].ShouldBe("CDK");
         tags.ShouldContainKey("DeployedAt");
         tags["DeployedAt"].ShouldBe(expectedDeploymentDate);
         tags.ShouldContainKey("DeploymentId");
@@ -155,15 +153,6 @@ public class DeploymentContextTests
         context.DeployedAt.Kind.ShouldBe(DateTimeKind.Utc);
     }
 
-    [Fact]
-    public void DeployedByDefaultValueIsCDK()
-    {
-        // Arrange & Act
-        var context = new DeploymentContext();
-
-        // Assert
-        context.DeployedBy.ShouldBe("CDK");
-    }
 
     [Theory]
     [InlineData("Production", "TrialFinderV2", "us-east-1")]
@@ -220,19 +209,6 @@ public class DeploymentContextTests
         context.DeploymentId.ShouldBe(deploymentId);
     }
 
-    [Fact]
-    public void DeployedByPropertySetterAssignsValue()
-    {
-        // Arrange
-        var context = new DeploymentContext();
-        var deployedBy = "GitHub Actions";
-
-        // Act
-        context.DeployedBy = deployedBy;
-
-        // Assert
-        context.DeployedBy.ShouldBe(deployedBy);
-    }
 
     [Fact]
     public void DeployedAtPropertySetterAssignsValue()
@@ -259,12 +235,11 @@ public class DeploymentContextTests
         var tags = context.GetCommonTags();
 
         // Assert
-        tags.Count.ShouldBe(6);
+        tags.Count.ShouldBe(5);
         tags.ShouldContainKey("Environment");
         tags.ShouldContainKey("Application");
         tags.ShouldContainKey("Version");
         tags.ShouldContainKey("DeploymentId");
-        tags.ShouldContainKey("DeployedBy");
         tags.ShouldContainKey("DeployedAt");
     }
 
@@ -315,14 +290,11 @@ public class DeploymentContextTests
         // Arrange
         var context = CreateTestContext();
         context.DeploymentId = "";
-        context.DeployedBy = "";
-
         // Act
         var tags = context.GetCommonTags();
 
         // Assert
         tags["DeploymentId"].ShouldBe("");
-        tags["DeployedBy"].ShouldBe("");
     }
 
     [Fact]

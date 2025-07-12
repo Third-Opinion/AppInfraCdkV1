@@ -1,6 +1,12 @@
-# AWS IAM Users and Policies Creation Record
+# Historical: AWS IAM Users and Policies Creation Record
 
-This document records the AWS CLI commands executed to create GitHub Actions deployment users and policies.
+⚠️ **DEPRECATED**: This document is kept for historical reference only. The project now uses OIDC authentication with IAM roles instead of IAM users.
+
+**Current Setup**: See [GitHub OIDC Setup Guide](github-oidc-setup-guide.md) for the current authentication method.
+
+---
+
+This document records the AWS CLI commands that were previously executed to create GitHub Actions deployment users and policies before migrating to OIDC authentication.
 
 **Execution Date**: July 4, 2025  
 **Accounts**: Development (615299752206) and Production (442042533707)

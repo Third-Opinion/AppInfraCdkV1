@@ -20,8 +20,7 @@ Comprehensive test suite for AWS CDK C# infrastructure with naming convention en
 
 ### All Tests
 ```bash
-cd Infrastructure
-dotnet test tests/Infrastructure.Tests/
+dotnet test
 ```
 
 ### Unit Tests Only

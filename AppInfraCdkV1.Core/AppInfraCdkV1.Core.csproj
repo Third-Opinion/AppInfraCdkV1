@@ -14,6 +14,7 @@
         <PackageReference Include="Amazon.CDK.Lib" Version="2.201.0" />
         <PackageReference Include="Constructs" Version="[10.0.0,11.0.0)" />
         <PackageReference Include="Amazon.Jsii.Analyzers" Version="1.100.0" PrivateAssets="all" />
+        <PackageReference Include="AWSSDK.IdentityManagement" Version="3.7.400" />
     </ItemGroup>
 
 </Project>

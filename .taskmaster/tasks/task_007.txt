@@ -1,0 +1,89 @@
+# Task ID: 7
+# Title: Implement ECS task execution and task roles with Secrets Manager access
+# Status: pending
+# Dependencies: 3, 5
+# Priority: medium
+# Description: Configure ECS task execution role and task roles to securely access AWS Secrets Manager secrets using environment-based naming conventions and resource-scoped IAM policies.
+# Details:
+1. Create IAM Policies for Secrets Manager Access:
+   - Define policy for task execution role to decrypt secrets using KMS
+   - Create environment-specific policies with resource patterns:
+     * Development: arn:aws:secretsmanager:us-east-2:615299752206:secret:/dev/myapp/*
+     * Production: arn:aws:secretsmanager:us-east-2:442042533707:secret:/prod/myapp/*
+   - Include actions: secretsmanager:GetSecretValue, secretsmanager:DescribeSecret
+   - Add KMS permissions for secret decryption
+
+2. Update ECS Task Execution Role:
+   - Modify existing execution role or create new one with pattern: {environment}-ecs-task-execution-role-{region}
+   - Attach AWS managed policy: arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+   - Add custom policy for Secrets Manager access with least privilege
+   - Enable pulling secrets for container environment variables
+
+3. Create ECS Task Roles:
+   - Implement task role pattern: {environment}-{application}-task-role-{region}
+   - Create separate roles for each environment (dev, staging, prod)
+   - Attach environment-specific Secrets Manager policies
+   - Implement resource constraints using naming convention paths
+
+4. Create Test Secrets in Secrets Manager:
+   - Development secrets:
+     * /dev/myapp/database-connection
+     * /dev/myapp/api-key
+     * /dev/myapp/service-credentials
+   - Production secrets:
+     * /prod/myapp/database-connection
+     * /prod/myapp/api-key
+     * /prod/myapp/service-credentials
+   - Use AWS CLI: aws secretsmanager create-secret --name /dev/myapp/database-connection --secret-string '{"username":"devuser","password":"devpass"}'
+
+5. Update CDK Stack Implementation:
+   - Modify TrialFinderV2Stack to use new task execution role
+   - Configure task definition to reference secrets as environment variables
+   - Use secrets property in container definition:
+     ```typescript
+     secrets: {
+       DB_CONNECTION: ecs.Secret.fromSecretsManager(dbSecret),
+       API_KEY: ecs.Secret.fromSecretsManager(apiKeySecret)
+     }
+     ```
+
+6. Implement Resource Scoping:
+   - Use IAM policy conditions to enforce path-based access
+   - Add explicit Deny statements for cross-environment access
+   - Example policy condition:
+     ```json
+     "Condition": {
+       "StringLike": {
+         "secretsmanager:SecretId": "/{environment}/{application-name}/*"
+       }
+     }
+     ```
+
+# Test Strategy:
+1. Create Integration Test Task:
+   - Deploy a test ECS task with minimal container that includes AWS CLI
+   - Configure task to use the new task role
+   - Mount test script that attempts to read secrets
+
+2. Test Allowed Access:
+   - Run aws secretsmanager get-secret-value --secret-id /dev/myapp/database-connection
+   - Verify successful retrieval of development secrets
+   - Confirm all environment-specific secrets are accessible
+
+3. Test Denied Access:
+   - Attempt to read production secrets from development task role
+   - Run aws secretsmanager get-secret-value --secret-id /prod/myapp/database-connection
+   - Verify access is denied with appropriate error message
+   - Test cross-application access is blocked
+
+4. Validate ECS Integration:
+   - Deploy updated TrialFinderV2Stack with secrets configuration
+   - Verify containers start successfully with injected secrets
+   - Check CloudWatch logs to ensure no secret values are exposed
+   - Confirm environment variables are properly set from secrets
+
+5. Security Validation:
+   - Use AWS Access Analyzer to verify IAM policies are correctly scoped
+   - Run aws iam simulate-principal-policy to test various access scenarios
+   - Ensure task execution role can only access secrets during task startup
+   - Verify task role maintains access throughout task lifecycle

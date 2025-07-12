@@ -7,9 +7,6 @@
 
 # Tasks List
 
-## [x] 1. Update the workflow files to get the AWS account ID from the GitHub environment variable.
-It should be based in the environment name (e.g. `development`, `production`).
-You made need to update the trust policies for the roles to allow the GitHub environment to assume the roles.
 
 ### Detailed Steps:
 1. Create GitHub environment variables for AWS account IDs:

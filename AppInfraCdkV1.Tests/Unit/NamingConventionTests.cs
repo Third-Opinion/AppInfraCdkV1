@@ -32,6 +32,7 @@ public class NamingConventionTests
 
     [Theory]
     [InlineData("TrialFinderV2", "tfv2")]
+    [InlineData("Cdk", "cdk")]
     public void GetApplicationCodeWithValidApplicationReturnsCorrectCode(string application,
         string expectedCode)
     {

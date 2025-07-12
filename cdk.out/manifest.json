@@ -1,0 +1,1116 @@
+{
+  "version": "44.0.0",
+  "artifacts": {
+    "dev-shared-stack-ue2.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "dev-shared-stack-ue2.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "dev-shared-stack-ue2": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://615299752206/us-east-2",
+      "properties": {
+        "templateFile": "dev-shared-stack-ue2.template.json",
+        "terminationProtection": false,
+        "tags": {
+          "Application": "TrialFinderV2",
+          "DeployedAt": "2025-07-11",
+          "DeployedBy": "Local",
+          "DeploymentId": "4b74f7cd",
+          "Environment": "Development",
+          "Owner": "Development Team",
+          "Purpose": "SharedInfrastructure",
+          "Shared": "true",
+          "StackType": "EnvironmentBase",
+          "Version": "local",
+          "VpcId": "vpc-085a37ab90d4186ac-recreation"
+        },
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-deploy-role-615299752206-us-east-2",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-cfn-exec-role-615299752206-us-east-2",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-615299752206-us-east-2/389369e976bcd2d969c631ac0d659c0f9ecd7321c39593780beb82ca90e0d0f1.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "dev-shared-stack-ue2.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-lookup-role-615299752206-us-east-2",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "dev-shared-stack-ue2.assets"
+      ],
+      "metadata": {
+        "/dev-shared-stack-ue2": [
+          {
+            "type": "aws:cdk:stack-tags",
+            "data": [
+              {
+                "Key": "Application",
+                "Value": "TrialFinderV2"
+              },
+              {
+                "Key": "DeployedAt",
+                "Value": "2025-07-11"
+              },
+              {
+                "Key": "DeployedBy",
+                "Value": "Local"
+              },
+              {
+                "Key": "DeploymentId",
+                "Value": "4b74f7cd"
+              },
+              {
+                "Key": "Environment",
+                "Value": "Development"
+              },
+              {
+                "Key": "Owner",
+                "Value": "Development Team"
+              },
+              {
+                "Key": "Purpose",
+                "Value": "SharedInfrastructure"
+              },
+              {
+                "Key": "Shared",
+                "Value": "true"
+              },
+              {
+                "Key": "StackType",
+                "Value": "EnvironmentBase"
+              },
+              {
+                "Key": "Version",
+                "Value": "local"
+              },
+              {
+                "Key": "VpcId",
+                "Value": "vpc-085a37ab90d4186ac-recreation"
+              }
+            ]
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "enableDnsHostnames": true,
+              "enableDnsSupport": true,
+              "ipAddresses": "*",
+              "maxAzs": "*",
+              "natGateways": "*",
+              "subnetConfiguration": [
+                {
+                  "name": "*",
+                  "subnetType": "Public",
+                  "cidrMask": "*",
+                  "reserved": false
+                },
+                {
+                  "name": "*",
+                  "subnetType": "Private",
+                  "cidrMask": "*",
+                  "reserved": false
+                },
+                {
+                  "name": "*",
+                  "subnetType": "Isolated",
+                  "cidrMask": "*",
+                  "reserved": false
+                }
+              ],
+              "vpcName": "*"
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpc96F0F614"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addNatGateway": [
+                "*"
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet1Subnet8B290348"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet1RouteTable02281047"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet1RouteTableAssociation7BFDFDFE"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet1DefaultRoute52DB3CDD"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1/EIP": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet1EIP05C300B0"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet1/NATGateway": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet1NATGatewayE91D769E"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet2": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet2/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet2SubnetE497BB00"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet2/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet2RouteTable7C5D1097"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet2/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet2RouteTableAssociation50161D4C"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet2/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet2DefaultRouteDF4DAA30"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet3": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet3/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet3Subnet39EC300F"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet3/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet3RouteTable593FCC65"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet3/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet3RouteTableAssociation1C2D7CCF"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/publicSubnet3/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcpublicSubnet3DefaultRouteC98EF5B8"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet1": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet1/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet1Subnet51E913CA"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet1/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet1RouteTable51D7A30B"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet1/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet1RouteTableAssociationE44D436F"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet1/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet1DefaultRoute87475E84"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet2": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet2/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet2Subnet50406F86"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet2/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet2RouteTable538229F1"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet2/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet2RouteTableAssociation9C4B4B82"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet2/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet2DefaultRoute261AECCB"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet3": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet3/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet3Subnet103F5BAD"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet3/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet3RouteTable29A6F4F8"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet3/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet3RouteTableAssociationA5D8ACDD"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/privateSubnet3/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcprivateSubnet3DefaultRoute6B44D784"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet1": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet1/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet1Subnet0A8AF9AC"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet1/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet1RouteTable2D80C6D9"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet1/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet1RouteTableAssociation2F977BC1"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet2": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet2/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet2SubnetB4E457F8"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet2/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet2RouteTableCEB3B7D3"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet2/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet2RouteTableAssociationA435FDDA"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet3": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet3/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet3SubnetD5F4AC17"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet3/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet3RouteTableDE1FAEA0"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/isolatedSubnet3/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcisolatedSubnet3RouteTableAssociation5ED0FC45"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/IGW": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcIGW869E5885"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/VPCGW": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcVPCGW9C69B7A5"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/RestrictDefaultSecurityGroupCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedVpc/RestrictDefaultSecurityGroupCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedVpcRestrictDefaultSecurityGroupCustomResourceEA2A7FD4"
+          }
+        ],
+        "/dev-shared-stack-ue2/Custom::VpcRestrictDefaultSGCustomResourceProvider": [
+          {
+            "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+            "data": true
+          }
+        ],
+        "/dev-shared-stack-ue2/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0"
+          }
+        ],
+        "/dev-shared-stack-ue2/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E"
+          }
+        ],
+        "/dev-shared-stack-ue2/AlbSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true,
+              "description": "*",
+              "securityGroupName": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                {
+                  "canInlineRule": true,
+                  "connections": "*",
+                  "uniqueId": "*"
+                },
+                {},
+                "*",
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                {
+                  "canInlineRule": true,
+                  "connections": "*",
+                  "uniqueId": "*"
+                },
+                {},
+                "*",
+                "*"
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/AlbSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AlbSecurityGroup86A59E99"
+          }
+        ],
+        "/dev-shared-stack-ue2/ContainerFromAlbSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true,
+              "description": "*",
+              "securityGroupName": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                "*"
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/ContainerFromAlbSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ContainerFromAlbSecurityGroup8FA51B6A"
+          }
+        ],
+        "/dev-shared-stack-ue2/ContainerFromAlbSecurityGroup/from devsharedstackue2AlbSecurityGroup07AD6091:ALL PORTS": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ContainerFromAlbSecurityGroupfromdevsharedstackue2AlbSecurityGroup07AD6091ALLPORTS2FAF851B"
+          }
+        ],
+        "/dev-shared-stack-ue2/RdsSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": false,
+              "description": "*",
+              "securityGroupName": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                "*"
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/RdsSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RdsSecurityGroup632A77E4"
+          }
+        ],
+        "/dev-shared-stack-ue2/RdsSecurityGroup/from devsharedstackue2ContainerFromAlbSecurityGroupAB68FD71:5432": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RdsSecurityGroupfromdevsharedstackue2ContainerFromAlbSecurityGroupAB68FD715432D2127C77"
+          }
+        ],
+        "/dev-shared-stack-ue2/EcsToRdsSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true,
+              "description": "*",
+              "securityGroupName": "*"
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/EcsToRdsSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EcsToRdsSecurityGroupC1BB9165"
+          }
+        ],
+        "/dev-shared-stack-ue2/VpcEndpointSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": false,
+              "description": "*",
+              "securityGroupName": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                {
+                  "canInlineRule": true,
+                  "connections": "*",
+                  "uniqueId": "*"
+                },
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                {
+                  "canInlineRule": true,
+                  "connections": "*",
+                  "uniqueId": "*"
+                },
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                {
+                  "canInlineRule": true,
+                  "connections": "*",
+                  "uniqueId": "*"
+                },
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/VpcEndpointSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcEndpointSecurityGroup02EA44AC"
+          }
+        ],
+        "/dev-shared-stack-ue2/VpcEndpointSecurityGroup/from devsharedstackue2ContainerFromAlbSecurityGroupAB68FD71:443": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcEndpointSecurityGroupfromdevsharedstackue2ContainerFromAlbSecurityGroupAB68FD71443CE585C72"
+          }
+        ],
+        "/dev-shared-stack-ue2/TestSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true,
+              "description": "*",
+              "securityGroupName": "*"
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/TestSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "TestSecurityGroup880B57C0"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy",
+              "retention": 7
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedLogGroup74BE6F74"
+          }
+        ],
+        "/dev-shared-stack-ue2/S3VpcEndpoint": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "service": {
+                "name": "*"
+              },
+              "subnets": [
+                {
+                  "subnetType": "Private"
+                },
+                {
+                  "subnetType": "Isolated"
+                }
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/S3VpcEndpoint/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "S3VpcEndpoint1F0CDE18"
+          }
+        ],
+        "/dev-shared-stack-ue2/DynamoDbVpcEndpoint": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "service": {
+                "name": "*"
+              },
+              "subnets": [
+                {
+                  "subnetType": "Private"
+                },
+                {
+                  "subnetType": "Isolated"
+                }
+              ]
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/DynamoDbVpcEndpoint/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DynamoDbVpcEndpointD1E29A7E"
+          }
+        ],
+        "/dev-shared-stack-ue2/EcrApiVpcEndpoint": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "service": {
+                "privateDnsDefault": true,
+                "name": "*",
+                "port": "*"
+              },
+              "securityGroups": [
+                "*"
+              ],
+              "subnets": {
+                "subnetType": "Private"
+              }
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/EcrApiVpcEndpoint/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EcrApiVpcEndpointFCB424DC"
+          }
+        ],
+        "/dev-shared-stack-ue2/EcrDkrVpcEndpoint": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "service": {
+                "privateDnsDefault": true,
+                "name": "*",
+                "port": "*"
+              },
+              "securityGroups": [
+                "*"
+              ],
+              "subnets": {
+                "subnetType": "Private"
+              }
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/EcrDkrVpcEndpoint/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EcrDkrVpcEndpoint68071A14"
+          }
+        ],
+        "/dev-shared-stack-ue2/LogsVpcEndpoint": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "service": {
+                "privateDnsDefault": true,
+                "name": "*",
+                "port": "*"
+              },
+              "securityGroups": [
+                "*"
+              ],
+              "subnets": {
+                "subnetType": "Private"
+              }
+            }
+          }
+        ],
+        "/dev-shared-stack-ue2/LogsVpcEndpoint/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "LogsVpcEndpointA8B83DEB"
+          }
+        ],
+        "/dev-shared-stack-ue2/VpcId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcId"
+          }
+        ],
+        "/dev-shared-stack-ue2/VpcCidr": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcCidr"
+          }
+        ],
+        "/dev-shared-stack-ue2/VpcAvailabilityZones": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcAvailabilityZones"
+          }
+        ],
+        "/dev-shared-stack-ue2/PublicSubnetIds": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PublicSubnetIds"
+          }
+        ],
+        "/dev-shared-stack-ue2/PrivateSubnetIds": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PrivateSubnetIds"
+          }
+        ],
+        "/dev-shared-stack-ue2/IsolatedSubnetIds": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "IsolatedSubnetIds"
+          }
+        ],
+        "/dev-shared-stack-ue2/albSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "albSecurityGroupId"
+          }
+        ],
+        "/dev-shared-stack-ue2/ecsSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ecsSecurityGroupId"
+          }
+        ],
+        "/dev-shared-stack-ue2/rdsSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "rdsSecurityGroupId"
+          }
+        ],
+        "/dev-shared-stack-ue2/ecs-to-rdsSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ecstordsSecurityGroupId"
+          }
+        ],
+        "/dev-shared-stack-ue2/vpc-endpointsSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "vpcendpointsSecurityGroupId"
+          }
+        ],
+        "/dev-shared-stack-ue2/testSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "testSecurityGroupId"
+          }
+        ],
+        "/dev-shared-stack-ue2/SharedLogGroupName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SharedLogGroupName"
+          }
+        ],
+        "/dev-shared-stack-ue2/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/dev-shared-stack-ue2/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/dev-shared-stack-ue2/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "dev-shared-stack-ue2"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  },
+  "minimumCliVersion": "2.1018.0"
+}

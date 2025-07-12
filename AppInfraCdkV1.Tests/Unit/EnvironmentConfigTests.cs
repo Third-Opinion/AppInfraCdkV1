@@ -199,12 +199,10 @@ public class EnvironmentConfigTests
 
         // Act
         config.Tags.Add("Environment", "Development");
-        config.Tags.Add("Owner", "Platform Team");
 
         // Assert
-        config.Tags.Count.ShouldBe(2);
+        config.Tags.Count.ShouldBe(1);
         config.Tags["Environment"].ShouldBe("Development");
-        config.Tags["Owner"].ShouldBe("Platform Team");
     }
 
     [Fact]
