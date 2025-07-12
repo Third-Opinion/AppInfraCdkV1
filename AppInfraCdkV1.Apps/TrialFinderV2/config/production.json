@@ -10,7 +10,7 @@
               "value": "${ENVIRONMENT}"
             },
             {
-              "name": "ACCOUNT_TYPE", 
+              "name": "ACCOUNT_TYPE",
               "value": "${ACCOUNT_TYPE}"
             },
             {
