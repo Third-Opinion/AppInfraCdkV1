@@ -384,8 +384,7 @@ public class ResourceNamerTests
                 Security = new SecurityConfig(),
                 Settings = new Dictionary<string, object>(),
                 MultiEnvironment = new MultiEnvironmentConfig()
-            },
-            DeployedBy = "TestRunner"
+            }
         };
     }
 }

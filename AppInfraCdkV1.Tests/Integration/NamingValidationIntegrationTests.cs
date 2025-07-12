@@ -201,8 +201,7 @@ public class NamingValidationIntegrationTests
         return new DeploymentContext
         {
             Environment = environmentConfig,
-            Application = applicationConfig,
-            DeployedBy = "IntegrationTest"
+            Application = applicationConfig
         };
     }
 

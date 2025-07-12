@@ -9,7 +9,6 @@ public class DeploymentContext
     private EnvironmentConfig _environment = new();
     private ApplicationConfig _application = new();
     private string _deploymentId = Guid.NewGuid().ToString("N")[..8];
-    private string _deployedBy = "CDK";
     private DateTime _deployedAt = DateTime.UtcNow;
     private Dictionary<string, ExternalResourceValidationResult> _externalResourceValidation = new();
 
@@ -31,11 +30,6 @@ public class DeploymentContext
         set => _deploymentId = value;
     }
 
-    public string DeployedBy
-    {
-        get => _deployedBy;
-        set => _deployedBy = value;
-    }
 
     public DateTime DeployedAt
     {
@@ -80,7 +74,6 @@ public class DeploymentContext
             ["Application"] = Application.Name,
             ["Version"] = Application.Version,
             ["DeploymentId"] = DeploymentId,
-            ["DeployedBy"] = DeployedBy,
             ["DeployedAt"] = DeployedAt.ToString("yyyy-MM-dd")
         };
 
