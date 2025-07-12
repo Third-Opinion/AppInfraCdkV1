@@ -43,7 +43,7 @@ public class ConfigurationLoader
         jsonString = jsonString.Replace("${ENVIRONMENT}", context.Environment.Name);
         jsonString = jsonString.Replace("${ACCOUNT_TYPE}", context.Environment.AccountType.ToString());
         jsonString = jsonString.Replace("${APP_VERSION}", context.Application.Version);
-        jsonString = jsonString.Replace("${AWS_REGION}", context.Environment.Region.Code);
+        jsonString = jsonString.Replace("${AWS_REGION}", context.Environment.Region);
         jsonString = jsonString.Replace("${SERVICE_NAME}", context.Namer.EcsService(Core.Enums.ResourcePurpose.Web));
         jsonString = jsonString.Replace("${TASK_DEFINITION_FAMILY}", context.Namer.EcsTaskDefinition(Core.Enums.ResourcePurpose.Web));
         jsonString = jsonString.Replace("${LOG_GROUP_NAME}", context.Namer.LogGroup("trial-finder", Core.Enums.ResourcePurpose.Web));
