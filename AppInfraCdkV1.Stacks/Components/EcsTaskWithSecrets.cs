@@ -2,6 +2,7 @@ using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.IAM;
+using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
@@ -30,15 +31,15 @@ public class EcsTaskWithSecrets : Construct
             Cpu = props.Cpu.ToString(),
             MemoryMiB = props.MemoryMiB.ToString(),
             NetworkMode = NetworkMode.AWS_VPC,
-            RequiresCompatibilities = new[] { Compatibility.FARGATE },
+            Compatibility = Compatibility.FARGATE,
             ExecutionRole = executionRole,
             TaskRole = taskRole
         });
 
         // Reference the secrets
-        var dbSecret = Secret.FromSecretNameV2(this, "DatabaseSecret", props.DatabaseSecretName);
-        var apiKeysSecret = Secret.FromSecretNameV2(this, "ApiKeysSecret", props.ApiKeysSecretName);
-        var jwtSecret = Secret.FromSecretNameV2(this, "JwtSecret", props.JwtSecretName);
+        var dbSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "DatabaseSecret", props.DatabaseSecretName);
+        var apiKeysSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ApiKeysSecret", props.ApiKeysSecretName);
+        var jwtSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "JwtSecret", props.JwtSecretName);
 
         // Add container with secret injection
         ContainerDefinition = TaskDefinition.AddContainer("app-container", new ContainerDefinitionOptions
@@ -56,35 +57,35 @@ public class EcsTaskWithSecrets : Construct
                 new PortMapping
                 {
                     ContainerPort = props.ContainerPort,
-                    Protocol = Protocol.TCP
+                    Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
                 }
             },
             Environment = props.Environment,
-            Secrets = new Dictionary<string, Secret>
+            Secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
             {
                 // Database connection secrets
-                ["DB_USERNAME"] = Secret.FromSecretsManager(dbSecret, "username"),
-                ["DB_PASSWORD"] = Secret.FromSecretsManager(dbSecret, "password"),
-                ["DB_HOST"] = Secret.FromSecretsManager(dbSecret, "host"),
-                ["DB_PORT"] = Secret.FromSecretsManager(dbSecret, "port"),
-                ["DB_DATABASE"] = Secret.FromSecretsManager(dbSecret, "database"),
+                ["DB_USERNAME"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(dbSecret, "username"),
+                ["DB_PASSWORD"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(dbSecret, "password"),
+                ["DB_HOST"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(dbSecret, "host"),
+                ["DB_PORT"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(dbSecret, "port"),
+                ["DB_DATABASE"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(dbSecret, "database"),
                 
                 // API keys
-                ["STRIPE_API_KEY"] = Secret.FromSecretsManager(apiKeysSecret, "stripe_api_key"),
-                ["SENDGRID_API_KEY"] = Secret.FromSecretsManager(apiKeysSecret, "sendgrid_api_key"),
-                ["GOOGLE_MAPS_API_KEY"] = Secret.FromSecretsManager(apiKeysSecret, "google_maps_api_key"),
+                ["STRIPE_API_KEY"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(apiKeysSecret, "stripe_api_key"),
+                ["SENDGRID_API_KEY"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(apiKeysSecret, "sendgrid_api_key"),
+                ["GOOGLE_MAPS_API_KEY"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(apiKeysSecret, "google_maps_api_key"),
                 
                 // JWT configuration
-                ["JWT_SECRET"] = Secret.FromSecretsManager(jwtSecret, "jwt_secret"),
-                ["JWT_EXPIRATION"] = Secret.FromSecretsManager(jwtSecret, "jwt_expiration"),
-                ["REFRESH_TOKEN_SECRET"] = Secret.FromSecretsManager(jwtSecret, "refresh_token_secret")
+                ["JWT_SECRET"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(jwtSecret, "jwt_secret"),
+                ["JWT_EXPIRATION"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(jwtSecret, "jwt_expiration"),
+                ["REFRESH_TOKEN_SECRET"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(jwtSecret, "refresh_token_secret")
             }
         });
 
         // Add common tags
         foreach (var tag in props.Tags)
         {
-            Tags.SetTag(tag.Key, tag.Value);
+            Amazon.CDK.Tags.Of(this).Add(tag.Key, tag.Value);
         }
     }
 }
