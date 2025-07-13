@@ -9,9 +9,12 @@ using Constructs;
 
 namespace AppInfraCdkV1.Stacks.Components;
 
-/// <summary>
-/// Component for creating ECS task definitions with Secrets Manager integration
-/// </summary>
+// <summary>
+// Component for creating ECS task definitions with Secrets Manager integration
+// - Secrets are fetched at container startup, not build time
+// - Values never appear in Docker images or CDK templates
+// - ECS automatically injects secrets as environment variables
+// </summary>
 public class EcsTaskWithSecrets : Construct
 {
     public TaskDefinition TaskDefinition { get; private set; }
@@ -37,9 +40,9 @@ public class EcsTaskWithSecrets : Construct
         });
 
         // Reference the secrets
-        var dbSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "DatabaseSecret", props.DatabaseSecretName);
-        var apiKeysSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ApiKeysSecret", props.ApiKeysSecretName);
-        var jwtSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "JwtSecret", props.JwtSecretName);
+        ISecret dbSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "DatabaseSecret", props.DatabaseSecretName);
+        ISecret apiKeysSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ApiKeysSecret", props.ApiKeysSecretName);
+        ISecret jwtSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "JwtSecret", props.JwtSecretName);
 
         // Add container with secret injection
         ContainerDefinition = TaskDefinition.AddContainer("app-container", new ContainerDefinitionOptions
