@@ -29,11 +29,41 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         _context = context;
         
-        // Validate external dependencies before creating resources
-        ValidateExternalDependencies(context);
+        // Check if we should deploy individual stacks instead of the monolithic stack
+        var stackType = System.Environment.GetEnvironmentVariable("CDK_STACK_TYPE");
         
-        // Add TrialFinderV2-specific resources here
-        CreateTrialFinderSpecificResources(context);
+        if (!string.IsNullOrEmpty(stackType))
+        {
+            // Deploy individual stack based on stack type
+            DeployIndividualStack(stackType, context);
+        }
+        else
+        {
+            // Legacy behavior: validate external dependencies and create all resources
+            ValidateExternalDependencies(context);
+            CreateTrialFinderSpecificResources(context);
+        }
+    }
+
+    private void DeployIndividualStack(string stackType, DeploymentContext context)
+    {
+        switch (stackType.ToUpper())
+        {
+            case "ALB":
+                // ALB Stack resources already created by TrialFinderV2AlbStack
+                Console.WriteLine("ℹ️  ALB Stack deployment handled by TrialFinderV2AlbStack");
+                break;
+            case "ECS":
+                // ECS Stack resources already created by TrialFinderV2EcsStack  
+                Console.WriteLine("ℹ️  ECS Stack deployment handled by TrialFinderV2EcsStack");
+                break;
+            case "DATA":
+                // Data Stack resources already created by TrialFinderV2DataStack
+                Console.WriteLine("ℹ️  Data Stack deployment handled by TrialFinderV2DataStack");
+                break;
+            default:
+                throw new ArgumentException($"Unknown stack type: {stackType}");
+        }
     }
 
     private void CreateTrialFinderSpecificResources(DeploymentContext context)
@@ -242,20 +272,8 @@ public class TrialFinderV2Stack : WebApplicationStack
         albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(443), "HTTPS from internet");
         albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(80), "HTTP from internet (redirect to HTTPS)");
 
-        // ECS Security Group - allows traffic from ALB
-        var ecsSecurityGroup = new SecurityGroup(this, "TrialFinderEcsSecurityGroup", new SecurityGroupProps
-        {
-            Vpc = vpc,
-            SecurityGroupName = context.Namer.SecurityGroupForEcs(ResourcePurpose.Web),
-            Description = "Security group for TrialFinder ECS tasks - allows traffic from ALB",
-            AllowAllOutbound = true
-        });
-
-        // Allow traffic from ALB on container port 8080
-        ecsSecurityGroup.AddIngressRule(albSecurityGroup, Port.Tcp(8080), "HTTP from ALB");
-        
-        // Add loopback rule for port 8080 (matching existing pattern)
-        ecsSecurityGroup.AddIngressRule(ecsSecurityGroup, Port.Tcp(8080), "Loopback for health checks");
+        // Import existing ECS Security Group instead of creating new one
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialFinderEcsSecurityGroup", "sg-0e7ddc9391c2220f4");
 
         return (albSecurityGroup, ecsSecurityGroup);
     }
@@ -327,10 +345,9 @@ public class TrialFinderV2Stack : WebApplicationStack
             Image = ContainerImage.FromEcrRepository(ecrRepository, "latest"),
             PortMappings = new[]
             {
-                new PortMapping
+                new Amazon.CDK.AWS.ECS.PortMapping
                 {
-                    ContainerPort = 8080,
-                    Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
+                    ContainerPort = 8080
                 }
             },
             Environment = CreateEnvironmentVariables(context),
@@ -486,29 +503,9 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         var repositoryName = context.Namer.EcrRepository("web");
         
-        var repository = new Repository(this, "TrialFinderRepository", new RepositoryProps
-        {
-            RepositoryName = repositoryName,
-            ImageScanOnPush = true,
-            LifecycleRules = new[]
-            {
-                new Amazon.CDK.AWS.ECR.LifecycleRule
-                {
-                    Description = "Delete untagged images after 7 days",
-                    MaxImageAge = Duration.Days(7),
-                    TagStatus = TagStatus.UNTAGGED,
-                    RulePriority = 1
-                },
-                new Amazon.CDK.AWS.ECR.LifecycleRule
-                {
-                    Description = "Keep only the latest 4 images",
-                    MaxImageCount = 40,
-                    RulePriority = 2
-                }
-            },
-            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE
-
-        });
+        //TODO we should be able to create one here and not assume one is there
+        // Import existing ECR repository instead of creating new one
+        var repository = Repository.FromRepositoryName(this, "TrialFinderRepository", repositoryName);
 
         // Note: ECR pull permissions will be granted to the ECS execution role 
         // when the task definition is created
