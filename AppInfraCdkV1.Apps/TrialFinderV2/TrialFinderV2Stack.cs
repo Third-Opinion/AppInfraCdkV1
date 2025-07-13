@@ -287,7 +287,7 @@ public class TrialFinderV2Stack : WebApplicationStack
         var albLogsBucket = new Bucket(this, "TrialFinderAlbLogsBucket", new BucketProps
         {
             BucketName = context.Namer.Custom("alb-logs", ResourcePurpose.Web),
-            RemovalPolicy = RemovalPolicy.DESTROY,
+            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
             AutoDeleteObjects = true,
             LifecycleRules = new[]
             {
@@ -503,6 +503,7 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         var repositoryName = context.Namer.EcrRepository("web");
         
+        //TODO we should be able to create one here and not assume one is there
         // Import existing ECR repository instead of creating new one
         var repository = Repository.FromRepositoryName(this, "TrialFinderRepository", repositoryName);
 
