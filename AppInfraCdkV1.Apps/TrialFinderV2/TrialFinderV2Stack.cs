@@ -269,7 +269,7 @@ public class TrialFinderV2Stack : WebApplicationStack
         var albLogsBucket = new Bucket(this, "TrialFinderAlbLogsBucket", new BucketProps
         {
             BucketName = context.Namer.Custom("alb-logs", ResourcePurpose.Web),
-            RemovalPolicy = RemovalPolicy.DESTROY,
+            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
             AutoDeleteObjects = true,
             LifecycleRules = new[]
             {
@@ -494,21 +494,20 @@ public class TrialFinderV2Stack : WebApplicationStack
             {
                 new Amazon.CDK.AWS.ECR.LifecycleRule
                 {
-                    Description = "Delete untagged images after 1 day",
-                    MaxImageAge = Duration.Days(1),
+                    Description = "Delete untagged images after 7 days",
+                    MaxImageAge = Duration.Days(7),
                     TagStatus = TagStatus.UNTAGGED,
                     RulePriority = 1
                 },
                 new Amazon.CDK.AWS.ECR.LifecycleRule
                 {
-                    Description = "Keep only the latest 10 images",
-                    MaxImageCount = 10,
+                    Description = "Keep only the latest 4 images",
+                    MaxImageCount = 40,
                     RulePriority = 2
                 }
             },
-            RemovalPolicy = context.Environment.IsProductionClass 
-                ? RemovalPolicy.RETAIN 
-                : RemovalPolicy.DESTROY
+            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE
+
         });
 
         // Note: ECR pull permissions will be granted to the ECS execution role 
