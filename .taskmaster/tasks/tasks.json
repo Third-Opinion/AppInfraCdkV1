@@ -475,13 +475,182 @@
             "testStrategy": ""
           }
         ]
+      },
+      {
+        "id": 11,
+        "title": "Update CreateEcrRepository to check existence and apply tags conditionally",
+        "description": "Modify the CreateEcrRepository function to first check if an ECR repository exists, use existing repository with CDK tags if found, or create new repository if not found.",
+        "details": "1. Implement Repository Existence Check:\n   - Use AWS SDK ECR client to call describeRepositories() for the target repository name\n   - Handle RepositoryNotFoundException to determine if repository exists\n   - Create helper function isRepositoryExists(repositoryName) returning boolean\n\n2. Modify CreateEcrRepository Logic:\n   - Add conditional logic before repository creation\n   - If repository exists: retrieve repository ARN and apply missing CDK tags using tagResource()\n   - If repository doesn't exist: proceed with standard CDK repository creation\n   - Ensure tag consistency between existing and newly created repositories\n\n3. Tag Management:\n   - Extract CDK default tags that would be applied during creation\n   - Compare existing repository tags with required CDK tags\n   - Apply only missing tags to avoid overwriting existing custom tags\n   - Include standard CDK tags: aws:cdk:construct-id, aws:cdk:stack-name, Environment\n\n4. Error Handling:\n   - Add proper exception handling for ECR API calls\n   - Log repository existence status and tag application results\n   - Ensure graceful fallback to creation if existence check fails",
+        "testStrategy": "1. Test Existing Repository Scenario:\n   - Manually create an ECR repository in dev environment using AWS CLI\n   - Run CDK deployment and verify it detects existing repository\n   - Confirm CDK tags are applied without affecting existing tags\n   - Validate repository is not recreated or modified beyond tagging\n\n2. Test New Repository Scenario:\n   - Ensure no repository exists with target name\n   - Run CDK deployment and verify new repository creation\n   - Confirm all standard CDK tags are applied during creation\n\n3. Test Tag Application:\n   - Use aws ecr list-tags-for-resource to verify tag presence\n   - Confirm existing custom tags remain unchanged\n   - Validate CDK-specific tags are correctly applied\n\n4. Test Error Scenarios:\n   - Test with insufficient ECR permissions\n   - Verify proper error messages and fallback behavior",
+        "status": "pending",
+        "dependencies": [
+          5,
+          6
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Configure ALB listeners with HTTPS/HTTP rules and SSL certificates",
+        "description": "Add a new HTTPS listener on port 443 to the TrialFinderV2 ALB with SSL certificates and routing rules, and update the existing port 80 listener with matching routing rules.",
+        "details": "1. Create HTTPS Listener on Port 443:\n   - Use AWS CLI with to-dev-admin profile to add listener to existing ALB\n   - Configure default SSL certificate: arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533\n   - Add SNI certificates using aws elbv2 add-listener-certificates:\n     * arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e\n     * arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533\n   - Set SSL policy to ELBSecurityPolicy-TLS-1-2-2017-01 or latest recommended\n\n2. Configure Listener Rules for Port 443:\n   - Rule 1: Path pattern '/app/*' forwards to TrialFinderTargetGroup\n   - Rule 2: Default action forwards to TrialFinderTargetGroup\n   - Set appropriate priority values (100 for path rule, default for catch-all)\n   - Use aws elbv2 create-rule for each routing rule\n\n3. Update Existing Port 80 Listener:\n   - Retrieve current listener ARN using aws elbv2 describe-listeners\n   - Delete existing rules if different from required configuration\n   - Create matching rules: '/app/*' pattern and default both to TrialFinderTargetGroup\n   - Ensure rule priorities are consistent between HTTP and HTTPS listeners\n\n4. Validate Target Group Association:\n   - Confirm TrialFinderTargetGroup exists and is healthy\n   - Verify target group is in same VPC as ALB\n   - Check target group health check configuration is appropriate for both listeners",
+        "testStrategy": "1. Verify HTTPS Listener Configuration:\n   - Run aws elbv2 describe-listeners to confirm port 443 listener exists with correct SSL certificates\n   - Test HTTPS connectivity: curl -k https://<alb-dns-name>/app/test and verify response\n   - Validate SNI certificate configuration using openssl s_client -connect <alb-dns>:443 -servername <domain>\n\n2. Test Routing Rules:\n   - Test path rule: curl https://<alb-dns>/app/health should route to TrialFinderTargetGroup\n   - Test default rule: curl https://<alb-dns>/other-path should route to TrialFinderTargetGroup\n   - Repeat same tests for HTTP port 80 listener\n   - Verify both listeners have identical routing behavior\n\n3. SSL Certificate Validation:\n   - Check certificate chain using SSL labs or similar tool\n   - Verify all configured certificates are valid and not expired\n   - Test certificate selection for different SNI hostnames\n\n4. Target Group Health:\n   - Run aws elbv2 describe-target-health to confirm targets are healthy\n   - Monitor ALB access logs for successful request routing\n   - Verify no 5xx errors in CloudWatch metrics for the ALB",
+        "status": "pending",
+        "dependencies": [
+          3,
+          8
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create HTTPS listener on port 443 with SSL certificate configuration",
+            "description": "Add a new HTTPS listener on port 443 to the existing TrialFinderV2 ALB with proper SSL certificate configuration and security policy",
+            "dependencies": [],
+            "details": "Use AWS CLI with to-dev-admin profile to create HTTPS listener. Configure default SSL certificate (arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533). Set SSL security policy to ELBSecurityPolicy-TLS-1-2-2017-01 or latest recommended. Use aws elbv2 create-listener command with LoadBalancerArn, Port 443, Protocol HTTPS, and Certificates parameter.",
+            "status": "pending",
+            "testStrategy": "Verify listener creation using aws elbv2 describe-listeners and test basic HTTPS connectivity with curl -k https://<alb-dns-name>"
+          },
+          {
+            "id": 2,
+            "title": "Add SNI certificates to HTTPS listener for multi-domain support",
+            "description": "Configure additional SSL certificates using Server Name Indication (SNI) for the HTTPS listener to support multiple domains",
+            "dependencies": [
+              1
+            ],
+            "details": "Use aws elbv2 add-listener-certificates command to add SNI certificates to the HTTPS listener created in previous step. Add certificates: arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e and arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533. Retrieve listener ARN from previous step output.",
+            "status": "pending",
+            "testStrategy": "Validate SNI certificate configuration using openssl s_client -connect <alb-dns-name>:443 -servername <domain> and verify certificate chain"
+          },
+          {
+            "id": 3,
+            "title": "Configure routing rules for HTTPS listener (port 443)",
+            "description": "Create routing rules for the HTTPS listener to forward traffic based on path patterns to the appropriate target group",
+            "dependencies": [
+              2
+            ],
+            "details": "Create two routing rules using aws elbv2 create-rule: Rule 1 with priority 100 for path pattern '/app/*' forwarding to TrialFinderTargetGroup, and Rule 2 as default action (lowest priority) forwarding to TrialFinderTargetGroup. Use Type=forward action and retrieve target group ARN using aws elbv2 describe-target-groups.",
+            "status": "pending",
+            "testStrategy": "Test routing rules with curl -k https://<alb-dns-name>/app/test and curl -k https://<alb-dns-name>/other-path to verify proper forwarding"
+          },
+          {
+            "id": 4,
+            "title": "Update existing HTTP listener (port 80) with matching routing rules",
+            "description": "Modify the existing port 80 HTTP listener to have matching routing rules consistent with the HTTPS listener configuration",
+            "dependencies": [
+              3
+            ],
+            "details": "Retrieve existing HTTP listener ARN using aws elbv2 describe-listeners for port 80. Delete existing rules if they differ from required configuration using aws elbv2 delete-rule. Create matching rules with same priorities as HTTPS listener: '/app/*' pattern (priority 100) and default action both forwarding to TrialFinderTargetGroup using aws elbv2 create-rule.",
+            "status": "pending",
+            "testStrategy": "Verify HTTP listener rules match HTTPS configuration and test with curl http://<alb-dns-name>/app/test and curl http://<alb-dns-name>/other-path"
+          },
+          {
+            "id": 5,
+            "title": "Validate target group association and health check configuration",
+            "description": "Verify that the TrialFinderTargetGroup exists, is properly configured, and can receive traffic from both HTTP and HTTPS listeners",
+            "dependencies": [
+              4
+            ],
+            "details": "Use aws elbv2 describe-target-groups to confirm TrialFinderTargetGroup exists and retrieve its configuration. Verify target group is in same VPC as ALB using aws elbv2 describe-load-balancers. Check health check settings are appropriate for both listeners. Validate target registration and health status using aws elbv2 describe-target-health.",
+            "status": "pending",
+            "testStrategy": "Monitor target group health status and perform end-to-end testing of both HTTP and HTTPS traffic flow to ensure successful request processing and proper load balancing"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Refactor TrialFinderV2Stack into specialized ALB, ECS, and Data stacks with enhanced configuration management",
+        "description": "Split the monolithic TrialFinderV2Stack (AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2Stack.cs) into three specialized stacks (TrialFinderV2AlbStack, TrialFinderV2EcsStack, TrialFinderV2DataStack) with updated container configurations, GitHub Actions deployment pipeline, and proper stack dependencies.",
+        "status": "pending",
+        "dependencies": [
+          3,
+          6,
+          7,
+          8,
+          10,
+          12
+        ],
+        "priority": "medium",
+        "details": "1. Create TrialFinderV2AlbStack:\n   - Extract Application Load Balancer, security groups, and networking components from existing TrialFinderV2Stack.cs\n   - Include listeners, target groups, and SSL certificate configurations\n   - Maintain existing ALB configuration while separating into dedicated stack\n   - Export necessary outputs for ECS stack consumption (ALB ARN, target group ARNs, security group IDs)\n\n2. Create TrialFinderV2EcsStack:\n   - Extract ECS cluster, services, and task definitions into dedicated stack\n   - Update ECS task to deploy nginx:latest container listening on port 8080\n   - Import ALB stack outputs for service configuration\n   - Implement container definitions with health checks and environment variables\n   - Configure service discovery and auto-scaling policies\n\n3. Create TrialFinderV2DataStack:\n   - Extract RDS instances, S3 buckets, and data-related resources\n   - Implement independent deployment capability\n   - Configure backup and retention policies\n   - Export database connection strings and S3 bucket names for application use\n\n4. Update TrialFinderV2 Configuration Management:\n   - Modify development.json, production.json, staging.json, and integration.json in AppInfraCdkV1.Apps/TrialFinderV2/config/\n   - Implement code-based container definitions with configuration overrides\n   - Add example containerDefinitions with doc-nlp-service-web configuration\n   - Include port mappings, environment variables, and health check configurations\n\n5. Update TrialFinderV2Stack.cs and TrialFinderV2Config.cs:\n   - Modify existing TrialFinderV2Stack.cs to support multi-stack architecture\n   - Update TrialFinderV2Config.cs to handle new configuration structure\n   - Implement cross-stack references and dependency management\n\n6. GitHub Actions Pipeline Updates:\n   - Create stack configuration file defining deployment order and dependencies\n   - Update infrastructure-pr.yml to validate all TrialFinderV2 stacks exist\n   - Implement separate cdk diff, synth, and deploy commands for each TrialFinderV2 stack\n   - Configure deployment dependencies: TrialFinderV2AlbStack → TrialFinderV2EcsStack → TrialFinderV2DataStack\n   - Add stack existence validation before deployment attempts\n\n7. Stack Dependency Management:\n   - Implement cross-stack references using CloudFormation exports/imports\n   - Configure proper dependency order in deployment pipeline\n   - Ensure TrialFinderV2EcsStack can reference TrialFinderV2AlbStack outputs\n   - Validate independent TrialFinderV2DataStack deployment capability",
+        "testStrategy": "1. Validate Stack Separation:\n   - Deploy each TrialFinderV2 stack independently to verify proper resource allocation\n   - Confirm no circular dependencies exist between TrialFinderV2 stacks\n   - Test rollback capabilities for each individual TrialFinderV2 stack\n\n2. Test Container Configuration:\n   - Deploy nginx:latest container and verify port 8080 accessibility\n   - Validate containerDefinitions configuration loading from TrialFinderV2 JSON files\n   - Test health check functionality and container restart behavior\n\n3. GitHub Actions Validation:\n   - Run infrastructure-pr.yml workflow to verify TrialFinderV2 stack existence checks\n   - Test deployment pipeline with proper dependency ordering for TrialFinderV2 stacks\n   - Confirm cdk diff, synth, and deploy work for each TrialFinderV2 stack independently\n   - Validate deployment fails gracefully when dependencies are missing\n\n4. Integration Testing:\n   - Deploy all TrialFinderV2 stacks in correct order and verify application functionality\n   - Test ALB routing to ECS services across TrialFinderV2 stack boundaries\n   - Confirm data stack resources are accessible from TrialFinderV2 ECS services\n   - Validate cross-stack communication and resource sharing within TrialFinderV2 application\n\n5. Configuration Management Testing:\n   - Verify configuration overrides work correctly for different TrialFinderV2 environments\n   - Test container definition loading and application to TrialFinderV2 ECS tasks\n   - Confirm environment-specific settings are properly applied across all config files",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create TrialFinderV2AlbStack with networking components",
+            "description": "Extract Application Load Balancer, security groups, and networking components from TrialFinderV2Stack.cs into a dedicated TrialFinderV2AlbStack with proper exports for ECS consumption.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create new TrialFinderV2AlbStack class extending Stack in AppInfraCdkV1.Apps/TrialFinderV2/ directory. Extract ALB, listeners, target groups, SSL certificate configurations, and security groups from existing TrialFinderV2Stack.cs. Configure CloudFormation exports for ALB ARN, target group ARNs, and security group IDs using CfnOutput. Maintain existing ALB configuration including health checks and routing rules. Update stack instantiation in CDK app to deploy TrialFinderV2AlbStack before TrialFinderV2EcsStack.",
+            "testStrategy": "Deploy TrialFinderV2AlbStack independently and verify all networking components are created. Test ALB health checks and SSL certificate configuration. Validate CloudFormation exports are properly created for cross-stack references within TrialFinderV2 application."
+          },
+          {
+            "id": 2,
+            "title": "Create TrialFinderV2EcsStack with updated container configurations",
+            "description": "Extract ECS cluster, services, and task definitions from TrialFinderV2Stack.cs into dedicated TrialFinderV2EcsStack with nginx:latest container deployment and ALB integration.",
+            "status": "pending",
+            "dependencies": [
+              1
+            ],
+            "details": "Create new TrialFinderV2EcsStack class that imports TrialFinderV2AlbStack outputs using Fn.importValue(). Extract ECS cluster, services, and task definitions from existing TrialFinderV2Stack.cs. Update task definition to deploy nginx:latest container listening on port 8080. Configure container definitions with health checks, environment variables, and port mappings. Implement service discovery and auto-scaling policies. Connect ECS service to ALB target groups using imported values from TrialFinderV2AlbStack.",
+            "testStrategy": "Deploy TrialFinderV2EcsStack after TrialFinderV2AlbStack and verify service registration with target groups. Test nginx container deployment and health checks. Validate auto-scaling policies trigger correctly under load. Confirm service discovery functionality within TrialFinderV2 application."
+          },
+          {
+            "id": 3,
+            "title": "Create TrialFinderV2DataStack with database and storage resources",
+            "description": "Extract RDS instances, S3 buckets, and data-related resources from TrialFinderV2Stack.cs into independent TrialFinderV2DataStack with proper backup and retention policies.",
+            "status": "pending",
+            "dependencies": [],
+            "details": "Create new TrialFinderV2DataStack class for all TrialFinderV2 data-related resources. Extract RDS instances, S3 buckets, and any other data storage components from existing TrialFinderV2Stack.cs. Configure backup policies, retention settings, and encryption for all data resources. Export database connection strings and S3 bucket names using CloudFormation outputs for TrialFinderV2 application consumption. Ensure TrialFinderV2DataStack can be deployed independently without dependencies on TrialFinderV2AlbStack or TrialFinderV2EcsStack.",
+            "testStrategy": "Deploy TrialFinderV2DataStack independently and verify all data resources are created with proper configurations. Test backup and retention policies. Validate database connectivity and S3 bucket access permissions. Confirm CloudFormation exports are accessible for TrialFinderV2 application."
+          },
+          {
+            "id": 4,
+            "title": "Update TrialFinderV2 configuration management with containerDefinitions",
+            "description": "Modify all TrialFinderV2 configuration files (development.json, production.json, staging.json, integration.json) to include containerDefinitions array with code-based container definitions and environment-specific overrides.",
+            "status": "pending",
+            "dependencies": [
+              2
+            ],
+            "details": "Update AppInfraCdkV1.Apps/TrialFinderV2/config/development.json, production.json, staging.json, and integration.json files to include containerDefinitions array property. Implement containerDefinitions structure with doc-nlp-service-web configuration including image, port mappings (8080), environment variables, health check configurations, and resource limits. Create configuration overrides for different TrialFinderV2 environments. Update TrialFinderV2Stack.cs and TrialFinderV2Config.cs to read containerDefinitions from configuration files and apply them to ECS task definitions. Ensure configuration supports multiple container definitions per TrialFinderV2 service.",
+            "testStrategy": "Validate configuration file syntax and structure for all TrialFinderV2 environments. Test container definition loading in TrialFinderV2Config.cs code. Deploy TrialFinderV2EcsStack with updated configuration and verify containers use settings from configuration files. Test environment-specific overrides work correctly across all TrialFinderV2 config files."
+          },
+          {
+            "id": 5,
+            "title": "Update GitHub Actions pipeline for TrialFinderV2 multi-stack deployment",
+            "description": "Create stack configuration file and update GitHub Actions workflows to support independent deployment of TrialFinderV2AlbStack, TrialFinderV2EcsStack, and TrialFinderV2DataStack with proper dependency management.",
+            "status": "pending",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Create TrialFinderV2-stack-config.json file defining deployment order (TrialFinderV2AlbStack → TrialFinderV2EcsStack → TrialFinderV2DataStack) and stack dependencies. Update infrastructure-pr.yml workflow to validate all three TrialFinderV2 stacks exist before deployment attempts. Implement separate CDK commands for diff, synth, and deploy for each TrialFinderV2 stack. Add stack existence validation step using cdk list command filtered for TrialFinderV2 stacks. Configure deployment matrix or sequential jobs respecting TrialFinderV2 dependency order. Update workflow to handle TrialFinderV2 stack-specific failures and rollback scenarios. Add conditional deployment logic based on changed files in TrialFinderV2 directory.",
+            "testStrategy": "Test GitHub Actions workflow with all three TrialFinderV2 stacks. Verify deployment order is respected and dependencies are handled correctly for TrialFinderV2 application. Test workflow behavior when individual TrialFinderV2 stacks fail. Validate stack existence checks prevent deployment of non-existent TrialFinderV2 stacks. Confirm rollback capabilities work for each TrialFinderV2 stack independently."
+          },
+          {
+            "id": 6,
+            "title": "Update TrialFinderV2Stack.cs and TrialFinderV2Config.cs for multi-stack architecture",
+            "description": "Modify existing TrialFinderV2Stack.cs and TrialFinderV2Config.cs files to support the new multi-stack architecture and cross-stack references.",
+            "status": "pending",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Update TrialFinderV2Stack.cs to either act as a parent stack that orchestrates the three specialized stacks or modify it to work alongside the new specialized stacks. Update TrialFinderV2Config.cs to handle the new configuration structure including containerDefinitions and cross-stack reference parameters. Implement methods to parse and validate the updated configuration files. Add support for environment-specific stack naming and cross-stack dependency resolution. Ensure backward compatibility during the transition period.",
+            "testStrategy": "Compile and validate the updated TrialFinderV2Stack.cs and TrialFinderV2Config.cs files. Test configuration parsing for all environment files. Verify cross-stack references are properly resolved. Deploy the updated architecture and confirm all TrialFinderV2 components work together correctly."
+          }
+        ]
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-12T20:25:02.785Z"
+      "updated": "2025-07-13T14:53:15.096Z"
     }
   }
 }
