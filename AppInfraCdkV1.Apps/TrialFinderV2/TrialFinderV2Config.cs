@@ -1,5 +1,6 @@
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
+using System.Text.Json;
 using Environment = System.Environment;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
@@ -13,12 +14,29 @@ public static class TrialFinderV2Config
             // Non-Production Account Environments
             "development" => CreateConfig(environment, ResourceSizing.GetDevelopmentSizing(),
                 false),
+            "integration" => CreateConfig(environment, ResourceSizing.GetDevelopmentSizing(),
+                false),
 
             // Production Account Environments
             "staging" => CreateConfig(environment, ResourceSizing.GetProductionSizing(), true),
             "production" => CreateConfig(environment, GetProductionSizing(), true),
             _ => throw new ArgumentException($"Unknown environment: {environment}")
         };
+    }
+
+    public static ContainerConfiguration GetContainerConfiguration(string environment)
+    {
+        var configPath = Path.Combine("AppInfraCdkV1.Apps", "TrialFinderV2", "config", $"{environment.ToLower()}.json");
+        
+        if (!File.Exists(configPath))
+        {
+            throw new FileNotFoundException($"Configuration file not found: {configPath}");
+        }
+
+        var jsonContent = File.ReadAllText(configPath);
+        var configData = JsonSerializer.Deserialize<ConfigurationRoot>(jsonContent);
+        
+        return configData?.EcsConfiguration?.TaskDefinition ?? new ContainerConfiguration();
     }
 
     private static ApplicationConfig CreateConfig(string environment,
@@ -130,4 +148,55 @@ public static class TrialFinderV2Config
     {
         return Environment.GetEnvironmentVariable("GITHUB_SHA")?[..8] ?? "local";
     }
+}
+
+// Configuration classes for container definitions
+public class ConfigurationRoot
+{
+    public EcsConfiguration? EcsConfiguration { get; set; }
+}
+
+public class EcsConfiguration
+{
+    public ContainerConfiguration? TaskDefinition { get; set; }
+}
+
+public class ContainerConfiguration
+{
+    public List<ContainerDefinition> ContainerDefinitions { get; set; } = new();
+}
+
+public class ContainerDefinition
+{
+    public string Name { get; set; } = "";
+    public string? Image { get; set; }
+    public int Cpu { get; set; }
+    public List<PortMapping> PortMappings { get; set; } = new();
+    public bool Essential { get; set; } = true;
+    public List<EnvironmentVariable> Environment { get; set; } = new();
+    public HealthCheck? HealthCheck { get; set; }
+}
+
+public class PortMapping
+{
+    public string Name { get; set; } = "";
+    public int ContainerPort { get; set; }
+    public int HostPort { get; set; }
+    public string Protocol { get; set; } = "tcp";
+    public string AppProtocol { get; set; } = "http";
+}
+
+public class EnvironmentVariable
+{
+    public string Name { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
+public class HealthCheck
+{
+    public List<string> Command { get; set; } = new();
+    public int Interval { get; set; } = 30;
+    public int Timeout { get; set; } = 5;
+    public int Retries { get; set; } = 3;
+    public int StartPeriod { get; set; } = 60;
 }
