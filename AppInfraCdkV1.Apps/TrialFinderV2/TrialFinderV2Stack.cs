@@ -269,7 +269,7 @@ public class TrialFinderV2Stack : WebApplicationStack
         var albLogsBucket = new Bucket(this, "TrialFinderAlbLogsBucket", new BucketProps
         {
             BucketName = context.Namer.Custom("alb-logs", ResourcePurpose.Web),
-            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+            RemovalPolicy = RemovalPolicy.DESTROY,
             AutoDeleteObjects = true,
             LifecycleRules = new[]
             {
