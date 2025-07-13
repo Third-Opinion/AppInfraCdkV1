@@ -651,7 +651,7 @@
         "description": "Enhance ECS task definition configuration management by adding taskDefinitionName field, implementing container management logic with skip functionality, establishing code defaults, and adding comprehensive validation for containerDefinitions.",
         "details": "1. Update Configuration Structure:\n   - Add 'taskDefinitionName' field to all environment configuration files (development.json, production.json, staging.json, integration.json)\n   - Update TrialFinderV2EcsStack to use taskDefinitionName as the CDK construct ID (e.g., 'TrialFinderTaskDefinition')\n   - Ensure all containerDefinitions fields are required and validated with meaningful error messages\n\n2. Container Management Logic:\n   - Modify ECS stack to not add any containers by default in the code\n   - Only add containers if taskDefinitionName is defined AND containerDefinitions array exists and is not empty\n   - Iterate through containerDefinitions array and add all non-skipped containers to the task definition\n\n3. Default Settings Implementation:\n   - Define comprehensive default settings in C# code for all ECS task definition properties not specified in JSON\n   - Implement fallback mechanism using null coalescing operators or conditional logic\n   - Include defaults for CPU, memory, network mode, execution role, and other standard properties\n\n4. Container Skip Functionality:\n   - Add optional 'skip' boolean field at container level in containerDefinitions schema\n   - Set default skip value to false when not specified\n   - Implement conditional logic to exclude containers where skip is true from task definition creation\n\n5. Environment Variables Cleanup:\n   - Remove environment-specific settings from JSON configuration files\n   - Move environment-specific logic to code defaults using environment detection\n   - Ensure all stacks in the solution use consistent default settings\n\n6. Validation Requirements:\n   - Add comprehensive validation for required containerDefinitions fields (name, image, essential, etc.)\n   - Validate taskDefinitionName follows CDK construct identifier naming conventions\n   - Implement try-catch blocks with descriptive error messages for configuration parsing failures\n   - Add unit tests for configuration validation logic",
         "testStrategy": "1. Configuration Validation Testing:\n   - Test with missing taskDefinitionName and verify appropriate error handling\n   - Test with invalid containerDefinitions structure and confirm validation errors\n   - Verify that containers with skip=true are excluded from task definition\n   - Test default value application when optional fields are missing from JSON\n\n2. ECS Stack Deployment Testing:\n   - Deploy TrialFinderV2EcsStack with updated configuration to development environment\n   - Verify task definition is created with correct construct ID matching taskDefinitionName\n   - Confirm only non-skipped containers are added to the task definition\n   - Validate that default settings are applied for missing configuration values\n\n3. Configuration File Testing:\n   - Test each environment configuration file (development, staging, production, integration)\n   - Verify containerDefinitions array is properly parsed and validated\n   - Confirm environment-specific settings have been removed and defaults are used\n   - Test configuration inheritance and override behavior\n\n4. Error Handling Testing:\n   - Test with malformed JSON configuration and verify graceful error handling\n   - Test with missing required fields and confirm meaningful error messages\n   - Verify CDK construct ID validation prevents invalid naming conventions\n   - Test rollback capabilities when configuration validation fails",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           13
         ],
@@ -663,7 +663,7 @@
             "description": "Add taskDefinitionName field to all environment configuration files and update the ECS stack to use it as the CDK construct ID.",
             "dependencies": [],
             "details": "Add 'taskDefinitionName' field to development.json, production.json, staging.json, and integration.json configuration files. Update TrialFinderV2EcsStack.cs to read this field and use it as the CDK construct ID (e.g., 'TrialFinderTaskDefinition'). Ensure the field is properly validated and follows CDK construct identifier naming conventions.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify configuration files can be parsed successfully and taskDefinitionName is properly read by the ECS stack. Test with valid and invalid construct ID values to ensure proper validation."
           },
           {
@@ -674,7 +674,7 @@
               1
             ],
             "details": "Update TrialFinderV2EcsStack.cs to check if taskDefinitionName is defined AND containerDefinitions array exists and is not empty before adding any containers. Remove any default container creation logic. Implement iteration through containerDefinitions array to add all non-skipped containers to the task definition.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test scenarios with missing taskDefinitionName, empty containerDefinitions array, and valid configurations. Verify no containers are added when conditions are not met."
           },
           {
@@ -685,7 +685,7 @@
               2
             ],
             "details": "Add optional 'skip' boolean field to container schema in containerDefinitions with default value of false. Implement conditional logic to exclude containers where skip is true from task definition creation. Add comprehensive validation for required containerDefinitions fields (name, image, essential, etc.) with descriptive error messages.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test containers with skip=true are excluded from task definition. Validate that missing required fields in containerDefinitions trigger appropriate error messages."
           },
           {
@@ -696,7 +696,7 @@
               3
             ],
             "details": "Create default settings for CPU, memory, network mode, execution role, and other standard ECS task definition properties. Implement fallback mechanism using null coalescing operators or conditional logic. Remove environment-specific settings from JSON configuration files and move environment-specific logic to code defaults using environment detection.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test task definitions are created with appropriate defaults when properties are not specified in configuration. Verify environment-specific defaults are applied correctly based on environment detection."
           },
           {
@@ -707,7 +707,7 @@
               4
             ],
             "details": "Add try-catch blocks with descriptive error messages for configuration parsing failures. Validate taskDefinitionName follows CDK construct identifier naming conventions. Implement comprehensive validation for all required fields and configuration structure. Create unit tests for configuration validation logic covering success and failure scenarios.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Create unit tests that cover configuration parsing success cases, validation failures, and error handling. Test edge cases like malformed JSON, missing required fields, and invalid naming conventions."
           }
         ]
@@ -732,7 +732,7 @@
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-13T19:53:21.989Z"
+      "updated": "2025-07-13T20:24:46.348Z"
     }
   }
 }

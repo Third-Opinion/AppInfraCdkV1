@@ -128,7 +128,8 @@ public class TrialFinderV2AlbStack : Stack
             Protocol = Amazon.CDK.AWS.ElasticLoadBalancingV2.Protocol.HTTP,
             Interval = Duration.Seconds(30),
             HealthyThresholdCount = 2,
-            UnhealthyThresholdCount = 3
+            UnhealthyThresholdCount = 3,
+            Port = "traffic-port"
         });
 
         return targetGroup;

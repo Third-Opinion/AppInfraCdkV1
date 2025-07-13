@@ -101,7 +101,12 @@ public class TrialFinderV2EcsStack : Stack
             MemoryLimitMiB = 512,
             Cpu = 256,
             TaskRole = CreateTaskRole(),
-            ExecutionRole = CreateExecutionRole(logGroup)
+            ExecutionRole = CreateExecutionRole(logGroup),
+            RuntimePlatform = new RuntimePlatform
+            {
+                OperatingSystemFamily = OperatingSystemFamily.LINUX,
+                CpuArchitecture = CpuArchitecture.ARM64
+            }
         });
 
         // Add containers from configuration
