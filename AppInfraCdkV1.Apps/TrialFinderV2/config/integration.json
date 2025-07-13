@@ -1,0 +1,36 @@
+{
+  "ecsConfiguration": {
+    "deployTestContainer": false,
+    "taskDefinition": {
+      "taskDefinitionName": "TrialFinderTaskDefinition",
+      "containerDefinitions": [
+        {
+          "name": "doc-nlp-service-web",
+          "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
+          "cpu": 0,
+          "skip": true,
+          "portMappings": [
+            {
+              "name": "doc-nlp-service-web-8080-tcp",
+              "containerPort": 8080,
+              "hostPort": 8080,
+              "protocol": "tcp",
+              "appProtocol": "http"
+            }
+          ],
+          "essential": false,
+          "healthCheck": {
+            "command": [
+              "CMD-SHELL",
+              "curl -f http://localhost:8080/ || exit 1"
+            ],
+            "interval": 20,
+            "timeout": 30,
+            "retries": 5,
+            "startPeriod": 60
+          }
+        }
+      ]
+    }
+  }
+}

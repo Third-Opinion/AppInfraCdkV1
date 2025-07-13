@@ -1,0 +1,93 @@
+{
+  "stackConfiguration": {
+    "applicationName": "TrialFinderV2",
+    "stacks": [
+      {
+        "name": "TrialFinderV2AlbStack",
+        "id": "alb",
+        "description": "Application Load Balancer, security groups, and networking components",
+        "dependsOn": [],
+        "deploymentOrder": 1,
+        "stackFile": "AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2AlbStack.cs",
+        "exports": [
+          "alb-arn",
+          "target-group-arn", 
+          "alb-sg-id",
+          "ecs-sg-id",
+          "alb-dns"
+        ]
+      },
+      {
+        "name": "TrialFinderV2EcsStack", 
+        "id": "ecs",
+        "description": "ECS cluster, services, and task definitions",
+        "dependsOn": ["TrialFinderV2AlbStack"],
+        "deploymentOrder": 2,
+        "stackFile": "AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2EcsStack.cs",
+        "imports": [
+          "target-group-arn",
+          "ecs-sg-id"
+        ]
+      },
+      {
+        "name": "TrialFinderV2DataStack",
+        "id": "data", 
+        "description": "RDS databases, S3 buckets, and data storage resources",
+        "dependsOn": [],
+        "deploymentOrder": 3,
+        "stackFile": "AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2DataStack.cs",
+        "exports": [
+          "documents-bucket-name",
+          "app-bucket-name",
+          "uploads-bucket-name", 
+          "backups-bucket-name"
+        ]
+      }
+    ],
+    "environments": {
+      "development": {
+        "stackNaming": {
+          "prefix": "dev",
+          "suffix": "ue2"
+        },
+        "awsProfile": "to-dev-admin",
+        "awsAccountId": "615299752206",
+        "region": "us-east-2"
+      },
+      "integration": {
+        "stackNaming": {
+          "prefix": "int", 
+          "suffix": "ue2"
+        },
+        "awsProfile": "to-dev-admin",
+        "awsAccountId": "615299752206",
+        "region": "us-east-2"
+      },
+      "staging": {
+        "stackNaming": {
+          "prefix": "stg",
+          "suffix": "ue2" 
+        },
+        "awsProfile": "to-prd-admin",
+        "awsAccountId": "442042533707",
+        "region": "us-east-2"
+      },
+      "production": {
+        "stackNaming": {
+          "prefix": "prd",
+          "suffix": "ue2"
+        },
+        "awsProfile": "to-prd-admin", 
+        "awsAccountId": "442042533707",
+        "region": "us-east-2"
+      }
+    },
+    "deployment": {
+      "parallelDeployment": false,
+      "rollbackOnFailure": true,
+      "timeoutMinutes": 30,
+      "requireApproval": ["staging", "production"],
+      "skipStacksOnFailure": false
+    }
+  }
+}

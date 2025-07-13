@@ -1,7 +1,9 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
+using AppInfraCdkV1.Stacks.Base;
 using Microsoft.Extensions.Configuration;
 using Environment = System.Environment;
 
@@ -19,6 +21,7 @@ public abstract class Program
             bool validateOnly = HasFlag(args, "--validate-only");
             bool showNamesOnly = HasFlag(args, "--show-names-only");
             bool listEnvironments = HasFlag(args, "--list-environments");
+            bool deployBase = HasFlag(args, "--deploy-base") || Environment.GetEnvironmentVariable("CDK_DEPLOY_BASE") == "true";
 
             if (listEnvironments)
             {
@@ -34,8 +37,7 @@ public abstract class Program
             var context = new DeploymentContext
             {
                 Environment = environmentConfig,
-                Application = applicationConfig,
-                DeployedBy = Environment.GetEnvironmentVariable("GITHUB_ACTOR") ?? "Local"
+                Application = applicationConfig
             };
 
             ValidateNamingConventions(context);
@@ -58,23 +60,53 @@ public abstract class Program
 
             var app = new App();
 
-            string stackName = GenerateStackName(context);
-
-            var stack = appName.ToLower() switch
+            if (deployBase)
             {
-                "trialfinderv2" => new TrialFinderV2Stack(app, stackName, new StackProps
+                // Deploy base stack for shared environment resources
+                string baseStackName = GenerateBaseStackName(context);
+                var baseStack = new EnvironmentBaseStack(app, baseStackName, new StackProps
+                {
+                    Env = environmentConfig.ToAwsEnvironment(),
+                    Description = $"Base infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                    Tags = context.GetCommonTags(),
+                    StackName = baseStackName
+                }, context);
+                
+                Console.WriteLine($"✅ Base stack '{baseStackName}' configured successfully");
+                app.Synth();
+                return;
+            }
+
+            // Check if we should deploy a specific stack type
+            var stackType = Environment.GetEnvironmentVariable("CDK_STACK_TYPE");
+            
+            if (!string.IsNullOrEmpty(stackType) && appName.ToLower() == "trialfinderv2")
+            {
+                // Deploy specific TrialFinderV2 stack type
+                var (stack, stackName) = CreateTrialFinderV2SpecificStack(app, stackType, context, environmentConfig, appName, environmentName);
+                Console.WriteLine($"✅ {stackType} Stack '{stackName}' configured successfully");
+                app.Synth();
+                return;
+            }
+
+            // Default behavior: deploy application stack
+            string defaultStackName = GenerateStackName(context);
+
+            var defaultStack = appName.ToLower() switch
+            {
+                "trialfinderv2" => new TrialFinderV2Stack(app, defaultStackName, new StackProps
                 {
                     Env = environmentConfig.ToAwsEnvironment(),
                     Description
                         = $"{appName} infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
                     Tags = context.GetCommonTags(),
-                    StackName = stackName
+                    StackName = defaultStackName
                 }, context),
                 _ => throw new ArgumentException(
                     $"Unknown application: {appName}. Register new applications in NamingConvention.cs")
             };
 
-            Console.WriteLine($"✅ Stack '{stackName}' configured successfully");
+            Console.WriteLine($"✅ Stack '{defaultStackName}' configured successfully");
             app.Synth();
         }
         catch (Exception ex)
@@ -88,6 +120,61 @@ public abstract class Program
                 ex.Message.Contains("Unknown region")) ShowNamingHelp();
 
             Environment.Exit(1);
+        }
+    }
+
+    private static (Stack stack, string stackName) CreateTrialFinderV2SpecificStack(
+        App app, 
+        string stackType, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string appName, 
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var appCode = NamingConvention.GetApplicationCode(appName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        
+        switch (stackType.ToUpper())
+        {
+            case "ALB":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
+                    var stack = new TrialFinderV2AlbStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 ALB infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            case "ECS":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
+                    var stack = new TrialFinderV2EcsStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 ECS infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            case "DATA":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-data-{regionCode}";
+                    var stack = new TrialFinderV2DataStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 Data infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            default:
+                throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA");
         }
     }
 
@@ -200,12 +287,12 @@ public abstract class Program
         var violations = new List<string>();
 
         // Check S3 bucket name length (3-63 characters)
-        var s3Name = context.Namer.S3Bucket("app");
+        var s3Name = context.Namer.S3Bucket(StoragePurpose.App);
         if (s3Name.Length > 63)
             violations.Add($"S3 bucket name too long: {s3Name} ({s3Name.Length} chars, max 63)");
 
         // Check RDS identifier length (max 63 characters)
-        var rdsName = context.Namer.RdsInstance("main");
+        var rdsName = context.Namer.RdsInstance(ResourcePurpose.Main);
         if (rdsName.Length > 63)
             violations.Add($"RDS identifier too long: {rdsName} ({rdsName.Length} chars, max 63)");
 
@@ -231,22 +318,22 @@ public abstract class Program
         Console.WriteLine($"   Stack: {GenerateStackName(context)}");
         Console.WriteLine($"   VPC: {context.Namer.Vpc()}");
         Console.WriteLine($"   ECS Cluster: {context.Namer.EcsCluster()}");
-        Console.WriteLine($"   Web Service: {context.Namer.EcsService("web")}");
-        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition("web")}");
-        Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer("web")}");
-        Console.WriteLine($"   Database: {context.Namer.RdsInstance("main")}");
-        Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket("app")}");
-        Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket("uploads")}");
-        Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket("backups")}");
+        Console.WriteLine($"   Web Service: {context.Namer.EcsService(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web)}");
+        Console.WriteLine($"   Database: {context.Namer.RdsInstance(ResourcePurpose.Main)}");
+        Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket(StoragePurpose.App)}");
+        Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket(StoragePurpose.Uploads)}");
+        Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket(StoragePurpose.Backups)}");
         Console.WriteLine("\n📋 Security Groups:");
-        Console.WriteLine($"   ALB Security Group: {context.Namer.SecurityGroupForAlb("web")}");
-        Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs("web")}");
-        Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds("main")}");
+        Console.WriteLine($"   ALB Security Group: {context.Namer.SecurityGroupForAlb(ResourcePurpose.Web)}");
+        Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs(ResourcePurpose.Web)}");
+        Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds(ResourcePurpose.Main)}");
         Console.WriteLine("\n🔐 IAM Roles:");
-        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole("ecs-task")}");
-        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole("ecs-execution")}");
+        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}");
+        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}");
         Console.WriteLine("\n📊 CloudWatch:");
-        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", "web")}");
+        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}");
 
         // Show TrialFinderV2-specific resources if applicable
         if (context.Application.Name == "TrialFinderV2")
@@ -377,6 +464,15 @@ public abstract class Program
         var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
 
         return $"{envPrefix}-{appCode}-stack-{regionCode}";
+    }
+
+    private static string GenerateBaseStackName(DeploymentContext context)
+    {
+        // Base stack names follow shared resource convention
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(context.Environment.Name);
+        var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
+
+        return $"{envPrefix}-shared-stack-{regionCode}";
     }
 
     private static IConfiguration BuildConfiguration(string[] args)
