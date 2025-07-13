@@ -53,6 +53,13 @@ public class ConfigurationLoader
         }
         
         var containerDefinitions = config.TaskDefinition.ContainerDefinitions;
+        
+        // If deployTestContainer is true, validation of container definitions is skipped
+        if (config.DeployTestContainer)
+        {
+            return;
+        }
+        
         if (containerDefinitions == null || containerDefinitions.Count == 0)
         {
             // This is allowed - will fallback to default container
@@ -217,6 +224,7 @@ public class EcsTaskConfigurationWrapper
 public class EcsTaskConfiguration
 {
     public TaskDefinitionConfig? TaskDefinition { get; set; }
+    public bool DeployTestContainer { get; set; } = false;
 }
 
 public class TaskDefinitionConfig

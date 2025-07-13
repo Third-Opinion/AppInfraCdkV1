@@ -1,5 +1,6 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
+using Amazon.CDK.AWS.ECR;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.IAM;
@@ -140,6 +141,13 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private void AddContainersFromConfiguration(FargateTaskDefinition taskDefinition, EcsTaskConfiguration ecsConfig, ILogGroup logGroup, DeploymentContext context)
     {
+        // Check if deployTestContainer flag is enabled
+        if (ecsConfig.DeployTestContainer)
+        {
+            AddPlaceholderContainer(taskDefinition, logGroup, context);
+            return;
+        }
+
         var containerDefinitions = ecsConfig.TaskDefinition?.ContainerDefinitions;
         if (containerDefinitions == null || containerDefinitions.Count == 0)
         {
@@ -455,6 +463,42 @@ public class TrialFinderV2EcsStack : Stack
                 Timeout = Duration.Seconds(10),
                 Retries = 3,
                 StartPeriod = Duration.Seconds(120)
+            }
+        });
+    }
+
+    /// <summary>
+    /// Add placeholder container for testing deployments
+    /// </summary>
+    private void AddPlaceholderContainer(FargateTaskDefinition taskDefinition, ILogGroup logGroup, DeploymentContext context)
+    {
+        // Import the ECR repository for the placeholder image
+        var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository", "thirdopinion/infra/deploy-placeholder");
+        
+        taskDefinition.AddContainer("placeHolder", new ContainerDefinitionOptions
+        {
+            Image = ContainerImage.FromEcrRepository(placeholderRepository, "latest"),
+            Essential = true,
+            PortMappings = new[]
+            {
+                new Amazon.CDK.AWS.ECS.PortMapping
+                {
+                    ContainerPort = 8080
+                }
+            },
+            Environment = CreateDefaultEnvironmentVariables(context),
+            Logging = LogDriver.AwsLogs(new AwsLogDriverProps
+            {
+                LogGroup = logGroup,
+                StreamPrefix = "placeHolder"
+            }),
+            HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
+            {
+                Command = new[] { "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1" },
+                Interval = Duration.Seconds(30),
+                Timeout = Duration.Seconds(5),
+                Retries = 3,
+                StartPeriod = Duration.Seconds(60)
             }
         });
     }
