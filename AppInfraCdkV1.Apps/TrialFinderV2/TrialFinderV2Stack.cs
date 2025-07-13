@@ -503,6 +503,7 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         var repositoryName = context.Namer.EcrRepository("web");
         
+        //TODO we should be able to create one here and not assume one is there
         // Import existing ECR repository instead of creating new one
         var repository = Repository.FromRepositoryName(this, "TrialFinderRepository", repositoryName);
 
