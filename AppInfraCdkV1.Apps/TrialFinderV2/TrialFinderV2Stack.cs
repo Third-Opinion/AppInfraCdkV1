@@ -242,20 +242,8 @@ public class TrialFinderV2Stack : WebApplicationStack
         albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(443), "HTTPS from internet");
         albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(80), "HTTP from internet (redirect to HTTPS)");
 
-        // ECS Security Group - allows traffic from ALB
-        var ecsSecurityGroup = new SecurityGroup(this, "TrialFinderEcsSecurityGroup", new SecurityGroupProps
-        {
-            Vpc = vpc,
-            SecurityGroupName = context.Namer.SecurityGroupForEcs(ResourcePurpose.Web),
-            Description = "Security group for TrialFinder ECS tasks - allows traffic from ALB",
-            AllowAllOutbound = true
-        });
-
-        // Allow traffic from ALB on container port 8080
-        ecsSecurityGroup.AddIngressRule(albSecurityGroup, Port.Tcp(8080), "HTTP from ALB");
-        
-        // Add loopback rule for port 8080 (matching existing pattern)
-        ecsSecurityGroup.AddIngressRule(ecsSecurityGroup, Port.Tcp(8080), "Loopback for health checks");
+        // Import existing ECS Security Group instead of creating new one
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialFinderEcsSecurityGroup", "sg-0e7ddc9391c2220f4");
 
         return (albSecurityGroup, ecsSecurityGroup);
     }
@@ -486,29 +474,8 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         var repositoryName = context.Namer.EcrRepository("web");
         
-        var repository = new Repository(this, "TrialFinderRepository", new RepositoryProps
-        {
-            RepositoryName = repositoryName,
-            ImageScanOnPush = true,
-            LifecycleRules = new[]
-            {
-                new Amazon.CDK.AWS.ECR.LifecycleRule
-                {
-                    Description = "Delete untagged images after 7 days",
-                    MaxImageAge = Duration.Days(7),
-                    TagStatus = TagStatus.UNTAGGED,
-                    RulePriority = 1
-                },
-                new Amazon.CDK.AWS.ECR.LifecycleRule
-                {
-                    Description = "Keep only the latest 4 images",
-                    MaxImageCount = 40,
-                    RulePriority = 2
-                }
-            },
-            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE
-
-        });
+        // Import existing ECR repository instead of creating new one
+        var repository = Repository.FromRepositoryName(this, "TrialFinderRepository", repositoryName);
 
         // Note: ECR pull permissions will be granted to the ECS execution role 
         // when the task definition is created
