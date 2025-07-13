@@ -77,23 +77,36 @@ public abstract class Program
                 return;
             }
 
-            string stackName = GenerateStackName(context);
-
-            var stack = appName.ToLower() switch
+            // Check if we should deploy a specific stack type
+            var stackType = Environment.GetEnvironmentVariable("CDK_STACK_TYPE");
+            
+            if (!string.IsNullOrEmpty(stackType) && appName.ToLower() == "trialfinderv2")
             {
-                "trialfinderv2" => new TrialFinderV2Stack(app, stackName, new StackProps
+                // Deploy specific TrialFinderV2 stack type
+                var (stack, stackName) = CreateTrialFinderV2SpecificStack(app, stackType, context, environmentConfig, appName, environmentName);
+                Console.WriteLine($"✅ {stackType} Stack '{stackName}' configured successfully");
+                app.Synth();
+                return;
+            }
+
+            // Default behavior: deploy application stack
+            string defaultStackName = GenerateStackName(context);
+
+            var defaultStack = appName.ToLower() switch
+            {
+                "trialfinderv2" => new TrialFinderV2Stack(app, defaultStackName, new StackProps
                 {
                     Env = environmentConfig.ToAwsEnvironment(),
                     Description
                         = $"{appName} infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
                     Tags = context.GetCommonTags(),
-                    StackName = stackName
+                    StackName = defaultStackName
                 }, context),
                 _ => throw new ArgumentException(
                     $"Unknown application: {appName}. Register new applications in NamingConvention.cs")
             };
 
-            Console.WriteLine($"✅ Stack '{stackName}' configured successfully");
+            Console.WriteLine($"✅ Stack '{defaultStackName}' configured successfully");
             app.Synth();
         }
         catch (Exception ex)
@@ -107,6 +120,61 @@ public abstract class Program
                 ex.Message.Contains("Unknown region")) ShowNamingHelp();
 
             Environment.Exit(1);
+        }
+    }
+
+    private static (Stack stack, string stackName) CreateTrialFinderV2SpecificStack(
+        App app, 
+        string stackType, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string appName, 
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var appCode = NamingConvention.GetApplicationCode(appName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        
+        switch (stackType.ToUpper())
+        {
+            case "ALB":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
+                    var stack = new TrialFinderV2AlbStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 ALB infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            case "ECS":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
+                    var stack = new TrialFinderV2EcsStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 ECS infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            case "DATA":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-data-{regionCode}";
+                    var stack = new TrialFinderV2DataStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 Data infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            default:
+                throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA");
         }
     }
 
