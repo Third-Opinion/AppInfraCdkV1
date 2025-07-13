@@ -29,11 +29,41 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         _context = context;
         
-        // Validate external dependencies before creating resources
-        ValidateExternalDependencies(context);
+        // Check if we should deploy individual stacks instead of the monolithic stack
+        var stackType = System.Environment.GetEnvironmentVariable("CDK_STACK_TYPE");
         
-        // Add TrialFinderV2-specific resources here
-        CreateTrialFinderSpecificResources(context);
+        if (!string.IsNullOrEmpty(stackType))
+        {
+            // Deploy individual stack based on stack type
+            DeployIndividualStack(stackType, context);
+        }
+        else
+        {
+            // Legacy behavior: validate external dependencies and create all resources
+            ValidateExternalDependencies(context);
+            CreateTrialFinderSpecificResources(context);
+        }
+    }
+
+    private void DeployIndividualStack(string stackType, DeploymentContext context)
+    {
+        switch (stackType.ToUpper())
+        {
+            case "ALB":
+                // ALB Stack resources already created by TrialFinderV2AlbStack
+                Console.WriteLine("ℹ️  ALB Stack deployment handled by TrialFinderV2AlbStack");
+                break;
+            case "ECS":
+                // ECS Stack resources already created by TrialFinderV2EcsStack  
+                Console.WriteLine("ℹ️  ECS Stack deployment handled by TrialFinderV2EcsStack");
+                break;
+            case "DATA":
+                // Data Stack resources already created by TrialFinderV2DataStack
+                Console.WriteLine("ℹ️  Data Stack deployment handled by TrialFinderV2DataStack");
+                break;
+            default:
+                throw new ArgumentException($"Unknown stack type: {stackType}");
+        }
     }
 
     private void CreateTrialFinderSpecificResources(DeploymentContext context)
@@ -315,10 +345,9 @@ public class TrialFinderV2Stack : WebApplicationStack
             Image = ContainerImage.FromEcrRepository(ecrRepository, "latest"),
             PortMappings = new[]
             {
-                new PortMapping
+                new Amazon.CDK.AWS.ECS.PortMapping
                 {
-                    ContainerPort = 8080,
-                    Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
+                    ContainerPort = 8080
                 }
             },
             Environment = CreateEnvironmentVariables(context),
