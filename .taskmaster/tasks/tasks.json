@@ -711,13 +711,28 @@
             "testStrategy": "Create unit tests that cover configuration parsing success cases, validation failures, and error handling. Test edge cases like malformed JSON, missing required fields, and invalid naming conventions."
           }
         ]
+      },
+      {
+        "id": 15,
+        "title": "Update ALB health check to port 8080 and redeploy TrialFinderV2 services",
+        "description": "Modify the Application Load Balancer health check configuration to use root path (/) on port 8080, then redeploy both TrialFinderV2 ALB and ECS services to apply the changes.",
+        "details": "1. Update ALB Target Group Health Check Configuration:\n   - Use AWS CLI with to-dev-admin profile to modify the target group health check\n   - Update health check path from current path to root path (/)\n   - Change health check port from current port to 8080\n   - Use aws elbv2 modify-target-group --target-group-arn <arn> --health-check-path / --health-check-port 8080\n   - Verify health check protocol remains HTTP and configure appropriate timeout/interval settings\n\n2. Update Container Port Configuration:\n   - Modify TrialFinderV2EcsStack container definitions to expose port 8080\n   - Update containerDefinitions in configuration files (development.json, production.json, staging.json)\n   - Ensure container port mappings align with health check port requirements\n   - Update any environment variables or configuration that references the health check endpoint\n\n3. Redeploy TrialFinderV2 Infrastructure:\n   - Deploy TrialFinderV2AlbStack using CDK to apply ALB configuration changes\n   - Deploy TrialFinderV2EcsStack using CDK to update ECS service with new container configurations\n   - Monitor deployment progress and ensure zero-downtime deployment\n   - Verify target group health checks pass after redeployment",
+        "testStrategy": "1. Verify Health Check Configuration:\n   - Run aws elbv2 describe-target-groups to confirm health check path is / and port is 8080\n   - Check target group health status using aws elbv2 describe-target-health\n   - Validate that targets show as 'healthy' after configuration changes\n\n2. Test Application Connectivity:\n   - Perform HTTP GET request to ALB DNS name on port 80/443 to verify application accessibility\n   - Test health check endpoint directly: curl http://<container-ip>:8080/ and verify 200 response\n   - Monitor CloudWatch metrics for target group healthy host count\n\n3. Validate ECS Service Deployment:\n   - Confirm ECS service deployment completes successfully without errors\n   - Verify running task count matches desired count in ECS console\n   - Check ECS service events for any deployment issues or health check failures\n   - Test end-to-end application functionality through ALB to ensure proper routing",
+        "status": "pending",
+        "dependencies": [
+          12,
+          13,
+          14
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-13T15:48:25.325Z"
+      "updated": "2025-07-13T19:53:21.989Z"
     }
   }
 }
