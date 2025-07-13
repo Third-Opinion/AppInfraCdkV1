@@ -17,4 +17,19 @@
       <ProjectReference Include="..\AppInfraCdkV1.Stacks\AppInfraCdkV1.Stacks.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="TrialFinderV2\config\development.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TrialFinderV2\config\integration.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TrialFinderV2\config\production.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TrialFinderV2\config\staging.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

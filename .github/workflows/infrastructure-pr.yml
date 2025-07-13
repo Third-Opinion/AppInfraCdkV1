@@ -206,23 +206,93 @@ jobs:
           fi
         fi
     
-    - name: CDK Synth Application Stack
+    - name: Validate Stack Configuration
+      run: |
+        echo "🔍 Validating TrialFinderV2 stack configuration..."
+        if [ ! -f "TrialFinderV2-stack-config.json" ]; then
+          echo "❌ TrialFinderV2-stack-config.json not found"
+          exit 1
+        fi
+        
+        # Parse stack configuration and validate stack files exist
+        STACK_CONFIG=$(cat TrialFinderV2-stack-config.json)
+        echo "📋 Found stack configuration for TrialFinderV2"
+        
+        # Check each stack file exists
+        ALB_STACK_FILE="AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2AlbStack.cs"
+        ECS_STACK_FILE="AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2EcsStack.cs" 
+        DATA_STACK_FILE="AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2DataStack.cs"
+        
+        for stack_file in "$ALB_STACK_FILE" "$ECS_STACK_FILE" "$DATA_STACK_FILE"; do
+          if [ ! -f "$stack_file" ]; then
+            echo "❌ Stack file not found: $stack_file"
+            exit 1
+          else
+            echo "✅ Stack file exists: $stack_file"
+          fi
+        done
+        
+        echo "✅ All TrialFinderV2 stack files validated"
+
+    - name: CDK Synth TrialFinderV2AlbStack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🏗️  Synthesizing application stack..."
+        echo "🏗️  Synthesizing TrialFinderV2AlbStack..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
         export CDK_APPLICATION=${{ matrix.app }}
-        cdk synth
-        echo "✅ Application stack synthesis completed with naming conventions enforced"
+        export CDK_STACK_TYPE=ALB
+        cdk synth || {
+          echo "❌ Failed to synthesize TrialFinderV2AlbStack"
+          exit 1
+        }
+        echo "✅ TrialFinderV2AlbStack synthesis completed"
+
+    - name: CDK Synth TrialFinderV2EcsStack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🏗️  Synthesizing TrialFinderV2EcsStack..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        export CDK_STACK_TYPE=ECS
+        cdk synth || {
+          echo "❌ Failed to synthesize TrialFinderV2EcsStack"
+          exit 1
+        }
+        echo "✅ TrialFinderV2EcsStack synthesis completed"
+
+    - name: CDK Synth TrialFinderV2DataStack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🏗️  Synthesizing TrialFinderV2DataStack..."
+        export CDK_ENVIRONMENT=${{ matrix.environment }}
+        export CDK_APPLICATION=${{ matrix.app }}
+        export CDK_STACK_TYPE=DATA
+        cdk synth || {
+          echo "❌ Failed to synthesize TrialFinderV2DataStack"
+          exit 1
+        }
+        echo "✅ TrialFinderV2DataStack synthesis completed"
     
-    - name: CDK Diff Application Stack
+    - name: CDK Diff TrialFinderV2 Stacks
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking for application stack infrastructure changes..."
+        echo "🔍 Checking for TrialFinderV2 infrastructure changes..."
         export CDK_ENVIRONMENT=${{ matrix.environment }}
         export CDK_APPLICATION=${{ matrix.app }}
+        
+        echo "📋 Checking ALB Stack changes..."
+        export CDK_STACK_TYPE=ALB
         cdk diff || true
-        echo "✅ Application stack diff completed"
+        
+        echo "📋 Checking ECS Stack changes..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff || true
+        
+        echo "📋 Checking Data Stack changes..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff || true
+        
+        echo "✅ All TrialFinderV2 stack diffs completed"
     
 
   test:

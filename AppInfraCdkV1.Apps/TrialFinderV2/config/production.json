@@ -1,31 +1,59 @@
 {
   "ecsConfiguration": {
     "taskDefinition": {
+      "taskDefinitionName": "TrialFinderTaskDefinition",
       "containerDefinitions": [
         {
           "name": "trial-finder-v2",
-          "environment": [
+          "image": "nginx:latest",
+          "cpu": 0,
+          "skip": false,
+          "portMappings": [
             {
-              "name": "ENVIRONMENT",
-              "value": "${ENVIRONMENT}"
-            },
-            {
-              "name": "ACCOUNT_TYPE",
-              "value": "${ACCOUNT_TYPE}"
-            },
-            {
-              "name": "APP_VERSION",
-              "value": "${APP_VERSION}"
-            },
-            {
-              "name": "PORT",
-              "value": "8080"
-            },
-            {
-              "name": "HEALTH_CHECK_PATH",
-              "value": "/health"
+              "name": "trial-finder-v2-8080-tcp",
+              "containerPort": 8080,
+              "hostPort": 8080,
+              "protocol": "tcp",
+              "appProtocol": "http"
             }
-          ]
+          ],
+          "essential": true,
+          "healthCheck": {
+            "command": [
+              "CMD-SHELL",
+              "curl -f http://localhost:8080/ || exit 1"
+            ],
+            "interval": 30,
+            "timeout": 5,
+            "retries": 3,
+            "startPeriod": 60
+          }
+        },
+        {
+          "name": "doc-nlp-service-web",
+          "image": "442042533707.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
+          "cpu": 0,
+          "skip": true,
+          "portMappings": [
+            {
+              "name": "doc-nlp-service-web-8080-tcp",
+              "containerPort": 8080,
+              "hostPort": 8080,
+              "protocol": "tcp",
+              "appProtocol": "http"
+            }
+          ],
+          "essential": false,
+          "healthCheck": {
+            "command": [
+              "CMD-SHELL",
+              "curl -f http://localhost:8080/ || exit 1"
+            ],
+            "interval": 20,
+            "timeout": 30,
+            "retries": 5,
+            "startPeriod": 60
+          }
         }
       ]
     }
