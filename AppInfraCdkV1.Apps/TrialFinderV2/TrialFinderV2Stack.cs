@@ -89,7 +89,8 @@ public class TrialFinderV2Stack : WebApplicationStack
         var ecsService = CreateEcsService(cluster, alb, securityGroups.EcsSecurityGroup, context, ecrRepository);
         
         // Create TrialFinder-specific storage and services
-        CreateTrialDocumentStorage(context);
+        // Storage is now handled by TrialFinderV2DataStack
+        // CreateTrialDocumentStorage(context);
         // CreateAsyncProcessingQueue(context);
         // CreateNotificationServices(context);
     }
