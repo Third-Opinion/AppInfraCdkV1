@@ -400,14 +400,8 @@ jobs:
         name: coverage-badge
         path: badges/coverage.json
     
-    - name: Commit Coverage Badge
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add badges/coverage.json
-        git diff --staged --quiet || git commit -m "Update coverage badge [skip ci]"
-        git push
+    # Note: Coverage badge commit is disabled for infrastructure-pr.yml
+    # Badge commits should only happen in the main branch workflows
     
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
