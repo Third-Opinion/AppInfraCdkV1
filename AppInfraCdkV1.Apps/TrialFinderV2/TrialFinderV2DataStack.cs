@@ -133,10 +133,10 @@ public class TrialFinderV2DataStack : Stack
                         new Transition
                         {
                             StorageClass = StorageClass.DEEP_ARCHIVE,
-                            TransitionAfter = Duration.Days(365)
+                            TransitionAfter = Duration.Days(context.Environment.IsProductionClass ? 365 : 180) // Only transition to DEEP_ARCHIVE in prod after 1 year, non-prod after 180 days
                         }
                     },
-                    Expiration = Duration.Days(context.Environment.IsProductionClass ? 2555 : 365) // 7 years for prod, 1 year for non-prod
+                    Expiration = Duration.Days(context.Environment.IsProductionClass ? 2555 : 730) // 7 years for prod, 2 years for non-prod
                 }
             }
         });
