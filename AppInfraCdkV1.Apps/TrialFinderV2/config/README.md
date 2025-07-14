@@ -133,7 +133,7 @@ Security groups are defined in JSON with:
 ## Health Check Configuration
 
 Consistent health check configuration across all environments:
-- **Path**: `/health`
+- **Path**: `/`
 - **Protocol**: HTTP
 - **Port**: Container port (8080)
 - **Interval**: 30 seconds
