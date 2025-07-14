@@ -174,7 +174,8 @@ public class TrialFinderV2AlbStack : Stack
         });
 
         // Create HTTP listener on port 80
-        var httpListener = alb.AddListener("TrialFinderHttpListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
+        // Keep original logical ID to maintain existing resource
+        var httpListener = alb.AddListener("TrialFinderListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
         {
             Port = 80,
             Protocol = ApplicationProtocol.HTTP
