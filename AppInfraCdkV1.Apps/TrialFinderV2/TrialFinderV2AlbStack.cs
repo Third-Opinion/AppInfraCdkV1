@@ -1,4 +1,5 @@
 using Amazon.CDK;
+using Amazon.CDK.AWS.CertificateManager;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.S3;
@@ -35,8 +36,8 @@ public class TrialFinderV2AlbStack : Stack
         // Create target group for ECS service
         var targetGroup = CreateTargetGroup(vpc, context);
         
-        // Create ALB listener
-        CreateListener(alb, targetGroup);
+        // Create ALB listeners (HTTP and HTTPS)
+        CreateListeners(alb, targetGroup);
         
         // Export outputs for ECS stack consumption
         ExportStackOutputs(alb, targetGroup, securityGroups);
@@ -136,15 +137,61 @@ public class TrialFinderV2AlbStack : Stack
     }
 
     /// <summary>
-    /// Create ALB listener
+    /// Create ALB listeners for HTTP and HTTPS with routing rules
     /// </summary>
-    private void CreateListener(IApplicationLoadBalancer alb, IApplicationTargetGroup targetGroup)
+    private void CreateListeners(IApplicationLoadBalancer alb, IApplicationTargetGroup targetGroup)
     {
-        var listener = alb.AddListener("TrialFinderListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
+        // Import SSL certificates
+        var defaultCert = Certificate.FromCertificateArn(this, "DefaultCert", 
+            "arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533");
+        var sniCert = Certificate.FromCertificateArn(this, "SniCert", 
+            "arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e");
+
+        // Create HTTPS listener on port 443
+        var httpsListener = alb.AddListener("TrialFinderHttpsListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
+        {
+            Port = 443,
+            Protocol = ApplicationProtocol.HTTPS,
+            Certificates = new[] { ListenerCertificate.FromArn(defaultCert.CertificateArn) },
+            SslPolicy = SslPolicy.RECOMMENDED_TLS
+        });
+
+        // Add SNI certificate
+        httpsListener.AddCertificates("SniCertificates", new[] { ListenerCertificate.FromArn(sniCert.CertificateArn) });
+
+        // Add routing rules for HTTPS listener
+        httpsListener.AddTargetGroups("HttpsAppRule", new AddApplicationTargetGroupsProps
+        {
+            TargetGroups = new[] { targetGroup },
+            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/app/*" }) },
+            Priority = 100
+        });
+
+        // Default action for HTTPS
+        httpsListener.AddAction("HttpsDefaultAction", new Amazon.CDK.AWS.ElasticLoadBalancingV2.AddApplicationActionProps
+        {
+            Action = ListenerAction.Forward(new[] { targetGroup })
+        });
+
+        // Create HTTP listener on port 80
+        var httpListener = alb.AddListener("TrialFinderHttpListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
         {
             Port = 80,
-            Protocol = ApplicationProtocol.HTTP,
-            DefaultTargetGroups = new[] { targetGroup }
+            Protocol = ApplicationProtocol.HTTP
+        });
+
+        // Add routing rules for HTTP listener (matching HTTPS)
+        httpListener.AddTargetGroups("HttpAppRule", new AddApplicationTargetGroupsProps
+        {
+            TargetGroups = new[] { targetGroup },
+            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/app/*" }) },
+            Priority = 100
+        });
+
+        // Default action for HTTP
+        httpListener.AddAction("HttpDefaultAction", new Amazon.CDK.AWS.ElasticLoadBalancingV2.AddApplicationActionProps
+        {
+            Action = ListenerAction.Forward(new[] { targetGroup })
         });
     }
 
