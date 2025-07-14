@@ -1,6 +1,6 @@
 {
   "ecsConfiguration": {
-    "deployTestContainer": false,
+    "deployTestContainer": true,
     "taskDefinition": {
       "taskDefinitionName": "TrialFinderTaskDefinition",
       "containerDefinitions": [
