@@ -1,3 +1,4 @@
+using System.Linq;
 using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECR;
@@ -114,11 +115,11 @@ public class TrialFinderV2EcsStack : Stack
         var ecsConfig = _configLoader.LoadEcsConfig(context.Environment.Name);
         ecsConfig = _configLoader.SubstituteVariables(ecsConfig, context);
 
-        // Create log group for ECS tasks
+        // Create log group for ECS tasks with appropriate retention
         var logGroup = new LogGroup(this, "TrialFinderLogGroup", new LogGroupProps
         {
             LogGroupName = context.Namer.LogGroup("trial-finder", ResourcePurpose.Web),
-            Retention = RetentionDays.ONE_WEEK,
+            Retention = GetLogRetention(context.Environment.AccountType),
             RemovalPolicy = RemovalPolicy.DESTROY
         });
 
@@ -176,6 +177,9 @@ public class TrialFinderV2EcsStack : Stack
 
         // Register ECS service with target group using explicit container and port
         service.AttachToApplicationTargetGroup(targetGroup);
+        
+        // Export task definition ARN and family name for GitHub Actions
+        ExportTaskDefinitionOutputs(taskDefinition, service, context);
     }
 
     /// <summary>
@@ -190,7 +194,7 @@ public class TrialFinderV2EcsStack : Stack
         if (ecsConfig.DeployTestContainer)
         {
             AddPlaceholderContainer(taskDefinition, logGroup, context);
-            return new ContainerInfo("placeHolder", 8080);
+            return new ContainerInfo("app", 8080);
         }
 
         var containerDefinitions = ecsConfig.TaskDefinition?.ContainerDefinitions;
@@ -558,7 +562,8 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Add placeholder container for testing deployments
+    /// Add placeholder container for CDK-managed infrastructure
+    /// This container serves as a stable placeholder while GitHub Actions manages app deployments
     /// </summary>
     private void AddPlaceholderContainer(FargateTaskDefinition taskDefinition,
         ILogGroup logGroup,
@@ -568,7 +573,14 @@ public class TrialFinderV2EcsStack : Stack
         var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository",
             "thirdopinion/infra/deploy-placeholder");
 
-        taskDefinition.AddContainer("placeHolder", new ContainerDefinitionOptions
+        // Add environment variables that GitHub Actions will override
+        var placeholderEnv = CreateDefaultEnvironmentVariables(context);
+        placeholderEnv["DEPLOYMENT_TYPE"] = "placeholder";
+        placeholderEnv["MANAGED_BY"] = "CDK";
+        placeholderEnv["APP_NAME"] = context.Application.Name;
+        placeholderEnv["APP_VERSION"] = "placeholder";
+
+        taskDefinition.AddContainer("app", new ContainerDefinitionOptions
         {
             Image = ContainerImage.FromEcrRepository(placeholderRepository, "latest"),
             Essential = true,
@@ -576,22 +588,23 @@ public class TrialFinderV2EcsStack : Stack
             {
                 new Amazon.CDK.AWS.ECS.PortMapping
                 {
-                    ContainerPort = 8080
+                    ContainerPort = 8080,
+                    Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
                 }
             },
-            Environment = CreateDefaultEnvironmentVariables(context),
+            Environment = placeholderEnv,
             Secrets = GetContainerSecrets(context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
-                StreamPrefix = "placeHolder"
+                StreamPrefix = "app"
             }),
             HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
             {
                 Command = new[]
                 {
                     "CMD-SHELL",
-                    "wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1"
+                    "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
                 },
                 Interval = Duration.Seconds(30),
                 Timeout = Duration.Seconds(5),
@@ -617,19 +630,20 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Create IAM role for ECS tasks
+    /// Create dedicated IAM role for ECS tasks following naming convention
     /// </summary>
     private IRole CreateTaskRole()
     {
+        // Follow naming convention: {environment}-{service}-task-role
+        var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role";
+        
         var taskRole = new Role(this, "TrialFinderTaskRole", new RoleProps
         {
-            RoleName = _context.Namer.IamRole(IamPurpose.EcsTask),
+            RoleName = roleName,
+            Description = $"Task role for {_context.Application.Name} ECS tasks in {_context.Environment.Name}",
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
-            ManagedPolicies = new[]
-            {
-                ManagedPolicy.FromAwsManagedPolicyName(
-                    "service-role/AmazonECSTaskExecutionRolePolicy")
-            }
+            // Task role should not have the execution policy
+            ManagedPolicies = Array.Empty<IManagedPolicy>()
         });
 
         // Add permissions for Session Manager (ECS Exec)
@@ -650,20 +664,46 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[] { "*" }
         }));
 
+        // Add CloudWatch Logs permissions for application logging
+        taskRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogStreams"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:logs:{_context.Environment.Region}:{_context.Environment.AccountId}:log-group:{_context.Namer.LogGroup("*", ResourcePurpose.Web)}:*"
+            }
+        }));
+
         // Add Secrets Manager permissions for environment-specific secrets
         AddSecretsManagerPermissions(taskRole);
+
+        // Add tag for identification
+        Amazon.CDK.Tags.Of(taskRole).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(taskRole).Add("Purpose", "ECS-Task");
+        Amazon.CDK.Tags.Of(taskRole).Add("Service", _context.Application.Name);
 
         return taskRole;
     }
 
     /// <summary>
-    /// Create IAM role for ECS execution
+    /// Create dedicated IAM role for ECS execution following naming convention
     /// </summary>
     private IRole CreateExecutionRole(ILogGroup logGroup)
     {
+        // Follow naming convention: {environment}-{service}-execution-role
+        var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role";
+        
         var executionRole = new Role(this, "TrialFinderExecutionRole", new RoleProps
         {
-            RoleName = _context.Namer.IamRole(IamPurpose.EcsExecution),
+            RoleName = roleName,
+            Description = $"Execution role for {_context.Application.Name} ECS tasks in {_context.Environment.Name}",
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             ManagedPolicies = new[]
             {
@@ -672,7 +712,7 @@ public class TrialFinderV2EcsStack : Stack
             }
         });
 
-        // Add CloudWatch Logs permissions
+        // Add CloudWatch Logs permissions with specific log group
         executionRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
             Effect = Effect.ALLOW,
@@ -681,10 +721,20 @@ public class TrialFinderV2EcsStack : Stack
                 "logs:CreateLogStream",
                 "logs:PutLogEvents"
             },
-            Resources = new[] { logGroup.LogGroupArn }
+            Resources = new[] 
+            { 
+                logGroup.LogGroupArn,
+                $"{logGroup.LogGroupArn}:*"
+            }
         }));
 
-        // Add ECR permissions for pulling images (including public ECR for nginx)
+        // Add ECR permissions for pulling images from specific repositories
+        var ecrRepoArns = new[]
+        {
+            $"arn:aws:ecr:{_context.Environment.Region}:{_context.Environment.AccountId}:repository/thirdopinion/*",
+            $"arn:aws:ecr:{_context.Environment.Region}:{_context.Environment.AccountId}:repository/{_context.Application.Name.ToLowerInvariant()}/*"
+        };
+        
         executionRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
             Effect = Effect.ALLOW,
@@ -695,23 +745,24 @@ public class TrialFinderV2EcsStack : Stack
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage"
             },
-            Resources = new[] { "*" }
+            Resources = ecrRepoArns
         }));
 
-        // Add permissions for ECR public (for nginx:latest)
+        // Add ECR authorization token permission (account-wide)
         executionRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
             Effect = Effect.ALLOW,
-            Actions = new[]
-            {
-                "ecr-public:GetAuthorizationToken",
-                "sts:GetServiceBearerToken"
-            },
+            Actions = new[] { "ecr:GetAuthorizationToken" },
             Resources = new[] { "*" }
         }));
 
         // Add Secrets Manager permissions for container startup
         AddSecretsManagerPermissions(executionRole);
+
+        // Add tag for identification
+        Amazon.CDK.Tags.Of(executionRole).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(executionRole).Add("Purpose", "ECS-Execution");
+        Amazon.CDK.Tags.Of(executionRole).Add("Service", _context.Application.Name);
 
         return executionRole;
     }
@@ -755,59 +806,82 @@ public class TrialFinderV2EcsStack : Stack
         var concreteRole = role as Role;
         if (concreteRole == null) return;
 
-        // Environment-specific secret path pattern
+        // Environment-specific secret path patterns
         var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
-        var secretResourceArn = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{_context.Application.Name.ToLowerInvariant()}/*";
+        var applicationName = _context.Application.Name.ToLowerInvariant();
+        
+        // Define specific secret ARNs that the task can access
+        var allowedSecretArns = new[]
+        {
+            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{applicationName}/*",
+            // Allow access to shared secrets if needed
+            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*"
+        };
         
         // Add Secrets Manager permissions
         concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
+            Sid = "AllowSecretsManagerAccess",
             Effect = Effect.ALLOW,
             Actions = new[]
             {
                 "secretsmanager:GetSecretValue",
                 "secretsmanager:DescribeSecret"
             },
-            Resources = new[] { secretResourceArn },
-            Conditions = new Dictionary<string, object>
-            {
-                ["StringLike"] = new Dictionary<string, string>
-                {
-                    ["secretsmanager:SecretId"] = $"/{environmentPrefix}/{_context.Application.Name.ToLowerInvariant()}/*"
-                }
-            }
+            Resources = allowedSecretArns
         }));
 
-        // Add KMS permissions for secret decryption using default AWS managed key
+        // Add KMS permissions for secret decryption
+        // Use wildcard for KMS keys as they might be customer-managed
         concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
+            Sid = "AllowKMSDecrypt",
             Effect = Effect.ALLOW,
             Actions = new[]
             {
                 "kms:Decrypt",
-                "kms:DescribeKey"
-            },
-            Resources = new[] { $"arn:aws:kms:{_context.Environment.Region}:{_context.Environment.AccountId}:key/alias/aws/secretsmanager" }
-        }));
-
-        // Add explicit deny for cross-environment access
-        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
-        {
-            Effect = Effect.DENY,
-            Actions = new[]
-            {
-                "secretsmanager:GetSecretValue",
-                "secretsmanager:DescribeSecret"
+                "kms:DescribeKey",
+                "kms:GenerateDataKey"
             },
             Resources = new[] { "*" },
             Conditions = new Dictionary<string, object>
             {
-                ["StringNotLike"] = new Dictionary<string, string>
+                ["StringEquals"] = new Dictionary<string, string>
                 {
-                    ["secretsmanager:SecretId"] = $"/{environmentPrefix}/{_context.Application.Name.ToLowerInvariant()}/*"
+                    ["kms:ViaService"] = $"secretsmanager.{_context.Environment.Region}.amazonaws.com"
                 }
             }
         }));
+
+        // Add explicit deny for cross-environment access
+        var deniedPrefixes = new[]
+        {
+            "production", "staging", "integration", "development"
+        }.Where(env => env != environmentPrefix).ToArray();
+        
+        if (deniedPrefixes.Length > 0)
+        {
+            var deniedPatterns = deniedPrefixes.Select(prefix => $"/{prefix}/*").ToArray();
+            
+            concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+            {
+                Sid = "DenyCrossEnvironmentSecrets",
+                Effect = Effect.DENY,
+                Actions = new[]
+                {
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                },
+                Resources = new[] { "*" },
+                Conditions = new Dictionary<string, object>
+                {
+                    ["ForAnyValue:StringLike"] = new Dictionary<string, object>
+                    {
+                        ["secretsmanager:SecretId"] = deniedPatterns
+                    }
+                }
+            }));
+        }
     }
 
     /// <summary>
@@ -905,6 +979,75 @@ public class TrialFinderV2EcsStack : Stack
             Value = serviceCredentialsSecret.SecretArn,
             Description = "Service credentials secret ARN",
             ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-service-credentials-secret-arn"
+        });
+    }
+
+    /// <summary>
+    /// Get appropriate log retention based on environment
+    /// </summary>
+    private RetentionDays GetLogRetention(AccountType accountType)
+    {
+        return accountType switch
+        {
+            AccountType.Production => RetentionDays.ONE_MONTH,
+            AccountType.NonProduction => RetentionDays.ONE_WEEK,
+            _ => RetentionDays.THREE_DAYS
+        };
+    }
+
+    /// <summary>
+    /// Export task definition outputs for GitHub Actions deployments
+    /// </summary>
+    private void ExportTaskDefinitionOutputs(FargateTaskDefinition taskDefinition,
+        FargateService service,
+        DeploymentContext context)
+    {
+        // Export task definition ARN
+        new CfnOutput(this, "TaskDefinitionArn", new CfnOutputProps
+        {
+            Value = taskDefinition.TaskDefinitionArn,
+            Description = "ECS Task Definition ARN for GitHub Actions deployments",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-task-definition-arn"
+        });
+
+        // Export task definition family
+        new CfnOutput(this, "TaskDefinitionFamily", new CfnOutputProps
+        {
+            Value = taskDefinition.Family,
+            Description = "ECS Task Definition family name",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-task-family"
+        });
+
+        // Export service name
+        new CfnOutput(this, "ServiceName", new CfnOutputProps
+        {
+            Value = service.ServiceName,
+            Description = "ECS Service name",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-service-name"
+        });
+
+        // Export cluster name
+        new CfnOutput(this, "ClusterName", new CfnOutputProps
+        {
+            Value = service.Cluster.ClusterName,
+            Description = "ECS Cluster name",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-cluster-name"
+        });
+
+        // Export task role ARN
+        new CfnOutput(this, "TaskRoleArn", new CfnOutputProps
+        {
+            Value = taskDefinition.TaskRole.RoleArn,
+            Description = "ECS Task IAM Role ARN",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-task-role-arn"
+        });
+
+        // Export execution role ARN
+        new CfnOutput(this, "ExecutionRoleArn", new CfnOutputProps
+        {
+            Value = taskDefinition.ExecutionRole?.RoleArn ?? "N/A",
+            Description = "ECS Execution IAM Role ARN",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-execution-role-arn"
         });
     }
 
