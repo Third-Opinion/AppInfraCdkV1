@@ -132,7 +132,7 @@ jobs:
         name: base-outputs-prod
         path: AppInfraCdkV1.Deploy/base-outputs.json
 
-  deploy-app-stacks-prod:
+  deploy-alb-prod:
     needs: [validate-input, validate-naming, deploy-base-prod]
     if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-base-prod.result == 'success'
     runs-on: ubuntu-latest
@@ -140,7 +140,6 @@ jobs:
     strategy:
       matrix:
         app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
-        stack: [DATA, ALB, ECS]
     
     steps:
     - uses: actions/checkout@v4
@@ -174,34 +173,180 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
     
-    - name: CDK Diff for ${{ matrix.stack }} Stack
+    - name: CDK Diff for ALB Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking production changes for ${{ matrix.app }} ${{ matrix.stack }} stack..."
-        export CDK_STACK_TYPE=${{ matrix.stack }}
+        echo "🔍 Checking production changes for ${{ matrix.app }} ALB stack..."
+        export CDK_STACK_TYPE=ALB
         cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
     
-    - name: CDK Deploy ${{ matrix.stack }} Stack to Production
+    - name: CDK Deploy ALB Stack to Production
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying ${{ matrix.app }} ${{ matrix.stack }} stack to PRODUCTION environment..."
+        echo "🚀 Deploying ${{ matrix.app }} ALB stack to PRODUCTION environment..."
         echo "⚠️  This is a PRODUCTION deployment!"
-        export CDK_STACK_TYPE=${{ matrix.stack }}
+        export CDK_STACK_TYPE=ALB
         cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
                   --require-approval never \
-                  --outputs-file ${{ matrix.app }}-${{ matrix.stack }}-outputs.json
-        echo "✅ ${{ matrix.stack }} stack deployment completed successfully!"
+                  --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        echo "✅ ALB stack deployment completed successfully!"
     
-    - name: Display Production Resources
+    - name: Display Production ALB Resources
       run: |
         cd AppInfraCdkV1.Deploy
-        if [ -f ${{ matrix.app }}-${{ matrix.stack }}-outputs.json ]; then
-          echo "📋 Production resources created/updated for ${{ matrix.stack }} stack:"
-          cat ${{ matrix.app }}-${{ matrix.stack }}-outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat ${{ matrix.app }}-${{ matrix.stack }}-outputs.json
+        if [ -f ${{ matrix.app }}-ALB-outputs.json ]; then
+          echo "📋 Production resources created/updated for ALB stack:"
+          cat ${{ matrix.app }}-ALB-outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat ${{ matrix.app }}-ALB-outputs.json
         fi
     
-    - name: Upload deployment outputs
+    - name: Upload ALB deployment outputs
       uses: actions/upload-artifact@v4
       with:
-        name: deployment-outputs-${{ matrix.app }}-${{ matrix.stack }}-prod
-        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-${{ matrix.stack }}-outputs.json
+        name: deployment-outputs-${{ matrix.app }}-ALB-prod
+        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ALB-outputs.json
+
+  deploy-ecs-prod:
+    needs: [validate-input, validate-naming, deploy-alb-prod]
+    if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-alb-prod.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    
+    - name: CDK Diff for ECS Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking production changes for ${{ matrix.app }} ECS stack..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Deploy ECS Stack to Production
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ matrix.app }} ECS stack to PRODUCTION environment..."
+        echo "⚠️  This is a PRODUCTION deployment!"
+        export CDK_STACK_TYPE=ECS
+        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        echo "✅ ECS stack deployment completed successfully!"
+    
+    - name: Display Production ECS Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f ${{ matrix.app }}-ECS-outputs.json ]; then
+          echo "📋 Production resources created/updated for ECS stack:"
+          cat ${{ matrix.app }}-ECS-outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat ${{ matrix.app }}-ECS-outputs.json
+        fi
+    
+    - name: Upload ECS deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-outputs-${{ matrix.app }}-ECS-prod
+        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ECS-outputs.json
+
+  deploy-data-prod:
+    needs: [validate-input, validate-naming, deploy-ecs-prod]
+    if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-ecs-prod.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    
+    - name: CDK Diff for DATA Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking production changes for ${{ matrix.app }} DATA stack..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Deploy DATA Stack to Production
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ matrix.app }} DATA stack to PRODUCTION environment..."
+        echo "⚠️  This is a PRODUCTION deployment!"
+        export CDK_STACK_TYPE=DATA
+        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        echo "✅ DATA stack deployment completed successfully!"
+    
+    - name: Display Production DATA Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f ${{ matrix.app }}-DATA-outputs.json ]; then
+          echo "📋 Production resources created/updated for DATA stack:"
+          cat ${{ matrix.app }}-DATA-outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat ${{ matrix.app }}-DATA-outputs.json
+        fi
+    
+    - name: Upload DATA deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-outputs-${{ matrix.app }}-DATA-prod
+        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-DATA-outputs.json
