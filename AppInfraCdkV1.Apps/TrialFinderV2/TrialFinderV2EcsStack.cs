@@ -138,8 +138,8 @@ public class TrialFinderV2EcsStack : Stack
                 }
             });
 
-        // Add containers from configuration
-        AddContainersFromConfiguration(taskDefinition, ecsConfig, logGroup, context);
+        // Add containers from configuration and get primary container info
+        var primaryContainer = AddContainersFromConfiguration(taskDefinition, ecsConfig, logGroup, context);
 
         // Import security group from ALB stack
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
@@ -170,14 +170,14 @@ public class TrialFinderV2EcsStack : Stack
                         .TargetGroupArn // This will be overridden by the actual target group
             });
 
-        // Register ECS service with target group
+        // Register ECS service with target group using explicit container and port
         service.AttachToApplicationTargetGroup(targetGroup);
     }
 
     /// <summary>
     /// Add containers from configuration with conditional logic
     /// </summary>
-    private void AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
+    private ContainerInfo AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
         EcsTaskConfiguration ecsConfig,
         ILogGroup logGroup,
         DeploymentContext context)
@@ -186,7 +186,7 @@ public class TrialFinderV2EcsStack : Stack
         if (ecsConfig.DeployTestContainer)
         {
             AddPlaceholderContainer(taskDefinition, logGroup, context);
-            return;
+            return new ContainerInfo("placeHolder", 8080);
         }
 
         var containerDefinitions = ecsConfig.TaskDefinition?.ContainerDefinitions;
@@ -194,8 +194,10 @@ public class TrialFinderV2EcsStack : Stack
         {
             // Fallback to default nginx container if no configuration provided
             AddDefaultContainer(taskDefinition, logGroup, context);
-            return;
+            return new ContainerInfo("trial-finder-v2", 8080);
         }
+
+        ContainerInfo? primaryContainer = null;
 
         foreach (var containerConfig in containerDefinitions)
         {
@@ -205,8 +207,26 @@ public class TrialFinderV2EcsStack : Stack
                 continue;
             }
 
+            var containerName = containerConfig.Name ?? "default-container";
+            var containerPort = GetContainerPort(containerConfig, containerName);
+            
             AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
+
+            // Use the first non-skipped container as the primary container for load balancing
+            if (primaryContainer == null)
+            {
+                primaryContainer = new ContainerInfo(containerName, containerPort);
+            }
         }
+
+        // If no containers were processed, fall back to default
+        if (primaryContainer == null)
+        {
+            AddDefaultContainer(taskDefinition, logGroup, context);
+            return new ContainerInfo("trial-finder-v2", 8080);
+        }
+
+        return primaryContainer;
     }
 
     /// <summary>
@@ -679,6 +699,36 @@ public class TrialFinderV2EcsStack : Stack
         }));
 
         return executionRole;
+    }
+
+    /// <summary>
+    /// Get container port for load balancer registration
+    /// </summary>
+    private int GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
+    {
+        // Use the first port mapping if available
+        if (containerConfig.PortMappings?.Count > 0)
+        {
+            return containerConfig.PortMappings[0].ContainerPort ?? GetDefaultPort(containerName);
+        }
+
+        // Fall back to default port
+        return GetDefaultPort(containerName);
+    }
+
+    /// <summary>
+    /// Helper class to hold container information for load balancer registration
+    /// </summary>
+    private class ContainerInfo
+    {
+        public string ContainerName { get; }
+        public int ContainerPort { get; }
+
+        public ContainerInfo(string containerName, int containerPort)
+        {
+            ContainerName = containerName;
+            ContainerPort = containerPort;
+        }
     }
 
     /// <summary>

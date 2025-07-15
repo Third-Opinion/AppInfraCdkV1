@@ -10,7 +10,7 @@ curl http://localhost/health
 curl http://localhost:8080/
 curl http://localhost:8080/health
 
-# Deploy to AWS dev
+# Deploy to AWS devI get 
 
 aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 615299752206.dkr.ecr.us-east-2.amazonaws.com
 

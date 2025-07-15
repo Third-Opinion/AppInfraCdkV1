@@ -496,7 +496,6 @@
         "description": "Add a new HTTPS listener on port 443 to the TrialFinderV2 ALB with SSL certificates and routing rules, and update the existing port 80 listener with matching routing rules.",
         "details": "1. Create HTTPS Listener on Port 443:\n   - Use AWS CLI with to-dev-admin profile to add listener to existing ALB\n   - Configure default SSL certificate: arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533\n   - Add SNI certificates using aws elbv2 add-listener-certificates:\n     * arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e\n     * arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533\n   - Set SSL policy to ELBSecurityPolicy-TLS-1-2-2017-01 or latest recommended\n\n2. Configure Listener Rules for Port 443:\n   - Rule 1: Path pattern '/app/*' forwards to TrialFinderTargetGroup\n   - Rule 2: Default action forwards to TrialFinderTargetGroup\n   - Set appropriate priority values (100 for path rule, default for catch-all)\n   - Use aws elbv2 create-rule for each routing rule\n\n3. Update Existing Port 80 Listener:\n   - Retrieve current listener ARN using aws elbv2 describe-listeners\n   - Delete existing rules if different from required configuration\n   - Create matching rules: '/app/*' pattern and default both to TrialFinderTargetGroup\n   - Ensure rule priorities are consistent between HTTP and HTTPS listeners\n\n4. Validate Target Group Association:\n   - Confirm TrialFinderTargetGroup exists and is healthy\n   - Verify target group is in same VPC as ALB\n   - Check target group health check configuration is appropriate for both listeners",
         "testStrategy": "1. Verify HTTPS Listener Configuration:\n   - Run aws elbv2 describe-listeners to confirm port 443 listener exists with correct SSL certificates\n   - Test HTTPS connectivity: curl -k https://<alb-dns-name>/app/test and verify response\n   - Validate SNI certificate configuration using openssl s_client -connect <alb-dns>:443 -servername <domain>\n\n2. Test Routing Rules:\n   - Test path rule: curl https://<alb-dns>/app/health should route to TrialFinderTargetGroup\n   - Test default rule: curl https://<alb-dns>/other-path should route to TrialFinderTargetGroup\n   - Repeat same tests for HTTP port 80 listener\n   - Verify both listeners have identical routing behavior\n\n3. SSL Certificate Validation:\n   - Check certificate chain using SSL labs or similar tool\n   - Verify all configured certificates are valid and not expired\n   - Test certificate selection for different SNI hostnames\n\n4. Target Group Health:\n   - Run aws elbv2 describe-target-health to confirm targets are healthy\n   - Monitor ALB access logs for successful request routing\n   - Verify no 5xx errors in CloudWatch metrics for the ALB",
-
         "status": "done",
         "dependencies": [
           3,
@@ -727,13 +726,133 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Make VPC lookup dynamic by name pattern instead of hardcoded ID",
+        "description": "Replace hardcoded VPC ID (vpc-0a2035c919f0c0f0f) in TrialFinderV2EcsStack with dynamic VPC lookup by name pattern (e.g., 'prod-shared-vpc-ue2-main'), making the stack resilient to VPC recreation.",
+        "details": "1. Implement VPC Lookup by Name Pattern:\n   - Remove hardcoded VpcId=\"vpc-0a2035c919f0c0f0f\" from TrialFinderV2EcsStack.cs\n   - Use Vpc.FromLookup() method with VpcLookupOptions to search by tag:Name pattern\n   - Implement environment-aware VPC name patterns: \n     * Development: 'dev-shared-vpc-ue2-main'\n     * Production: 'prod-shared-vpc-ue2-main'\n     * Staging: 'staging-shared-vpc-ue2-main'\n   - Add VPC name pattern to environment configuration files as 'vpcNamePattern' field\n\n2. Update TrialFinderV2EcsStack Implementation:\n   - Modify stack constructor to accept VPC name pattern from configuration\n   - Replace hardcoded VPC lookup with: \n     ```csharp\n     var vpc = Vpc.FromLookup(this, \"SharedVpc\", new VpcLookupOptions\n     {\n         Tags = new Dictionary<string, string> { { \"Name\", vpcNamePattern } }\n     });\n     ```\n   - Add fallback logic to handle VPC not found scenarios with descriptive error messages\n   - Ensure VPC lookup is performed before any dependent resources are created\n\n3. Configuration Management:\n   - Add 'vpcNamePattern' field to all environment JSON files (development.json, production.json, staging.json, integration.json)\n   - Document the expected VPC naming convention in configuration comments\n   - Update deployment documentation to reflect dynamic VPC lookup behavior\n   - Consider adding optional 'vpcId' field for backward compatibility or override scenarios\n\n4. CDK Context Handling:\n   - Clear CDK context cache that may contain cached VPC lookups: cdk context --clear\n   - Update deployment scripts to handle context refresh when VPC changes\n   - Add validation to ensure VPC lookup returns exactly one VPC\n   - Implement proper error handling for multiple VPCs matching the pattern",
+        "testStrategy": "1. Test VPC Lookup Functionality:\n   - Deploy to development environment and verify correct VPC is selected using 'dev-shared-vpc-ue2-main' pattern\n   - Run cdk synth to confirm VPC lookup resolves correctly without hardcoded IDs\n   - Validate synthesized CloudFormation template contains correct VPC references\n   - Test with invalid VPC name pattern and verify appropriate error handling\n\n2. Environment-Specific Testing:\n   - Test deployment with each environment configuration (dev, staging, prod)\n   - Verify correct VPC is selected based on environment-specific name patterns\n   - Confirm existing resources continue to function with dynamic VPC lookup\n   - Test stack updates to ensure VPC reference remains stable\n\n3. Resilience Testing:\n   - Clear CDK context and redeploy to verify VPC lookup works without cache\n   - Test deployment when multiple VPCs exist with similar names\n   - Verify stack behavior when VPC with matching name doesn't exist\n   - Test rollback scenarios to ensure VPC changes don't break existing deployments\n\n4. Integration Testing:\n   - Deploy full TrialFinderV2 application stack with dynamic VPC lookup\n   - Verify ALB and ECS resources are created in correct VPC\n   - Test network connectivity between resources in dynamically looked up VPC\n   - Validate security group rules and network ACLs function correctly",
+        "status": "done",
+        "dependencies": [
+          13,
+          14
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Create CDK infrastructure for Aurora PostgreSQL database clusters",
+        "description": "Implement CDK stack for Aurora PostgreSQL 17.4 ServerlessV2 clusters supporting both development and production environments with security, monitoring, encryption, and automated backup configurations.",
+        "details": "1. Create Aurora PostgreSQL ServerlessV2 Infrastructure:\n   - Implement new CDK stack TrialFinderV2DataStack.cs following the pattern from TrialFinderV2EcsStack\n   - Use Amazon.CDK.AWS.RDS namespace for Aurora constructs\n   - Configure Aurora PostgreSQL 17.4 with ServerlessV2 scaling:\n     * Development: MinCapacity=0.5, MaxCapacity=128 ACUs\n     * Production: MinCapacity=1, MaxCapacity=256 ACUs\n   - Set engine version: PostgresEngineVersion.VER_17_4\n   - Enable deletion protection for production environments\n\n2. Security Groups Configuration:\n   - Create dedicated RDS security group 'dev-rds-aurora-sg-ue2' / 'prod-rds-aurora-sg-ue2'\n   - Configure ingress rule: Port 5432 from ECS container security group (dev-ecs-container-sg-ue2)\n   - Add self-referencing rule for cluster internal communication\n   - Implement least-privilege principle with specific source security groups\n   - Export security group ID for cross-stack reference\n\n3. Database Parameter Groups:\n   - Create custom parameter group for PostgreSQL 17.4\n   - Configure optimized settings:\n     * shared_preload_libraries='pg_stat_statements,auto_explain'\n     * log_statement='all' for development, 'ddl' for production\n     * auto_explain.log_min_duration='1000' (1 second)\n     * max_connections based on capacity (dev: 1000, prod: 5000)\n     * work_mem='4MB'\n     * maintenance_work_mem='256MB'\n\n4. Enhanced Monitoring and Logging:\n   - Enable Performance Insights with 7-day retention (free tier)\n   - Configure CloudWatch log exports:\n     * postgresql log\n     * upgrade log\n   - Set monitoring interval to 60 seconds for cost optimization\n   - Create CloudWatch dashboard for key metrics\n\n5. KMS Encryption:\n   - Use environment-specific KMS keys from configuration\n   - Enable encryption at rest for database storage\n   - Configure encrypted automated backups\n   - Apply key rotation policies\n\n6. Automated Backups and Maintenance:\n   - Configure backup retention:\n     * Development: 7 days\n     * Production: 30 days\n   - Set preferred backup window: 03:00-04:00 UTC\n   - Configure maintenance window: Sunday 04:00-05:00 UTC\n   - Enable point-in-time recovery\n\n7. IAM Database Authentication:\n   - Enable IAM authentication on cluster\n   - Create IAM policy for database access\n   - Configure ECS task role with RDS IAM authentication permissions\n   - Document connection string format for IAM auth\n\n8. Subnet Group Configuration:\n   - Use VPC lookup pattern from TrialFinderV2EcsStack\n   - Create subnet group using private subnets from VPC\n   - Ensure multi-AZ deployment for production\n   - Name pattern: 'dev-aurora-subnet-group-ue2'\n\n9. Secrets Manager Integration:\n   - Generate master password using Secrets Manager\n   - Configure automatic rotation every 30 days\n   - Use naming pattern: '/dev/rds/aurora/master-password'\n   - Grant ECS task execution role access to secrets\n   - Enable secret version staging for zero-downtime rotation\n\n10. CloudFormation Outputs:\n    - Export cluster endpoint address\n    - Export reader endpoint for read replicas\n    - Export cluster identifier\n    - Export security group ID\n    - Export secret ARN for credentials\n    - Export cluster resource ID for IAM policies\n\n11. Environment Configuration:\n    - Add to config files (development.json, production.json):\n      * auroraMinCapacity\n      * auroraMaxCapacity\n      * backupRetentionDays\n      * kmsKeyId\n      * enableDeletionProtection\n    - Load configuration using ConfigurationLoader pattern",
+        "testStrategy": "1. Infrastructure Validation:\n   - Deploy TrialFinderV2DataStack to development using 'cdk deploy TrialFinderV2DataStack'\n   - Verify Aurora cluster creation: aws rds describe-db-clusters --db-cluster-identifier <cluster-name>\n   - Confirm ServerlessV2 scaling configuration matches environment settings\n   - Validate multi-AZ deployment for production environments\n\n2. Security Configuration Testing:\n   - Test connectivity from ECS container to RDS: nc -zv <cluster-endpoint> 5432\n   - Verify security group rules: aws ec2 describe-security-groups --group-ids <rds-sg-id>\n   - Attempt connection from unauthorized source to confirm access denial\n   - Validate IAM authentication using AWS CLI\n\n3. Monitoring and Performance:\n   - Confirm Performance Insights is enabled in RDS console\n   - Verify CloudWatch logs are being generated\n   - Test auto-scaling by running load test and monitoring ACU scaling\n   - Check CloudWatch metrics for connection count, CPU, and memory\n\n4. Backup and Recovery Testing:\n   - Verify automated backups are created: aws rds describe-db-cluster-snapshots\n   - Test point-in-time recovery to specific timestamp\n   - Confirm backup retention period matches configuration\n   - Validate encrypted backup storage\n\n5. Secrets Manager Validation:\n   - Retrieve database credentials: aws secretsmanager get-secret-value --secret-id <secret-arn>\n   - Test automatic rotation by triggering rotation manually\n   - Verify ECS tasks can access secrets using task role\n   - Confirm connection using rotated credentials\n\n6. Cross-Stack Integration:\n   - Deploy TrialFinderV2EcsStack after DataStack\n   - Verify ECS tasks can connect to Aurora using exported values\n   - Test database operations from running ECS service\n   - Validate CloudFormation exports are correctly referenced",
+        "status": "pending",
+        "dependencies": [
+          13,
+          16,
+          10,
+          9
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create TrialFinderV2DataStack CDK class structure",
+            "description": "Set up the foundational CDK stack class for Aurora PostgreSQL infrastructure following the existing pattern from TrialFinderV2EcsStack",
+            "dependencies": [],
+            "details": "Create a new file TrialFinderV2DataStack.cs in the appropriate directory. Import necessary CDK namespaces including Amazon.CDK, Amazon.CDK.AWS.RDS, Amazon.CDK.AWS.EC2, Amazon.CDK.AWS.KMS, Amazon.CDK.AWS.SecretsManager, and Amazon.CDK.AWS.IAM. Define the stack class inheriting from Stack with proper constructor accepting scope, id, and stack props. Initialize the ConfigurationLoader to load environment-specific settings from configuration files.",
+            "status": "pending",
+            "testStrategy": "Verify the stack compiles without errors using dotnet build. Run cdk synth TrialFinderV2DataStack to ensure CloudFormation template generation works correctly. Check that all required CDK dependencies are properly referenced in the project file."
+          },
+          {
+            "id": 2,
+            "title": "Implement VPC lookup and subnet group configuration",
+            "description": "Configure VPC lookup using the existing pattern and create Aurora subnet groups using private subnets for database placement",
+            "dependencies": [
+              1
+            ],
+            "details": "Use Vpc.FromLookup to retrieve the existing VPC using tags or VPC ID from configuration. Create a SubnetGroup using the private subnets from the VPC lookup result. Name the subnet group following the pattern 'dev-aurora-subnet-group-ue2' or 'prod-aurora-subnet-group-ue2' based on environment. Ensure the subnet group spans multiple availability zones for high availability in production environments.",
+            "status": "pending",
+            "testStrategy": "Deploy the stack and verify subnet group creation using aws rds describe-db-subnet-groups. Confirm the subnet group contains the expected private subnets from the VPC. Validate multi-AZ configuration for production environments."
+          },
+          {
+            "id": 3,
+            "title": "Create RDS security group with proper ingress rules",
+            "description": "Implement dedicated security group for Aurora cluster with ingress from ECS containers and self-referencing rules for cluster communication",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create a new SecurityGroup named 'dev-rds-aurora-sg-ue2' or 'prod-rds-aurora-sg-ue2'. Add ingress rule allowing PostgreSQL port 5432 from the ECS container security group (dev-ecs-container-sg-ue2). Implement self-referencing rule allowing all traffic within the security group for cluster node communication. Apply standard tags including Environment and ManagedBy. Export the security group ID as a CloudFormation output for cross-stack references.",
+            "status": "pending",
+            "testStrategy": "Use aws ec2 describe-security-groups to verify the security group creation and rules. Test connectivity from ECS containers to RDS cluster endpoint on port 5432. Validate that cluster nodes can communicate with each other."
+          },
+          {
+            "id": 4,
+            "title": "Configure Aurora ServerlessV2 cluster with PostgreSQL 17.4",
+            "description": "Create Aurora PostgreSQL ServerlessV2 cluster with environment-specific scaling configurations and core database settings",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Create DatabaseCluster using PostgresEngineVersion.VER_17_4. Configure ServerlessV2ScalingConfiguration with MinCapacity=0.5, MaxCapacity=128 for development and MinCapacity=1, MaxCapacity=256 for production. Set cluster identifier following naming pattern. Enable deletion protection for production environments based on configuration. Configure the cluster to use the created subnet group and security group. Set the default database name and master username.",
+            "status": "pending",
+            "testStrategy": "Deploy and verify cluster creation using aws rds describe-db-clusters. Confirm ServerlessV2 scaling settings match environment specifications. Test cluster endpoint connectivity and validate PostgreSQL version using psql client."
+          },
+          {
+            "id": 5,
+            "title": "Implement Secrets Manager integration and KMS encryption",
+            "description": "Configure automatic password generation, secret rotation, and KMS encryption for the Aurora cluster",
+            "dependencies": [
+              4
+            ],
+            "details": "Generate master password using DatabaseSecret with naming pattern '/dev/rds/aurora/master-password'. Configure automatic rotation every 30 days using single user rotation. Apply environment-specific KMS key from configuration for encryption at rest. Enable encryption for automated backups. Grant ECS task execution role permissions to retrieve the secret. Export secret ARN as CloudFormation output for application access.",
+            "status": "pending",
+            "testStrategy": "Verify secret creation in AWS Secrets Manager console. Test secret retrieval using AWS CLI with appropriate IAM role. Confirm KMS encryption is applied to both database storage and backups. Validate automatic rotation is configured correctly."
+          },
+          {
+            "id": 6,
+            "title": "Configure monitoring, logging, and Performance Insights",
+            "description": "Set up comprehensive monitoring with CloudWatch logs, Performance Insights, and custom parameter groups for optimal database performance",
+            "dependencies": [
+              4
+            ],
+            "details": "Create custom ParameterGroup for PostgreSQL 17.4 with optimized settings including shared_preload_libraries, log_statement (all for dev, ddl for prod), auto_explain.log_min_duration=1000, max_connections based on capacity, work_mem=4MB, and maintenance_work_mem=256MB. Enable Performance Insights with 7-day retention. Configure CloudWatch log exports for postgresql and upgrade logs. Set monitoring interval to 60 seconds. Create CloudWatch dashboard for key database metrics.",
+            "status": "pending",
+            "testStrategy": "Verify parameter group application using aws rds describe-db-clusters. Check CloudWatch Logs for postgresql log stream creation. Validate Performance Insights is enabled in RDS console. Test custom parameters are applied by connecting to database and running SHOW commands."
+          },
+          {
+            "id": 7,
+            "title": "Configure backup strategy and maintenance windows",
+            "description": "Implement automated backup configuration with environment-specific retention periods and maintenance scheduling",
+            "dependencies": [
+              4
+            ],
+            "details": "Set backup retention period to 7 days for development and 30 days for production environments. Configure preferred backup window between 03:00-04:00 UTC to minimize impact. Set maintenance window for Sunday 04:00-05:00 UTC. Enable point-in-time recovery capability. Ensure backups are encrypted using the same KMS key as the database. Configure backup tags for cost allocation and compliance tracking.",
+            "status": "pending",
+            "testStrategy": "Verify backup configuration using aws rds describe-db-clusters and check BackupRetentionPeriod. Trigger manual backup and verify encryption. Validate point-in-time recovery is enabled. Monitor backup completion in CloudWatch Events."
+          },
+          {
+            "id": 8,
+            "title": "Enable IAM authentication and create CloudFormation outputs",
+            "description": "Configure IAM database authentication for secure access and export all necessary cluster information as stack outputs",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "Enable IAM database authentication on the Aurora cluster. Create IAM policy allowing rds-db:connect permissions for the cluster resource. Attach policy to ECS task role for application access. Create CloudFormation outputs exporting cluster endpoint address, reader endpoint, cluster identifier, security group ID, secret ARN, and cluster resource ID. Document IAM authentication connection string format for application developers.",
+            "status": "pending",
+            "testStrategy": "Test IAM authentication by generating auth token using aws rds generate-db-auth-token. Verify all CloudFormation outputs are properly exported using aws cloudformation describe-stacks. Validate ECS tasks can authenticate to database using IAM credentials."
+          }
+        ]
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-14T01:56:22.143Z"
+      "updated": "2025-07-15T00:29:18.076Z"
     }
   }
 }
