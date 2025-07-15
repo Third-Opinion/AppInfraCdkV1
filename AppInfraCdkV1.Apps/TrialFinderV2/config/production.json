@@ -1,4 +1,5 @@
 {
+  "vpcNamePattern": "prod-shared-vpc-ue2-main",
   "ecsConfiguration": {
     "deployTestContainer": true,
     "taskDefinition": {

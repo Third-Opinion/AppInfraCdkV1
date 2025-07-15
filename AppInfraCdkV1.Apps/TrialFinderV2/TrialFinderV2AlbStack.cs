@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using Amazon.CDK;
 using Amazon.CDK.AWS.CertificateManager;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.S3;
+using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
@@ -12,6 +14,7 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2;
 public class TrialFinderV2AlbStack : Stack
 {
     private readonly DeploymentContext _context;
+    private readonly ConfigurationLoader _configLoader;
     
     public TrialFinderV2AlbStack(Construct scope,
         string id,
@@ -20,12 +23,13 @@ public class TrialFinderV2AlbStack : Stack
         : base(scope, id, props)
     {
         _context = context;
-        
-        // Create VPC reference
-        var vpc = Vpc.FromLookup(this, "ExistingVpc", new VpcLookupOptions
-        {
-            VpcId = "vpc-085a37ab90d4186ac"
-        });
+        _configLoader = new ConfigurationLoader();
+
+        // Load configuration including VPC name pattern
+        var fullConfig = _configLoader.LoadFullConfig(context.Environment.Name);
+
+        // Create VPC reference using dynamic lookup by name
+        var vpc = CreateVpcReference(fullConfig.VpcNamePattern, context);
         
         // Create security groups
         var securityGroups = CreateSecurityGroups(vpc, context);
@@ -240,6 +244,21 @@ public class TrialFinderV2AlbStack : Stack
             Value = alb.LoadBalancerDnsName,
             ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-alb-dns",
             Description = "DNS name of the Application Load Balancer"
+        });
+    }
+
+    /// <summary>
+    /// Create VPC reference using dynamic lookup by name or fallback to hardcoded ID
+    /// </summary>
+    private IVpc CreateVpcReference(string vpcNamePattern, DeploymentContext context)
+    {
+        // Use dynamic lookup by VPC name tag
+        return Vpc.FromLookup(this, "ExistingVpc", new VpcLookupOptions
+        {
+            Tags = new Dictionary<string, string>
+            {
+                { "Name", vpcNamePattern }
+            }
         });
     }
 }

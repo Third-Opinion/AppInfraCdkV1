@@ -20,6 +20,15 @@ public class ConfigurationLoader
     /// </summary>
     public EcsTaskConfiguration LoadEcsConfig(string environmentName)
     {
+        var config = LoadFullConfig(environmentName);
+        return config.EcsConfiguration ?? throw new InvalidOperationException("Invalid ECS configuration format");
+    }
+    
+    /// <summary>
+    /// Load complete configuration including VPC name pattern
+    /// </summary>
+    public EcsTaskConfigurationWrapper LoadFullConfig(string environmentName)
+    {
         var configPath = Path.Combine(_configDirectory, $"{environmentName.ToLowerInvariant()}.json");
         if (!File.Exists(configPath))
         {
@@ -29,12 +38,15 @@ public class ConfigurationLoader
         var jsonContent = File.ReadAllText(configPath);
         var config = JsonSerializer.Deserialize<EcsTaskConfigurationWrapper>(jsonContent, GetJsonOptions());
         
-        var ecsConfig = config?.EcsConfiguration ?? throw new InvalidOperationException("Invalid ECS configuration format");
+        if (config?.EcsConfiguration == null)
+        {
+            throw new InvalidOperationException("Invalid ECS configuration format");
+        }
         
-        // Validate the configuration
-        ValidateConfiguration(ecsConfig);
+        // Validate the ECS configuration
+        ValidateConfiguration(config.EcsConfiguration);
         
-        return ecsConfig;
+        return config;
     }
     
     /// <summary>
@@ -218,6 +230,7 @@ public class ConfigurationLoader
 // Configuration wrapper and data classes for JSON deserialization
 public class EcsTaskConfigurationWrapper  
 {
+    public string? VpcNamePattern { get; set; }
     public EcsTaskConfiguration? EcsConfiguration { get; set; }
 }
 

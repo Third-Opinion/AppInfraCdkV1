@@ -16,7 +16,7 @@ public class TrialFinderV2EcsStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
-    
+
     public TrialFinderV2EcsStack(Construct scope,
         string id,
         IStackProps props,
@@ -25,21 +25,36 @@ public class TrialFinderV2EcsStack : Stack
     {
         _context = context;
         _configLoader = new ConfigurationLoader();
-        
-        // Create VPC reference
-        var vpc = Vpc.FromLookup(this, "ExistingVpc", new VpcLookupOptions
-        {
-            VpcId = "vpc-085a37ab90d4186ac"
-        });
-        
+
+        // Load configuration including VPC name pattern
+        var fullConfig = _configLoader.LoadFullConfig(context.Environment.Name);
+
+        // Create VPC reference using dynamic lookup by name
+        var vpc = CreateVpcReference(fullConfig.VpcNamePattern, context);
+
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
-        
+
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
-        
+
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, context);
+    }
+
+    /// <summary>
+    /// Create VPC reference using dynamic lookup by name or fallback to hardcoded ID
+    /// </summary>
+    private IVpc CreateVpcReference(string vpcNamePattern, DeploymentContext context)
+    {
+        // Use dynamic lookup by VPC name tag
+        return Vpc.FromLookup(this, "SharedVpc", new VpcLookupOptions
+        {
+            Tags = new Dictionary<string, string>
+            {
+                { "Name", vpcNamePattern }
+            }
+        });
     }
 
     /// <summary>
@@ -47,9 +62,12 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private AlbStackOutputs ImportAlbStackOutputs()
     {
-        var targetGroupArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-target-group-arn");
-        var ecsSecurityGroupId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-ecs-sg-id");
-        
+        var targetGroupArn
+            = Fn.ImportValue(
+                $"{_context.Environment.Name}-{_context.Application.Name}-target-group-arn");
+        var ecsSecurityGroupId
+            = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-ecs-sg-id");
+
         return new AlbStackOutputs
         {
             TargetGroupArn = targetGroupArn,
@@ -76,7 +94,9 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Create ECS service with containers from configuration
     /// </summary>
-    private void CreateEcsService(ICluster cluster, AlbStackOutputs albOutputs, DeploymentContext context)
+    private void CreateEcsService(ICluster cluster,
+        AlbStackOutputs albOutputs,
+        DeploymentContext context)
     {
         // Load configuration from JSON
         var ecsConfig = _configLoader.LoadEcsConfig(context.Environment.Name);
@@ -91,29 +111,31 @@ public class TrialFinderV2EcsStack : Stack
         });
 
         // Use taskDefinitionName from config or fallback to default naming
-        var taskDefinitionName = ecsConfig.TaskDefinition?.TaskDefinitionName ?? 
-                               context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
+        var taskDefinitionName = ecsConfig.TaskDefinition?.TaskDefinitionName ??
+                                 context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
 
         // Create Fargate task definition
-        var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName, new FargateTaskDefinitionProps
-        {
-            Family = taskDefinitionName,
-            MemoryLimitMiB = 512,
-            Cpu = 256,
-            TaskRole = CreateTaskRole(),
-            ExecutionRole = CreateExecutionRole(logGroup),
-            RuntimePlatform = new RuntimePlatform
+        var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName,
+            new FargateTaskDefinitionProps
             {
-                OperatingSystemFamily = OperatingSystemFamily.LINUX,
-                CpuArchitecture = CpuArchitecture.ARM64
-            }
-        });
+                Family = taskDefinitionName,
+                MemoryLimitMiB = 512,
+                Cpu = 256,
+                TaskRole = CreateTaskRole(),
+                ExecutionRole = CreateExecutionRole(logGroup),
+                RuntimePlatform = new RuntimePlatform
+                {
+                    OperatingSystemFamily = OperatingSystemFamily.LINUX,
+                    CpuArchitecture = CpuArchitecture.ARM64
+                }
+            });
 
         // Add containers from configuration
         AddContainersFromConfiguration(taskDefinition, ecsConfig, logGroup, context);
 
         // Import security group from ALB stack
-        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup", albOutputs.EcsSecurityGroupId);
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
+            albOutputs.EcsSecurityGroupId);
 
         // Create ECS service with deployment-friendly settings
         var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
@@ -122,7 +144,7 @@ public class TrialFinderV2EcsStack : Stack
             ServiceName = context.Namer.EcsService(ResourcePurpose.Web),
             TaskDefinition = taskDefinition,
             DesiredCount = 1,
-            MinHealthyPercent = 0,  // Allow all tasks to be replaced during deployment
+            MinHealthyPercent = 0, // Allow all tasks to be replaced during deployment
             MaxHealthyPercent = 200,
             AssignPublicIp = false,
             SecurityGroups = new[] { ecsSecurityGroup },
@@ -131,11 +153,14 @@ public class TrialFinderV2EcsStack : Stack
         });
 
         // Import target group from ALB stack and attach service
-        var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this, "ImportedTargetGroup", new TargetGroupAttributes
-        {
-            TargetGroupArn = albOutputs.TargetGroupArn,
-            LoadBalancerArns = albOutputs.TargetGroupArn // This will be overridden by the actual target group
-        });
+        var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
+            "ImportedTargetGroup", new TargetGroupAttributes
+            {
+                TargetGroupArn = albOutputs.TargetGroupArn,
+                LoadBalancerArns
+                    = albOutputs
+                        .TargetGroupArn // This will be overridden by the actual target group
+            });
 
         // Register ECS service with target group
         service.AttachToApplicationTargetGroup(targetGroup);
@@ -144,7 +169,10 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Add containers from configuration with conditional logic
     /// </summary>
-    private void AddContainersFromConfiguration(FargateTaskDefinition taskDefinition, EcsTaskConfiguration ecsConfig, ILogGroup logGroup, DeploymentContext context)
+    private void AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
+        EcsTaskConfiguration ecsConfig,
+        ILogGroup logGroup,
+        DeploymentContext context)
     {
         // Check if deployTestContainer flag is enabled
         if (ecsConfig.DeployTestContainer)
@@ -176,11 +204,14 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Add a container based on configuration with comprehensive defaults
     /// </summary>
-    private void AddConfiguredContainer(FargateTaskDefinition taskDefinition, ContainerDefinitionConfig containerConfig, ILogGroup logGroup, DeploymentContext context)
+    private void AddConfiguredContainer(FargateTaskDefinition taskDefinition,
+        ContainerDefinitionConfig containerConfig,
+        ILogGroup logGroup,
+        DeploymentContext context)
     {
         var containerName = containerConfig.Name ?? "default-container";
         var image = containerConfig.Image ?? GetDefaultImage(containerName);
-        
+
         var containerOptions = new ContainerDefinitionOptions
         {
             Image = ContainerImage.FromRegistry(image),
@@ -196,7 +227,8 @@ public class TrialFinderV2EcsStack : Stack
         containerOptions.PortMappings = GetPortMappings(containerConfig, containerName);
 
         // Add environment variables with defaults
-        containerOptions.Environment = GetEnvironmentVariables(containerConfig, context, containerName);
+        containerOptions.Environment
+            = GetEnvironmentVariables(containerConfig, context, containerName);
 
         // Add health check with defaults
         var healthCheck = GetHealthCheck(containerConfig, containerName);
@@ -222,7 +254,8 @@ public class TrialFinderV2EcsStack : Stack
         return containerName.ToLowerInvariant() switch
         {
             "trial-finder-v2" => "nginx:latest",
-            "doc-nlp-service-web" => $"{_context.Environment.AccountId}.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
+            "doc-nlp-service-web" =>
+                $"{_context.Environment.AccountId}.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
             _ => "nginx:latest"
         };
     }
@@ -243,7 +276,9 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get port mappings with defaults
     /// </summary>
-    private Amazon.CDK.AWS.ECS.PortMapping[] GetPortMappings(ContainerDefinitionConfig containerConfig, string containerName)
+    private Amazon.CDK.AWS.ECS.PortMapping[] GetPortMappings(
+        ContainerDefinitionConfig containerConfig,
+        string containerName)
     {
         if (containerConfig.PortMappings?.Count > 0)
         {
@@ -281,7 +316,10 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get environment variables with defaults
     /// </summary>
-    private Dictionary<string, string> GetEnvironmentVariables(ContainerDefinitionConfig containerConfig, DeploymentContext context, string containerName)
+    private Dictionary<string, string> GetEnvironmentVariables(
+        ContainerDefinitionConfig containerConfig,
+        DeploymentContext context,
+        string containerName)
     {
         var environmentVars = new Dictionary<string, string>();
 
@@ -302,7 +340,8 @@ public class TrialFinderV2EcsStack : Stack
         // Override with configuration-specified environment variables
         if (containerConfig.Environment?.Count > 0)
         {
-            foreach (var env in containerConfig.Environment.Where(e => !string.IsNullOrEmpty(e.Name) && !string.IsNullOrEmpty(e.Value)))
+            foreach (var env in containerConfig.Environment.Where(e =>
+                         !string.IsNullOrEmpty(e.Name) && !string.IsNullOrEmpty(e.Value)))
             {
                 environmentVars[env.Name!] = env.Value!;
             }
@@ -314,7 +353,8 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get container-specific default environment variables
     /// </summary>
-    private Dictionary<string, string> GetContainerSpecificEnvironmentDefaults(string containerName, DeploymentContext context)
+    private Dictionary<string, string> GetContainerSpecificEnvironmentDefaults(string containerName,
+        DeploymentContext context)
     {
         return containerName.ToLowerInvariant() switch
         {
@@ -334,7 +374,7 @@ public class TrialFinderV2EcsStack : Stack
         return environmentName.ToLowerInvariant() switch
         {
             "development" => "Development",
-            "staging" => "Staging", 
+            "staging" => "Staging",
             "production" => "Production",
             "integration" => "Integration",
             _ => "Development"
@@ -344,17 +384,23 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get health check with defaults
     /// </summary>
-    private Amazon.CDK.AWS.ECS.HealthCheck? GetHealthCheck(ContainerDefinitionConfig containerConfig, string containerName)
+    private Amazon.CDK.AWS.ECS.HealthCheck? GetHealthCheck(
+        ContainerDefinitionConfig containerConfig,
+        string containerName)
     {
         if (containerConfig.HealthCheck?.Command?.Count > 0)
         {
             return new Amazon.CDK.AWS.ECS.HealthCheck
             {
                 Command = containerConfig.HealthCheck.Command.ToArray(),
-                Interval = Duration.Seconds(containerConfig.HealthCheck.Interval ?? GetDefaultHealthCheckInterval(containerName)),
-                Timeout = Duration.Seconds(containerConfig.HealthCheck.Timeout ?? GetDefaultHealthCheckTimeout(containerName)),
-                Retries = containerConfig.HealthCheck.Retries ?? GetDefaultHealthCheckRetries(containerName),
-                StartPeriod = Duration.Seconds(containerConfig.HealthCheck.StartPeriod ?? GetDefaultHealthCheckStartPeriod(containerName))
+                Interval = Duration.Seconds(containerConfig.HealthCheck.Interval ??
+                                            GetDefaultHealthCheckInterval(containerName)),
+                Timeout = Duration.Seconds(containerConfig.HealthCheck.Timeout ??
+                                           GetDefaultHealthCheckTimeout(containerName)),
+                Retries = containerConfig.HealthCheck.Retries ??
+                          GetDefaultHealthCheckRetries(containerName),
+                StartPeriod = Duration.Seconds(containerConfig.HealthCheck.StartPeriod ??
+                                               GetDefaultHealthCheckStartPeriod(containerName))
             };
         }
 
@@ -383,7 +429,8 @@ public class TrialFinderV2EcsStack : Stack
         return containerName.ToLowerInvariant() switch
         {
             "trial-finder-v2" => new[] { "CMD-SHELL", "curl -f http://localhost:8080/ || exit 1" },
-            "doc-nlp-service-web" => new[] { "CMD-SHELL", "curl -f http://localhost:8080/ || exit 1" },
+            "doc-nlp-service-web" => new[]
+                { "CMD-SHELL", "curl -f http://localhost:8080/ || exit 1" },
             _ => Array.Empty<string>()
         };
     }
@@ -443,7 +490,9 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Add default nginx container when no configuration is provided
     /// </summary>
-    private void AddDefaultContainer(FargateTaskDefinition taskDefinition, ILogGroup logGroup, DeploymentContext context)
+    private void AddDefaultContainer(FargateTaskDefinition taskDefinition,
+        ILogGroup logGroup,
+        DeploymentContext context)
     {
         taskDefinition.AddContainer("trial-finder-v2", new ContainerDefinitionOptions
         {
@@ -475,11 +524,14 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Add placeholder container for testing deployments
     /// </summary>
-    private void AddPlaceholderContainer(FargateTaskDefinition taskDefinition, ILogGroup logGroup, DeploymentContext context)
+    private void AddPlaceholderContainer(FargateTaskDefinition taskDefinition,
+        ILogGroup logGroup,
+        DeploymentContext context)
     {
         // Import the ECR repository for the placeholder image
-        var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository", "thirdopinion/infra/deploy-placeholder");
-        
+        var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository",
+            "thirdopinion/infra/deploy-placeholder");
+
         taskDefinition.AddContainer("placeHolder", new ContainerDefinitionOptions
         {
             Image = ContainerImage.FromEcrRepository(placeholderRepository, "latest"),
@@ -499,7 +551,11 @@ public class TrialFinderV2EcsStack : Stack
             }),
             HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
             {
-                Command = new[] { "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1" },
+                Command = new[]
+                {
+                    "CMD-SHELL",
+                    "wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1"
+                },
                 Interval = Duration.Seconds(30),
                 Timeout = Duration.Seconds(5),
                 Retries = 3,
@@ -534,13 +590,15 @@ public class TrialFinderV2EcsStack : Stack
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             ManagedPolicies = new[]
             {
-                ManagedPolicy.FromAwsManagedPolicyName("service-role/AmazonECSTaskExecutionRolePolicy")
+                ManagedPolicy.FromAwsManagedPolicyName(
+                    "service-role/AmazonECSTaskExecutionRolePolicy")
             }
         });
 
         // Add permissions for Session Manager (ECS Exec)
-        taskRole.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"));
-        
+        taskRole.AddManagedPolicy(
+            ManagedPolicy.FromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"));
+
         // Add SSM permissions for ECS Exec
         taskRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
@@ -554,7 +612,7 @@ public class TrialFinderV2EcsStack : Stack
             },
             Resources = new[] { "*" }
         }));
-        
+
         return taskRole;
     }
 
@@ -569,7 +627,8 @@ public class TrialFinderV2EcsStack : Stack
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             ManagedPolicies = new[]
             {
-                ManagedPolicy.FromAwsManagedPolicyName("service-role/AmazonECSTaskExecutionRolePolicy")
+                ManagedPolicy.FromAwsManagedPolicyName(
+                    "service-role/AmazonECSTaskExecutionRolePolicy")
             }
         });
 
