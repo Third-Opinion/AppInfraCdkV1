@@ -846,13 +846,29 @@
             "testStrategy": "Test IAM authentication by generating auth token using aws rds generate-db-auth-token. Verify all CloudFormation outputs are properly exported using aws cloudformation describe-stacks. Validate ECS tasks can authenticate to database using IAM credentials."
           }
         ]
+      },
+      {
+        "id": 18,
+        "title": "Validate and fix production deployment for ALB and ECS stacks",
+        "description": "Identify and resolve issues causing CloudFormation stack failures for production ALB (arn:aws:cloudformation:us-east-2:442042533707:stack/prod-tfv2-alb-ue2/f3eaed00-6121-11f0-a235-06ee954d8687) and ECS (arn:aws:cloudformation:us-east-2:442042533707:stack/prod-tfv2-ecs-ue2/89893210-6116-11f0-838d-0256c65c4237) stacks, fix them, and redeploy successfully.",
+        "details": "1. Investigate CloudFormation Stack Failures:\n   - Use AWS CLI with to-prd-admin profile to examine stack events: aws cloudformation describe-stack-events --stack-name prod-tfv2-alb-ue2\n   - Analyze ECS stack events: aws cloudformation describe-stack-events --stack-name prod-tfv2-ecs-ue2\n   - Review stack resources and their failure reasons using aws cloudformation describe-stack-resources\n   - Compare production stack configurations with working development stacks\n   - Check for VPC, subnet, security group, or IAM role misconfigurations\n\n2. Fix ALB Stack Issues:\n   - Verify VPC name pattern lookup is working correctly for production environment (prod-shared-vpc-ue2-main)\n   - Ensure security groups exist and have proper ingress/egress rules for HTTPS traffic\n   - Validate SSL certificates are available in us-east-2 region for production domain\n   - Check target group configurations and health check settings\n   - Fix any IAM permission issues preventing ALB resource creation\n\n3. Fix ECS Stack Issues:\n   - Verify ECS cluster exists and is accessible in production environment\n   - Check task definition configuration including container definitions and resource allocations\n   - Validate ECS service role and task execution role permissions\n   - Ensure container security groups allow proper traffic flow\n   - Verify container image repositories are accessible from production account\n   - Check Secrets Manager access permissions for production secrets\n\n4. Deploy Fixed Stacks:\n   - Deploy TrialFinderV2AlbStack first: cdk deploy TrialFinderV2AlbStack --profile to-prd-admin\n   - Deploy TrialFinderV2EcsStack after ALB is healthy: cdk deploy TrialFinderV2EcsStack --profile to-prd-admin\n   - Monitor deployment progress and validate no rollbacks occur\n   - Verify all resources are created successfully",
+        "testStrategy": "1. Pre-deployment Validation:\n   - Run cdk synth for both stacks to validate CloudFormation templates\n   - Use AWS CLI to verify all prerequisite resources exist (VPC, subnets, security groups)\n   - Confirm production environment configuration files have correct values\n\n2. Post-deployment Testing:\n   - Verify ALB stack deployment: aws cloudformation describe-stacks --stack-name prod-tfv2-alb-ue2 --query 'Stacks[0].StackStatus'\n   - Confirm ECS stack deployment: aws cloudformation describe-stacks --stack-name prod-tfv2-ecs-ue2 --query 'Stacks[0].StackStatus'\n   - Test ALB health and accessibility using production domain\n   - Validate ECS service is running with healthy targets: aws ecs describe-services --cluster <prod-cluster> --services <service-name>\n   - Check target group health: aws elbv2 describe-target-health --target-group-arn <prod-target-group-arn>\n   - Verify application responds correctly through production ALB endpoint\n\n3. Rollback Testing:\n   - Ensure both stacks can be rolled back if issues arise\n   - Test that rollback doesn't affect other production resources",
+        "status": "done",
+        "dependencies": [
+          13,
+          16,
+          12,
+          15
+        ],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-15T00:29:18.076Z"
+      "updated": "2025-07-15T04:09:17.536Z"
     }
   }
 }

@@ -65,8 +65,14 @@ public class TrialFinderV2AlbStack : Stack
         albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(443), "HTTPS from internet");
         albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(80), "HTTP from internet (redirect to HTTPS)");
 
-        // Import existing ECS Security Group instead of creating new one
-        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialFinderEcsSecurityGroup", "sg-0e7ddc9391c2220f4");
+        // Create ECS Security Group
+        var ecsSecurityGroup = new SecurityGroup(this, "TrialFinderEcsSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            SecurityGroupName = context.Namer.SecurityGroupForEcs(ResourcePurpose.Web),
+            Description = "Security group for TrialFinder ECS tasks",
+            AllowAllOutbound = true
+        });
 
         // Allow ALB to communicate with ECS on port 8080
         ecsSecurityGroup.AddIngressRule(albSecurityGroup, Port.Tcp(8080), "Load balancer to target");
@@ -145,11 +151,12 @@ public class TrialFinderV2AlbStack : Stack
     /// </summary>
     private void CreateListeners(IApplicationLoadBalancer alb, IApplicationTargetGroup targetGroup)
     {
+        // Get certificate ARNs based on environment
+        var (defaultCertArn, sniCertArn) = GetCertificateArns(_context);
+        
         // Import SSL certificates
-        var defaultCert = Certificate.FromCertificateArn(this, "DefaultCert", 
-            "arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533");
-        var sniCert = Certificate.FromCertificateArn(this, "SniCert", 
-            "arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e");
+        var defaultCert = Certificate.FromCertificateArn(this, "DefaultCert", defaultCertArn);
+        var sniCert = Certificate.FromCertificateArn(this, "SniCert", sniCertArn);
 
         // Create HTTPS listener on port 443
         var httpsListener = alb.AddListener("TrialFinderHttpsListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.BaseApplicationListenerProps
@@ -268,5 +275,26 @@ public class TrialFinderV2AlbStack : Stack
                 { "Name", vpcNamePattern }
             }
         });
+    }
+    
+    /// <summary>
+    /// Get certificate ARNs based on environment
+    /// </summary>
+    private (string defaultCertArn, string sniCertArn) GetCertificateArns(DeploymentContext context)
+    {
+        // Production certificates
+        if (context.Environment.Name.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                "arn:aws:acm:us-east-2:442042533707:certificate/cb2cde98-92db-4e3c-84db-7b869aa7627a", // tf.thirdopinion.io
+                "arn:aws:acm:us-east-2:442042533707:certificate/9666bc78-d52e-499f-a6e8-ebc00d3e1cc3"  // *.thirdopinion.io
+            );
+        }
+        
+        // Development/Staging certificates
+        return (
+            "arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533",
+            "arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e"
+        );
     }
 }
