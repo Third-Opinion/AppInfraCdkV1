@@ -45,8 +45,16 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Create VPC reference using dynamic lookup by name or fallback to hardcoded ID
     /// </summary>
-    private IVpc CreateVpcReference(string vpcNamePattern, DeploymentContext context)
+    private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
     {
+        // Validate VPC name pattern is provided
+        if (string.IsNullOrEmpty(vpcNamePattern))
+        {
+            throw new InvalidOperationException(
+                $"VPC name pattern is required but not found in configuration for environment '{context.Environment.Name}'. " +
+                "Please add 'vpcNamePattern' to the configuration file.");
+        }
+        
         // Use dynamic lookup by VPC name tag
         return Vpc.FromLookup(this, "SharedVpc", new VpcLookupOptions
         {
