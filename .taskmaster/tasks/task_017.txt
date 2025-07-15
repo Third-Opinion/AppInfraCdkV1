@@ -1,0 +1,177 @@
+# Task ID: 17
+# Title: Create CDK infrastructure for Aurora PostgreSQL database clusters
+# Status: pending
+# Dependencies: 13, 16, 10, 9
+# Priority: medium
+# Description: Implement CDK stack for Aurora PostgreSQL 17.4 ServerlessV2 clusters supporting both development and production environments with security, monitoring, encryption, and automated backup configurations.
+# Details:
+1. Create Aurora PostgreSQL ServerlessV2 Infrastructure:
+   - Implement new CDK stack TrialFinderV2DataStack.cs following the pattern from TrialFinderV2EcsStack
+   - Use Amazon.CDK.AWS.RDS namespace for Aurora constructs
+   - Configure Aurora PostgreSQL 17.4 with ServerlessV2 scaling:
+     * Development: MinCapacity=0.5, MaxCapacity=128 ACUs
+     * Production: MinCapacity=1, MaxCapacity=256 ACUs
+   - Set engine version: PostgresEngineVersion.VER_17_4
+   - Enable deletion protection for production environments
+
+2. Security Groups Configuration:
+   - Create dedicated RDS security group 'dev-rds-aurora-sg-ue2' / 'prod-rds-aurora-sg-ue2'
+   - Configure ingress rule: Port 5432 from ECS container security group (dev-ecs-container-sg-ue2)
+   - Add self-referencing rule for cluster internal communication
+   - Implement least-privilege principle with specific source security groups
+   - Export security group ID for cross-stack reference
+
+3. Database Parameter Groups:
+   - Create custom parameter group for PostgreSQL 17.4
+   - Configure optimized settings:
+     * shared_preload_libraries='pg_stat_statements,auto_explain'
+     * log_statement='all' for development, 'ddl' for production
+     * auto_explain.log_min_duration='1000' (1 second)
+     * max_connections based on capacity (dev: 1000, prod: 5000)
+     * work_mem='4MB'
+     * maintenance_work_mem='256MB'
+
+4. Enhanced Monitoring and Logging:
+   - Enable Performance Insights with 7-day retention (free tier)
+   - Configure CloudWatch log exports:
+     * postgresql log
+     * upgrade log
+   - Set monitoring interval to 60 seconds for cost optimization
+   - Create CloudWatch dashboard for key metrics
+
+5. KMS Encryption:
+   - Use environment-specific KMS keys from configuration
+   - Enable encryption at rest for database storage
+   - Configure encrypted automated backups
+   - Apply key rotation policies
+
+6. Automated Backups and Maintenance:
+   - Configure backup retention:
+     * Development: 7 days
+     * Production: 30 days
+   - Set preferred backup window: 03:00-04:00 UTC
+   - Configure maintenance window: Sunday 04:00-05:00 UTC
+   - Enable point-in-time recovery
+
+7. IAM Database Authentication:
+   - Enable IAM authentication on cluster
+   - Create IAM policy for database access
+   - Configure ECS task role with RDS IAM authentication permissions
+   - Document connection string format for IAM auth
+
+8. Subnet Group Configuration:
+   - Use VPC lookup pattern from TrialFinderV2EcsStack
+   - Create subnet group using private subnets from VPC
+   - Ensure multi-AZ deployment for production
+   - Name pattern: 'dev-aurora-subnet-group-ue2'
+
+9. Secrets Manager Integration:
+   - Generate master password using Secrets Manager
+   - Configure automatic rotation every 30 days
+   - Use naming pattern: '/dev/rds/aurora/master-password'
+   - Grant ECS task execution role access to secrets
+   - Enable secret version staging for zero-downtime rotation
+
+10. CloudFormation Outputs:
+    - Export cluster endpoint address
+    - Export reader endpoint for read replicas
+    - Export cluster identifier
+    - Export security group ID
+    - Export secret ARN for credentials
+    - Export cluster resource ID for IAM policies
+
+11. Environment Configuration:
+    - Add to config files (development.json, production.json):
+      * auroraMinCapacity
+      * auroraMaxCapacity
+      * backupRetentionDays
+      * kmsKeyId
+      * enableDeletionProtection
+    - Load configuration using ConfigurationLoader pattern
+
+# Test Strategy:
+1. Infrastructure Validation:
+   - Deploy TrialFinderV2DataStack to development using 'cdk deploy TrialFinderV2DataStack'
+   - Verify Aurora cluster creation: aws rds describe-db-clusters --db-cluster-identifier <cluster-name>
+   - Confirm ServerlessV2 scaling configuration matches environment settings
+   - Validate multi-AZ deployment for production environments
+
+2. Security Configuration Testing:
+   - Test connectivity from ECS container to RDS: nc -zv <cluster-endpoint> 5432
+   - Verify security group rules: aws ec2 describe-security-groups --group-ids <rds-sg-id>
+   - Attempt connection from unauthorized source to confirm access denial
+   - Validate IAM authentication using AWS CLI
+
+3. Monitoring and Performance:
+   - Confirm Performance Insights is enabled in RDS console
+   - Verify CloudWatch logs are being generated
+   - Test auto-scaling by running load test and monitoring ACU scaling
+   - Check CloudWatch metrics for connection count, CPU, and memory
+
+4. Backup and Recovery Testing:
+   - Verify automated backups are created: aws rds describe-db-cluster-snapshots
+   - Test point-in-time recovery to specific timestamp
+   - Confirm backup retention period matches configuration
+   - Validate encrypted backup storage
+
+5. Secrets Manager Validation:
+   - Retrieve database credentials: aws secretsmanager get-secret-value --secret-id <secret-arn>
+   - Test automatic rotation by triggering rotation manually
+   - Verify ECS tasks can access secrets using task role
+   - Confirm connection using rotated credentials
+
+6. Cross-Stack Integration:
+   - Deploy TrialFinderV2EcsStack after DataStack
+   - Verify ECS tasks can connect to Aurora using exported values
+   - Test database operations from running ECS service
+   - Validate CloudFormation exports are correctly referenced
+
+# Subtasks:
+## 1. Create TrialFinderV2DataStack CDK class structure [pending]
+### Dependencies: None
+### Description: Set up the foundational CDK stack class for Aurora PostgreSQL infrastructure following the existing pattern from TrialFinderV2EcsStack
+### Details:
+Create a new file TrialFinderV2DataStack.cs in the appropriate directory. Import necessary CDK namespaces including Amazon.CDK, Amazon.CDK.AWS.RDS, Amazon.CDK.AWS.EC2, Amazon.CDK.AWS.KMS, Amazon.CDK.AWS.SecretsManager, and Amazon.CDK.AWS.IAM. Define the stack class inheriting from Stack with proper constructor accepting scope, id, and stack props. Initialize the ConfigurationLoader to load environment-specific settings from configuration files.
+
+## 2. Implement VPC lookup and subnet group configuration [pending]
+### Dependencies: 17.1
+### Description: Configure VPC lookup using the existing pattern and create Aurora subnet groups using private subnets for database placement
+### Details:
+Use Vpc.FromLookup to retrieve the existing VPC using tags or VPC ID from configuration. Create a SubnetGroup using the private subnets from the VPC lookup result. Name the subnet group following the pattern 'dev-aurora-subnet-group-ue2' or 'prod-aurora-subnet-group-ue2' based on environment. Ensure the subnet group spans multiple availability zones for high availability in production environments.
+
+## 3. Create RDS security group with proper ingress rules [pending]
+### Dependencies: 17.1, 17.2
+### Description: Implement dedicated security group for Aurora cluster with ingress from ECS containers and self-referencing rules for cluster communication
+### Details:
+Create a new SecurityGroup named 'dev-rds-aurora-sg-ue2' or 'prod-rds-aurora-sg-ue2'. Add ingress rule allowing PostgreSQL port 5432 from the ECS container security group (dev-ecs-container-sg-ue2). Implement self-referencing rule allowing all traffic within the security group for cluster node communication. Apply standard tags including Environment and ManagedBy. Export the security group ID as a CloudFormation output for cross-stack references.
+
+## 4. Configure Aurora ServerlessV2 cluster with PostgreSQL 17.4 [pending]
+### Dependencies: 17.2, 17.3
+### Description: Create Aurora PostgreSQL ServerlessV2 cluster with environment-specific scaling configurations and core database settings
+### Details:
+Create DatabaseCluster using PostgresEngineVersion.VER_17_4. Configure ServerlessV2ScalingConfiguration with MinCapacity=0.5, MaxCapacity=128 for development and MinCapacity=1, MaxCapacity=256 for production. Set cluster identifier following naming pattern. Enable deletion protection for production environments based on configuration. Configure the cluster to use the created subnet group and security group. Set the default database name and master username.
+
+## 5. Implement Secrets Manager integration and KMS encryption [pending]
+### Dependencies: 17.4
+### Description: Configure automatic password generation, secret rotation, and KMS encryption for the Aurora cluster
+### Details:
+Generate master password using DatabaseSecret with naming pattern '/dev/rds/aurora/master-password'. Configure automatic rotation every 30 days using single user rotation. Apply environment-specific KMS key from configuration for encryption at rest. Enable encryption for automated backups. Grant ECS task execution role permissions to retrieve the secret. Export secret ARN as CloudFormation output for application access.
+
+## 6. Configure monitoring, logging, and Performance Insights [pending]
+### Dependencies: 17.4
+### Description: Set up comprehensive monitoring with CloudWatch logs, Performance Insights, and custom parameter groups for optimal database performance
+### Details:
+Create custom ParameterGroup for PostgreSQL 17.4 with optimized settings including shared_preload_libraries, log_statement (all for dev, ddl for prod), auto_explain.log_min_duration=1000, max_connections based on capacity, work_mem=4MB, and maintenance_work_mem=256MB. Enable Performance Insights with 7-day retention. Configure CloudWatch log exports for postgresql and upgrade logs. Set monitoring interval to 60 seconds. Create CloudWatch dashboard for key database metrics.
+
+## 7. Configure backup strategy and maintenance windows [pending]
+### Dependencies: 17.4
+### Description: Implement automated backup configuration with environment-specific retention periods and maintenance scheduling
+### Details:
+Set backup retention period to 7 days for development and 30 days for production environments. Configure preferred backup window between 03:00-04:00 UTC to minimize impact. Set maintenance window for Sunday 04:00-05:00 UTC. Enable point-in-time recovery capability. Ensure backups are encrypted using the same KMS key as the database. Configure backup tags for cost allocation and compliance tracking.
+
+## 8. Enable IAM authentication and create CloudFormation outputs [pending]
+### Dependencies: 17.4, 17.5
+### Description: Configure IAM database authentication for secure access and export all necessary cluster information as stack outputs
+### Details:
+Enable IAM database authentication on the Aurora cluster. Create IAM policy allowing rds-db:connect permissions for the cluster resource. Attach policy to ECS task role for application access. Create CloudFormation outputs exporting cluster endpoint address, reader endpoint, cluster identifier, security group ID, secret ARN, and cluster resource ID. Document IAM authentication connection string format for application developers.
+

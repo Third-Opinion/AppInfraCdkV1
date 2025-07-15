@@ -1,0 +1,85 @@
+# Task ID: 12
+# Title: Configure ALB listeners with HTTPS/HTTP rules and SSL certificates
+# Status: done
+# Dependencies: 3, 8
+# Priority: medium
+# Description: Add a new HTTPS listener on port 443 to the TrialFinderV2 ALB with SSL certificates and routing rules, and update the existing port 80 listener with matching routing rules.
+# Details:
+1. Create HTTPS Listener on Port 443:
+   - Use AWS CLI with to-dev-admin profile to add listener to existing ALB
+   - Configure default SSL certificate: arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533
+   - Add SNI certificates using aws elbv2 add-listener-certificates:
+     * arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e
+     * arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533
+   - Set SSL policy to ELBSecurityPolicy-TLS-1-2-2017-01 or latest recommended
+
+2. Configure Listener Rules for Port 443:
+   - Rule 1: Path pattern '/app/*' forwards to TrialFinderTargetGroup
+   - Rule 2: Default action forwards to TrialFinderTargetGroup
+   - Set appropriate priority values (100 for path rule, default for catch-all)
+   - Use aws elbv2 create-rule for each routing rule
+
+3. Update Existing Port 80 Listener:
+   - Retrieve current listener ARN using aws elbv2 describe-listeners
+   - Delete existing rules if different from required configuration
+   - Create matching rules: '/app/*' pattern and default both to TrialFinderTargetGroup
+   - Ensure rule priorities are consistent between HTTP and HTTPS listeners
+
+4. Validate Target Group Association:
+   - Confirm TrialFinderTargetGroup exists and is healthy
+   - Verify target group is in same VPC as ALB
+   - Check target group health check configuration is appropriate for both listeners
+
+# Test Strategy:
+1. Verify HTTPS Listener Configuration:
+   - Run aws elbv2 describe-listeners to confirm port 443 listener exists with correct SSL certificates
+   - Test HTTPS connectivity: curl -k https://<alb-dns-name>/app/test and verify response
+   - Validate SNI certificate configuration using openssl s_client -connect <alb-dns>:443 -servername <domain>
+
+2. Test Routing Rules:
+   - Test path rule: curl https://<alb-dns>/app/health should route to TrialFinderTargetGroup
+   - Test default rule: curl https://<alb-dns>/other-path should route to TrialFinderTargetGroup
+   - Repeat same tests for HTTP port 80 listener
+   - Verify both listeners have identical routing behavior
+
+3. SSL Certificate Validation:
+   - Check certificate chain using SSL labs or similar tool
+   - Verify all configured certificates are valid and not expired
+   - Test certificate selection for different SNI hostnames
+
+4. Target Group Health:
+   - Run aws elbv2 describe-target-health to confirm targets are healthy
+   - Monitor ALB access logs for successful request routing
+   - Verify no 5xx errors in CloudWatch metrics for the ALB
+
+# Subtasks:
+## 1. Create HTTPS listener on port 443 with SSL certificate configuration [done]
+### Dependencies: None
+### Description: Add a new HTTPS listener on port 443 to the existing TrialFinderV2 ALB with proper SSL certificate configuration and security policy
+### Details:
+Use AWS CLI with to-dev-admin profile to create HTTPS listener. Configure default SSL certificate (arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533). Set SSL security policy to ELBSecurityPolicy-TLS-1-2-2017-01 or latest recommended. Use aws elbv2 create-listener command with LoadBalancerArn, Port 443, Protocol HTTPS, and Certificates parameter.
+
+## 2. Add SNI certificates to HTTPS listener for multi-domain support [done]
+### Dependencies: 12.1
+### Description: Configure additional SSL certificates using Server Name Indication (SNI) for the HTTPS listener to support multiple domains
+### Details:
+Use aws elbv2 add-listener-certificates command to add SNI certificates to the HTTPS listener created in previous step. Add certificates: arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e and arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533. Retrieve listener ARN from previous step output.
+
+## 3. Configure routing rules for HTTPS listener (port 443) [done]
+### Dependencies: 12.2
+### Description: Create routing rules for the HTTPS listener to forward traffic based on path patterns to the appropriate target group
+### Details:
+Create two routing rules using aws elbv2 create-rule: Rule 1 with priority 100 for path pattern '/app/*' forwarding to TrialFinderTargetGroup, and Rule 2 as default action (lowest priority) forwarding to TrialFinderTargetGroup. Use Type=forward action and retrieve target group ARN using aws elbv2 describe-target-groups.
+
+## 4. Update existing HTTP listener (port 80) with matching routing rules [done]
+### Dependencies: 12.3
+### Description: Modify the existing port 80 HTTP listener to have matching routing rules consistent with the HTTPS listener configuration
+### Details:
+Retrieve existing HTTP listener ARN using aws elbv2 describe-listeners for port 80. Delete existing rules if they differ from required configuration using aws elbv2 delete-rule. Create matching rules with same priorities as HTTPS listener: '/app/*' pattern (priority 100) and default action both forwarding to TrialFinderTargetGroup using aws elbv2 create-rule.
+
+## 5. Validate target group association and health check configuration [done]
+### Dependencies: 12.4
+### Description: Verify that the TrialFinderTargetGroup exists, is properly configured, and can receive traffic from both HTTP and HTTPS listeners
+### Details:
+Use aws elbv2 describe-target-groups to confirm TrialFinderTargetGroup exists and retrieve its configuration. Verify target group is in same VPC as ALB using aws elbv2 describe-load-balancers. Check health check settings are appropriate for both listeners. Validate target registration and health status using aws elbv2 describe-target-health.
+

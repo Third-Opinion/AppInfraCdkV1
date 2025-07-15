@@ -1,6 +1,6 @@
 # Task ID: 8
 # Title: Update ALB security group to only allow HTTPS traffic on port 443
-# Status: pending
+# Status: done
 # Dependencies: 3, 4
 # Priority: medium
 # Description: Modify the existing ALB security group sg-0f145c092dfa6267b to enforce HTTPS-only traffic by removing HTTP (port 80) rules and updating the security group description to accurately reflect its purpose.

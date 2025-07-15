@@ -1,0 +1,49 @@
+# Task ID: 11
+# Title: Update CreateEcrRepository to check existence and apply tags conditionally
+# Status: pending
+# Dependencies: 5, 6
+# Priority: medium
+# Description: Modify the CreateEcrRepository function to first check if an ECR repository exists, use existing repository with CDK tags if found, or create new repository if not found.
+# Details:
+1. Implement Repository Existence Check:
+   - Use AWS SDK ECR client to call describeRepositories() for the target repository name
+   - Handle RepositoryNotFoundException to determine if repository exists
+   - Create helper function isRepositoryExists(repositoryName) returning boolean
+
+2. Modify CreateEcrRepository Logic:
+   - Add conditional logic before repository creation
+   - If repository exists: retrieve repository ARN and apply missing CDK tags using tagResource()
+   - If repository doesn't exist: proceed with standard CDK repository creation
+   - Ensure tag consistency between existing and newly created repositories
+
+3. Tag Management:
+   - Extract CDK default tags that would be applied during creation
+   - Compare existing repository tags with required CDK tags
+   - Apply only missing tags to avoid overwriting existing custom tags
+   - Include standard CDK tags: aws:cdk:construct-id, aws:cdk:stack-name, Environment
+
+4. Error Handling:
+   - Add proper exception handling for ECR API calls
+   - Log repository existence status and tag application results
+   - Ensure graceful fallback to creation if existence check fails
+
+# Test Strategy:
+1. Test Existing Repository Scenario:
+   - Manually create an ECR repository in dev environment using AWS CLI
+   - Run CDK deployment and verify it detects existing repository
+   - Confirm CDK tags are applied without affecting existing tags
+   - Validate repository is not recreated or modified beyond tagging
+
+2. Test New Repository Scenario:
+   - Ensure no repository exists with target name
+   - Run CDK deployment and verify new repository creation
+   - Confirm all standard CDK tags are applied during creation
+
+3. Test Tag Application:
+   - Use aws ecr list-tags-for-resource to verify tag presence
+   - Confirm existing custom tags remain unchanged
+   - Validate CDK-specific tags are correctly applied
+
+4. Test Error Scenarios:
+   - Test with insufficient ECR permissions
+   - Verify proper error messages and fallback behavior

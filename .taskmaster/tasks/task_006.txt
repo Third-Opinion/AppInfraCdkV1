@@ -1,6 +1,6 @@
 # Task ID: 6
 # Title: Update IAM policies and roles for CDK deployment with proper permissions
-# Status: pending
+# Status: done
 # Dependencies: 1, 4
 # Priority: medium
 # Description: Update the IAM policy dev-g-policy-g-gh-cdk-deploy to allow updating policies and roles it created, rename the GitHub Actions role to dev-cdk-role-ue2-github-actions, add 'cdk' to the application enum, and remove CDKDeployPolicy in favor of dev-g-policy-g-gh-cdk-deploy.
@@ -65,3 +65,35 @@
    - Run complete CDK deployment pipeline with all changes
    - Verify GitHub Actions can assume new role and deploy successfully
    - Test updating an existing CDK-deployed IAM resource
+
+# Subtasks:
+## 1. Update dev-g-policy-g-gh-cdk-deploy IAM policy permissions [done]
+### Dependencies: None
+### Description: Update the existing dev-g-policy-g-gh-cdk-deploy policy to include permissions for self-management capabilities including IAM policy operations, role management, and CDK deployment permissions
+### Details:
+Add permissions for iam:CreatePolicy, iam:DeletePolicy, iam:CreatePolicyVersion, iam:DeletePolicyVersion, iam:GetPolicy, iam:GetPolicyVersion, iam:ListPolicyVersions, iam:CreateRole, iam:DeleteRole, iam:AttachRolePolicy, iam:DetachRolePolicy, iam:PutRolePolicy, iam:DeleteRolePolicy, and ensure CDK deployment permissions are comprehensive
+
+## 2. Create dev-cdk-role-ue2-github-actions IAM role [done]
+### Dependencies: 6.1
+### Description: Create a new IAM role specifically for GitHub Actions CDK deployments with appropriate trust policy for OIDC authentication and attach the updated dev-g-policy-g-gh-cdk-deploy policy
+### Details:
+Configure trust policy for GitHub OIDC provider, set appropriate session duration, attach dev-g-policy-g-gh-cdk-deploy policy, and ensure role naming follows organization conventions
+
+## 3. Add 'cdk' to application enum in codebase [done]
+### Dependencies: None
+### Description: Update the application enum/configuration in the codebase to include 'cdk' as a valid application identifier for infrastructure deployments
+### Details:
+Locate application enum definition (likely in a constants or configuration file), add 'cdk' entry, update any validation logic, and ensure consistency across the codebase
+
+## 4. Remove CDKDeployPolicy references and update to dev-g-policy-g-gh-cdk-deploy [done]
+### Dependencies: 6.1, 6.3
+### Description: Search codebase for all CDKDeployPolicy references and replace them with dev-g-policy-g-gh-cdk-deploy, ensuring proper policy attachment in all relevant configurations
+### Details:
+Update CDK stack definitions, IAM role configurations, deployment scripts, and any documentation referencing the old policy name
+
+## 5. Update GitHub Actions workflows for new role [done]
+### Dependencies: 6.2, 6.4
+### Description: Modify GitHub Actions workflow files to use the new dev-cdk-role-ue2-github-actions role for CDK deployments and ensure proper OIDC authentication configuration
+### Details:
+Update role ARN in workflow files, verify OIDC provider configuration, test authentication flow, update environment variables if needed, and ensure workflows maintain proper permissions
+

@@ -1,0 +1,86 @@
+# Task ID: 19
+# Title: Add RDS Aurora PostgreSQL database to TrialFinder data stack
+# Status: pending
+# Dependencies: 17, 18, 16
+# Priority: high
+# Description: Create Aurora Serverless v2 cluster with PostgreSQL 17.4 in production VPC with proper security groups, backup retention, and VPC-only access.
+# Details:
+1. Create Aurora PostgreSQL Serverless v2 Cluster:
+   - Use existing TrialFinderV2DataStack infrastructure from Task 17
+   - Configure PostgreSQL 17.4 with Aurora Serverless v2 scaling (0.5-128 ACU for production matching dev configuration)
+   - Deploy cluster in production VPC (prod-shared-vpc-ue2-main) using VPC lookup by name pattern
+   - Create database subnet group spanning multiple AZs in private subnets
+
+2. Configure Security Group for Database Access:
+   - Create new security group 'prod-aurora-sg-ue2' in production VPC
+   - Allow inbound PostgreSQL traffic (port 5432) from ECS container security group
+   - Ensure no public access - all traffic must originate from within VPC
+   - Tag security group with standard production tags
+
+3. Database Configuration:
+   - Set backup retention period to 7 days
+   - Enable automated backups with preferred backup window during low-traffic hours
+   - Configure maintenance window for off-peak hours
+   - Enable encryption at rest using default AWS KMS key
+   - Disable public accessibility to ensure VPC-only access
+
+4. Update Production Environment Configuration:
+   - Add Aurora cluster configuration to production.json environment file
+   - Include database endpoint, port, and security group references
+   - Ensure ECS services can reference database connection parameters
+
+# Test Strategy:
+1. Verify Aurora Cluster Deployment:
+   - Deploy TrialFinderV2DataStack to production using 'cdk deploy TrialFinderV2DataStack'
+   - Confirm cluster creation: aws rds describe-db-clusters --db-cluster-identifier <cluster-name> --profile to-prd-admin
+   - Validate ServerlessV2 scaling configuration shows MinCapacity=0.5, MaxCapacity=128
+   - Verify PostgreSQL 17.4 engine version is correctly configured
+
+2. Test Security and Network Configuration:
+   - Confirm cluster is in correct VPC using aws rds describe-db-clusters
+   - Verify security group allows port 5432 from ECS container security group only
+   - Test that cluster has no public IP and is not accessible from internet
+   - Validate database subnet group spans multiple private subnets
+
+3. Validate Backup and Maintenance Settings:
+   - Check backup retention is set to 7 days using AWS CLI
+   - Confirm automated backups are enabled with appropriate backup window
+   - Verify maintenance window is configured for off-peak hours
+   - Test encryption at rest is enabled
+
+4. Test Database Connectivity:
+   - Deploy test ECS task in production environment
+   - Attempt database connection from ECS task using cluster endpoint
+   - Verify connection succeeds from within VPC and fails from external sources
+
+# Subtasks:
+## 1. Configure Aurora PostgreSQL Serverless v2 cluster in TrialFinderV2DataStack [pending]
+### Dependencies: None
+### Description: Update the existing TrialFinderV2DataStack to create an Aurora Serverless v2 PostgreSQL 17.4 cluster for production environment with appropriate scaling configuration
+### Details:
+Modify TrialFinderV2DataStack.cs to add Aurora PostgreSQL Serverless v2 cluster configuration for production. Set PostgreSQL engine version to 17.4, configure scaling with MinCapacity=0.5 and MaxCapacity=128 ACUs matching development configuration. Create a DB subnet group using private subnets from the production VPC (prod-shared-vpc-ue2-main) obtained through VPC lookup by name pattern. Enable encryption at rest using default AWS KMS key and ensure the cluster has no public accessibility.
+
+## 2. Create and configure Aurora database security group [pending]
+### Dependencies: 19.1
+### Description: Implement a dedicated security group 'prod-aurora-sg-ue2' for the Aurora cluster with proper ingress rules from ECS containers
+### Details:
+In the TrialFinderV2DataStack, create a new security group named 'prod-aurora-sg-ue2' in the production VPC. Configure inbound rules to allow PostgreSQL traffic (port 5432) only from the ECS container security group. Ensure no public access is allowed - all ingress must originate from within the VPC. Apply standard production tags including Environment='production', Application='TrialFinderV2', and Component='Database'. Associate this security group with the Aurora cluster.
+
+## 3. Configure Aurora backup and maintenance settings [pending]
+### Dependencies: 19.1
+### Description: Set up automated backups with 7-day retention period and configure maintenance windows for the Aurora cluster
+### Details:
+Update the Aurora cluster configuration in TrialFinderV2DataStack to set backup retention period to 7 days. Configure the preferred backup window during low-traffic hours (e.g., 03:00-04:00 UTC). Set the maintenance window for off-peak hours (e.g., Sunday 04:00-05:00 UTC). Ensure automated backups are enabled and verify that deletion protection is enabled for the production cluster to prevent accidental deletion.
+
+## 4. Update production environment configuration file [pending]
+### Dependencies: 19.1, 19.2
+### Description: Add Aurora cluster configuration details to the production.json environment configuration file
+### Details:
+Update AppInfraCdkV1.Apps/TrialFinderV2/Environments/production.json to include the Aurora database configuration. Add properties for database endpoint (exported from CDK stack), port (5432), database name, and security group ID reference. Ensure the configuration follows the existing pattern used in development.json if available. Include references that allow ECS services to retrieve database connection parameters through environment variables or secrets.
+
+## 5. Deploy and validate Aurora cluster in production [pending]
+### Dependencies: 19.1, 19.2, 19.3, 19.4
+### Description: Execute the deployment of TrialFinderV2DataStack to production and perform comprehensive validation
+### Details:
+Deploy the TrialFinderV2DataStack to production using CDK with the to-prd-admin profile. Monitor CloudFormation stack creation for any errors. Once deployed, validate that the Aurora cluster is running, accessible from within the VPC, and properly configured. Test connectivity from an EC2 instance or ECS container within the same VPC to ensure the database is reachable on port 5432. Verify all security, backup, and maintenance configurations are applied correctly.
+

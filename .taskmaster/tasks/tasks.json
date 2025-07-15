@@ -277,7 +277,7 @@
         "description": "Configure ECS task execution role and task roles to securely access AWS Secrets Manager secrets using environment-based naming conventions and resource-scoped IAM policies.",
         "details": "1. Create IAM Policies for Secrets Manager Access:\n   - Define policy for task execution role to decrypt secrets using KMS\n   - Create environment-specific policies with resource patterns:\n     * Development: arn:aws:secretsmanager:us-east-2:615299752206:secret:/dev/myapp/*\n     * Production: arn:aws:secretsmanager:us-east-2:442042533707:secret:/prod/myapp/*\n   - Include actions: secretsmanager:GetSecretValue, secretsmanager:DescribeSecret\n   - Add KMS permissions for secret decryption\n\n2. Update ECS Task Execution Role:\n   - Modify existing execution role or create new one with pattern: {environment}-ecs-task-execution-role-{region}\n   - Attach AWS managed policy: arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy\n   - Add custom policy for Secrets Manager access with least privilege\n   - Enable pulling secrets for container environment variables\n\n3. Create ECS Task Roles:\n   - Implement task role pattern: {environment}-{application}-task-role-{region}\n   - Create separate roles for each environment (dev, staging, prod)\n   - Attach environment-specific Secrets Manager policies\n   - Implement resource constraints using naming convention paths\n\n4. Create Test Secrets in Secrets Manager:\n   - Development secrets:\n     * /dev/myapp/database-connection\n     * /dev/myapp/api-key\n     * /dev/myapp/service-credentials\n   - Production secrets:\n     * /prod/myapp/database-connection\n     * /prod/myapp/api-key\n     * /prod/myapp/service-credentials\n   - Use AWS CLI: aws secretsmanager create-secret --name /dev/myapp/database-connection --secret-string '{\"username\":\"devuser\",\"password\":\"devpass\"}'\n\n5. Update CDK Stack Implementation:\n   - Modify TrialFinderV2Stack to use new task execution role\n   - Configure task definition to reference secrets as environment variables\n   - Use secrets property in container definition:\n     ```typescript\n     secrets: {\n       DB_CONNECTION: ecs.Secret.fromSecretsManager(dbSecret),\n       API_KEY: ecs.Secret.fromSecretsManager(apiKeySecret)\n     }\n     ```\n\n6. Implement Resource Scoping:\n   - Use IAM policy conditions to enforce path-based access\n   - Add explicit Deny statements for cross-environment access\n   - Example policy condition:\n     ```json\n     \"Condition\": {\n       \"StringLike\": {\n         \"secretsmanager:SecretId\": \"/{environment}/{application-name}/*\"\n       }\n     }\n     ```",
         "testStrategy": "1. Create Integration Test Task:\n   - Deploy a test ECS task with minimal container that includes AWS CLI\n   - Configure task to use the new task role\n   - Mount test script that attempts to read secrets\n\n2. Test Allowed Access:\n   - Run aws secretsmanager get-secret-value --secret-id /dev/myapp/database-connection\n   - Verify successful retrieval of development secrets\n   - Confirm all environment-specific secrets are accessible\n\n3. Test Denied Access:\n   - Attempt to read production secrets from development task role\n   - Run aws secretsmanager get-secret-value --secret-id /prod/myapp/database-connection\n   - Verify access is denied with appropriate error message\n   - Test cross-application access is blocked\n\n4. Validate ECS Integration:\n   - Deploy updated TrialFinderV2Stack with secrets configuration\n   - Verify containers start successfully with injected secrets\n   - Check CloudWatch logs to ensure no secret values are exposed\n   - Confirm environment variables are properly set from secrets\n\n5. Security Validation:\n   - Use AWS Access Analyzer to verify IAM policies are correctly scoped\n   - Run aws iam simulate-principal-policy to test various access scenarios\n   - Ensure task execution role can only access secrets during task startup\n   - Verify task role maintains access throughout task lifecycle",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           3,
           5
@@ -290,7 +290,7 @@
             "description": "Design and implement IAM policies that provide environment-specific access to Secrets Manager resources using path-based restrictions",
             "dependencies": [],
             "details": "Create separate IAM policies for dev, staging, and production environments. Each policy should restrict access to secrets under specific paths (e.g., /dev/*, /staging/*, /prod/*). Include conditions to prevent cross-environment access and ensure proper resource tagging. Define actions like secretsmanager:GetSecretValue, secretsmanager:DescribeSecret with appropriate resource constraints.\n<info added on 2025-07-12T20:25:55.433Z>\nSuccessfully implemented environment-specific IAM policies for Secrets Manager access. Created dev-ecs-secrets-manager-policy (arn:aws:iam::615299752206:policy/dev-ecs-secrets-manager-policy) with path-based restrictions to /dev/* secrets only. Policy includes KMS decryption permissions for secret encryption keys and explicit deny statements for cross-environment access. Also created prod-secrets-manager-policy.json for production environment with access to /prod/* secrets in account 442042533707. Policies enforce environment isolation using resource ARN patterns and conditional access based on resource tags.\n</info added on 2025-07-12T20:25:55.433Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -301,7 +301,7 @@
               1
             ],
             "details": "Create or update the ECS task execution role to include permissions for KMS key usage (kms:Decrypt, kms:DescribeKey) and Secrets Manager operations. Ensure the execution role can pull container images from ECR and write logs to CloudWatch. Apply least privilege principles and include condition keys for service-specific access.\n<info added on 2025-07-12T20:26:46.189Z>\nImplementation completed successfully. The dev-ecs-task-execution-role-ue2 role has been created with ARN arn:aws:iam::615299752206:role/dev-ecs-task-execution-role-ue2. The role includes proper trust policy for ecs-tasks.amazonaws.com service assumption, AWS managed AmazonECSTaskExecutionRolePolicy for ECR and CloudWatch access, and custom dev-ecs-secrets-manager-policy providing environment-specific Secrets Manager access with KMS decryption capabilities. The configuration enables secure container image pulling and secrets retrieval during task startup while maintaining proper security isolation.\n</info added on 2025-07-12T20:26:46.189Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -313,7 +313,7 @@
               2
             ],
             "details": "Create distinct task roles for dev, staging, and production environments. Each role should have environment-specific permissions and resource access patterns. Include necessary permissions for application functionality while maintaining strict boundaries between environments. Implement resource tags and conditions to enforce separation.\n<info added on 2025-07-12T20:27:25.417Z>\nImplementation Status: Development environment task role completed. Created dev-trialfinder-task-role-ue2 (arn:aws:iam::615299752206:role/dev-trialfinder-task-role-ue2) with ECS service trust policy and dev-ecs-secrets-manager-policy attached for runtime access to /dev/* secrets path. Role follows naming convention {environment}-{application}-task-role-{region}. Need to replicate for staging and production environments with appropriate policy variations for their respective secret paths and resource access patterns.\n</info added on 2025-07-12T20:27:25.417Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -324,7 +324,7 @@
               1
             ],
             "details": "Create sample secrets in Secrets Manager with proper naming conventions (e.g., /dev/app/db-connection, /staging/app/api-key). Include various secret types like database credentials, API keys, and configuration values. Tag secrets appropriately for environment identification and access control. Ensure KMS encryption is properly configured for each secret.\n<info added on 2025-07-12T20:28:25.226Z>\nImplementation completed: Successfully created three development environment test secrets in AWS Secrets Manager following the established naming convention with /dev/trialfinder/ path prefix. Created secrets include database-connection (containing sample DB credentials), api-keys (containing third-party service keys), and jwt-config (containing JWT signing configuration). All secrets properly configured with KMS encryption enabled by default and tagged with Environment=Development, Application=TrialFinder, and appropriate SecretType classification tags for access control and environment identification. ARNs documented for reference in ECS task role policy creation.\n</info added on 2025-07-12T20:28:25.226Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -338,7 +338,7 @@
               4
             ],
             "details": "Update the CDK code to reference the new IAM roles in ECS task definitions. Implement secret retrieval from Secrets Manager and injection as environment variables using CDK's ECS patterns. Configure the task definition to use the appropriate execution and task roles. Ensure proper error handling and fallback mechanisms.\n<info added on 2025-07-12T20:29:31.602Z>\nImplementation completed successfully. Created EcsTaskWithSecrets construct in AppInfraCdkV1.Stacks.Components/EcsTaskWithSecrets.cs that provides reusable pattern for ECS tasks with IAM roles and secret injection. The construct references existing IAM roles by ARN (dev-ecs-task-execution-role-ue2 for execution, dev-trialfinder-task-role-ue2 for task access) and implements secret retrieval using CDK's Secret.FromSecretsManager() method for database credentials, API keys, and JWT configuration. Example implementation created in TrialFinderEcsExampleStack.cs demonstrates proper usage with Fargate task definition (256 CPU/512MB memory), CloudWatch logging configuration, and comprehensive tagging. All secrets are properly injected as environment variables with error handling and fallback mechanisms in place.\n</info added on 2025-07-12T20:29:31.602Z>",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -353,7 +353,73 @@
               5
             ],
             "details": "Create test scenarios to verify that dev environment cannot access prod secrets and vice versa. Test KMS key permissions and encryption/decryption operations. Validate that ECS tasks can only access their designated secrets. Implement automated tests using AWS SDK to verify policy effectiveness. Document test results and any security findings.\n<info added on 2025-07-12T20:32:45.143Z>\nSuccessfully completed comprehensive IAM policy validation with automated testing scripts. Implemented validate-iam-policies.sh script that confirms all security controls are working correctly including role existence and policy attachments, proper secret tagging (Environment=Development, Application=TrialFinder), correct permissions with path restrictions to /dev/* only, explicit deny statements blocking access to /staging/* and /prod/* paths, and VPC endpoint configuration for private Secrets Manager access. All tests passed demonstrating effective environment isolation and least privilege access implementation. Security validation confirms that development environment cannot access production or staging secrets, maintaining strict boundary controls between environments.\n</info added on 2025-07-12T20:32:45.143Z>",
-            "status": "pending",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Create base IAM policies for Secrets Manager access",
+            "description": "Design and implement IAM policies that grant ECS tasks permission to access Secrets Manager secrets with environment-specific resource constraints and KMS decryption permissions.",
+            "dependencies": [],
+            "details": "Create IAM policy documents with the following specifications:\n- Define base policy for secretsmanager:GetSecretValue and secretsmanager:DescribeSecret actions\n- Add resource patterns for environment-specific secrets:\n  * Development: arn:aws:secretsmanager:us-east-2:615299752206:secret:/dev/myapp/*\n  * Production: arn:aws:secretsmanager:us-east-2:442042533707:secret:/prod/myapp/*\n- Include KMS permissions: kms:Decrypt, kms:DescribeKey for secret decryption\n- Implement least privilege principle with explicit deny for cross-environment access\n- Create separate policy documents for each environment to maintain isolation",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Configure ECS task execution role with enhanced permissions",
+            "description": "Set up the ECS task execution role with necessary permissions for pulling container images, writing logs, and accessing encrypted secrets from Secrets Manager.",
+            "dependencies": [
+              7
+            ],
+            "details": "Configure task execution role with:\n- Attach AWS managed policy: arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy\n- Add custom inline policy for Secrets Manager access during container startup\n- Grant permissions to decrypt secrets using customer-managed KMS keys\n- Configure CloudWatch Logs permissions for container logging\n- Add ECR permissions for pulling container images from private repositories\n- Implement trust relationship for ECS service to assume the role\n- Add condition keys to restrict usage to specific ECS clusters",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Create environment-specific ECS task roles",
+            "description": "Implement separate ECS task roles for each environment (dev/prod) with scoped permissions to access only their respective secrets and AWS resources.",
+            "dependencies": [
+              7,
+              7
+            ],
+            "details": "Create task roles with:\n- Separate roles for development and production environments\n- Attach environment-specific Secrets Manager policies created in subtask 7.1\n- Add permissions for other AWS services the application needs (S3, DynamoDB, etc.)\n- Implement resource tags and conditions to prevent cross-environment access\n- Configure assume role policy to allow only ECS tasks to assume the role\n- Add session policies to limit permission scope based on task definition\n- Include CloudWatch metrics permissions for application monitoring",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Set up test secrets in Secrets Manager",
+            "description": "Create test secrets in AWS Secrets Manager following the established naming conventions and configure appropriate encryption and access controls.",
+            "dependencies": [
+              7
+            ],
+            "details": "Create test secrets with:\n- Development secrets under path: /dev/myapp/trialfinder/\n- Example secrets: database credentials, API keys, service endpoints\n- Use AWS KMS customer-managed key for encryption\n- Set up secret rotation configuration (disabled for testing)\n- Add resource tags: Environment=dev, Application=trialfinder\n- Configure secret versioning and recovery window\n- Create sample JSON structured secrets for complex configurations\n- Document secret naming conventions and access patterns",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 11,
+            "title": "Update CDK stack to integrate IAM roles and inject secrets",
+            "description": "Modify the TrialFinderV2EcsStack CDK code to use the new IAM roles and configure ECS task definitions to inject secrets as environment variables.",
+            "dependencies": [
+              7,
+              7
+            ],
+            "details": "Update CDK implementation:\n- Modify task definition to use new task execution and task roles\n- Configure secrets property in container definition to pull from Secrets Manager\n- Map secrets to environment variables using valueFrom syntax\n- Implement secret ARN construction based on environment configuration\n- Add error handling for missing or inaccessible secrets\n- Configure logging to mask sensitive values in CloudWatch\n- Update stack outputs to include role ARNs for reference\n- Add CDK context values for environment-specific configurations",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 12,
+            "title": "Implement comprehensive testing and validation",
+            "description": "Create and execute integration tests to validate IAM permissions, secret access, and cross-environment isolation using test ECS tasks and automated validation scripts.",
+            "dependencies": [
+              7
+            ],
+            "details": "Implement testing strategy:\n- Deploy test ECS task with AWS CLI container for permission testing\n- Create bash script to validate secret access from within container\n- Test positive cases: successful secret retrieval in correct environment\n- Test negative cases: access denial for cross-environment requests\n- Validate KMS decryption works with task role permissions\n- Test secret injection as environment variables in running containers\n- Verify CloudWatch logs don't expose sensitive values\n- Document test results and create runbook for troubleshooting\n- Set up automated tests in CI/CD pipeline for ongoing validation",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -713,21 +779,6 @@
         ]
       },
       {
-        "id": 15,
-        "title": "Update ALB health check to port 8080 and redeploy TrialFinderV2 services",
-        "description": "Modify the Application Load Balancer health check configuration to use root path (/) on port 8080, then redeploy both TrialFinderV2 ALB and ECS services to apply the changes.",
-        "details": "1. Update ALB Target Group Health Check Configuration:\n   - Use AWS CLI with to-dev-admin profile to modify the target group health check\n   - Update health check path from current path to root path (/)\n   - Change health check port from current port to 8080\n   - Use aws elbv2 modify-target-group --target-group-arn <arn> --health-check-path / --health-check-port 8080\n   - Verify health check protocol remains HTTP and configure appropriate timeout/interval settings\n\n2. Update Container Port Configuration:\n   - Modify TrialFinderV2EcsStack container definitions to expose port 8080\n   - Update containerDefinitions in configuration files (development.json, production.json, staging.json)\n   - Ensure container port mappings align with health check port requirements\n   - Update any environment variables or configuration that references the health check endpoint\n\n3. Redeploy TrialFinderV2 Infrastructure:\n   - Deploy TrialFinderV2AlbStack using CDK to apply ALB configuration changes\n   - Deploy TrialFinderV2EcsStack using CDK to update ECS service with new container configurations\n   - Monitor deployment progress and ensure zero-downtime deployment\n   - Verify target group health checks pass after redeployment",
-        "testStrategy": "1. Verify Health Check Configuration:\n   - Run aws elbv2 describe-target-groups to confirm health check path is / and port is 8080\n   - Check target group health status using aws elbv2 describe-target-health\n   - Validate that targets show as 'healthy' after configuration changes\n\n2. Test Application Connectivity:\n   - Perform HTTP GET request to ALB DNS name on port 80/443 to verify application accessibility\n   - Test health check endpoint directly: curl http://<container-ip>:8080/ and verify 200 response\n   - Monitor CloudWatch metrics for target group healthy host count\n\n3. Validate ECS Service Deployment:\n   - Confirm ECS service deployment completes successfully without errors\n   - Verify running task count matches desired count in ECS console\n   - Check ECS service events for any deployment issues or health check failures\n   - Test end-to-end application functionality through ALB to ensure proper routing",
-        "status": "pending",
-        "dependencies": [
-          12,
-          13,
-          14
-        ],
-        "priority": "medium",
-        "subtasks": []
-      },
-      {
         "id": 16,
         "title": "Make VPC lookup dynamic by name pattern instead of hardcoded ID",
         "description": "Replace hardcoded VPC ID (vpc-0a2035c919f0c0f0f) in TrialFinderV2EcsStack with dynamic VPC lookup by name pattern (e.g., 'prod-shared-vpc-ue2-main'), making the stack resilient to VPC recreation.",
@@ -857,18 +908,160 @@
         "dependencies": [
           13,
           16,
-          12,
-          15
+          12
         ],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Add RDS Aurora PostgreSQL database to TrialFinder data stack",
+        "description": "Create Aurora Serverless v2 cluster with PostgreSQL 17.4 in production VPC with proper security groups, backup retention, and VPC-only access.",
+        "details": "1. Create Aurora PostgreSQL Serverless v2 Cluster:\n   - Use existing TrialFinderV2DataStack infrastructure from Task 17\n   - Configure PostgreSQL 17.4 with Aurora Serverless v2 scaling (0.5-128 ACU for production matching dev configuration)\n   - Deploy cluster in production VPC (prod-shared-vpc-ue2-main) using VPC lookup by name pattern\n   - Create database subnet group spanning multiple AZs in private subnets\n\n2. Configure Security Group for Database Access:\n   - Create new security group 'prod-aurora-sg-ue2' in production VPC\n   - Allow inbound PostgreSQL traffic (port 5432) from ECS container security group\n   - Ensure no public access - all traffic must originate from within VPC\n   - Tag security group with standard production tags\n\n3. Database Configuration:\n   - Set backup retention period to 7 days\n   - Enable automated backups with preferred backup window during low-traffic hours\n   - Configure maintenance window for off-peak hours\n   - Enable encryption at rest using default AWS KMS key\n   - Disable public accessibility to ensure VPC-only access\n\n4. Update Production Environment Configuration:\n   - Add Aurora cluster configuration to production.json environment file\n   - Include database endpoint, port, and security group references\n   - Ensure ECS services can reference database connection parameters",
+        "testStrategy": "1. Verify Aurora Cluster Deployment:\n   - Deploy TrialFinderV2DataStack to production using 'cdk deploy TrialFinderV2DataStack'\n   - Confirm cluster creation: aws rds describe-db-clusters --db-cluster-identifier <cluster-name> --profile to-prd-admin\n   - Validate ServerlessV2 scaling configuration shows MinCapacity=0.5, MaxCapacity=128\n   - Verify PostgreSQL 17.4 engine version is correctly configured\n\n2. Test Security and Network Configuration:\n   - Confirm cluster is in correct VPC using aws rds describe-db-clusters\n   - Verify security group allows port 5432 from ECS container security group only\n   - Test that cluster has no public IP and is not accessible from internet\n   - Validate database subnet group spans multiple private subnets\n\n3. Validate Backup and Maintenance Settings:\n   - Check backup retention is set to 7 days using AWS CLI\n   - Confirm automated backups are enabled with appropriate backup window\n   - Verify maintenance window is configured for off-peak hours\n   - Test encryption at rest is enabled\n\n4. Test Database Connectivity:\n   - Deploy test ECS task in production environment\n   - Attempt database connection from ECS task using cluster endpoint\n   - Verify connection succeeds from within VPC and fails from external sources",
+        "status": "pending",
+        "dependencies": [
+          17,
+          18,
+          16
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Configure Aurora PostgreSQL Serverless v2 cluster in TrialFinderV2DataStack",
+            "description": "Update the existing TrialFinderV2DataStack to create an Aurora Serverless v2 PostgreSQL 17.4 cluster for production environment with appropriate scaling configuration",
+            "dependencies": [],
+            "details": "Modify TrialFinderV2DataStack.cs to add Aurora PostgreSQL Serverless v2 cluster configuration for production. Set PostgreSQL engine version to 17.4, configure scaling with MinCapacity=0.5 and MaxCapacity=128 ACUs matching development configuration. Create a DB subnet group using private subnets from the production VPC (prod-shared-vpc-ue2-main) obtained through VPC lookup by name pattern. Enable encryption at rest using default AWS KMS key and ensure the cluster has no public accessibility.",
+            "status": "pending",
+            "testStrategy": "Deploy the updated TrialFinderV2DataStack to production using 'cdk deploy TrialFinderV2DataStack --profile to-prd-admin'. Verify cluster creation with 'aws rds describe-db-clusters --db-cluster-identifier prod-trialfinder-aurora-cluster --profile to-prd-admin'. Confirm ServerlessV2 scaling configuration shows correct ACU limits and that the cluster is deployed in the correct VPC subnets."
+          },
+          {
+            "id": 2,
+            "title": "Create and configure Aurora database security group",
+            "description": "Implement a dedicated security group 'prod-aurora-sg-ue2' for the Aurora cluster with proper ingress rules from ECS containers",
+            "dependencies": [
+              1
+            ],
+            "details": "In the TrialFinderV2DataStack, create a new security group named 'prod-aurora-sg-ue2' in the production VPC. Configure inbound rules to allow PostgreSQL traffic (port 5432) only from the ECS container security group. Ensure no public access is allowed - all ingress must originate from within the VPC. Apply standard production tags including Environment='production', Application='TrialFinderV2', and Component='Database'. Associate this security group with the Aurora cluster.",
+            "status": "pending",
+            "testStrategy": "After deployment, use 'aws ec2 describe-security-groups --group-names prod-aurora-sg-ue2 --profile to-prd-admin' to verify security group creation and rules. Confirm that the only inbound rule allows port 5432 from the ECS security group. Test that no public access is possible by attempting connection from outside the VPC."
+          },
+          {
+            "id": 3,
+            "title": "Configure Aurora backup and maintenance settings",
+            "description": "Set up automated backups with 7-day retention period and configure maintenance windows for the Aurora cluster",
+            "dependencies": [
+              1
+            ],
+            "details": "Update the Aurora cluster configuration in TrialFinderV2DataStack to set backup retention period to 7 days. Configure the preferred backup window during low-traffic hours (e.g., 03:00-04:00 UTC). Set the maintenance window for off-peak hours (e.g., Sunday 04:00-05:00 UTC). Ensure automated backups are enabled and verify that deletion protection is enabled for the production cluster to prevent accidental deletion.",
+            "status": "pending",
+            "testStrategy": "After deployment, verify backup configuration with 'aws rds describe-db-clusters --db-cluster-identifier prod-trialfinder-aurora-cluster --query \"DBClusters[0].{BackupRetention:BackupRetentionPeriod,BackupWindow:PreferredBackupWindow,MaintenanceWindow:PreferredMaintenanceWindow}\" --profile to-prd-admin'. Confirm that backup retention is set to 7 days and windows are configured correctly."
+          },
+          {
+            "id": 4,
+            "title": "Update production environment configuration file",
+            "description": "Add Aurora cluster configuration details to the production.json environment configuration file",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Update AppInfraCdkV1.Apps/TrialFinderV2/Environments/production.json to include the Aurora database configuration. Add properties for database endpoint (exported from CDK stack), port (5432), database name, and security group ID reference. Ensure the configuration follows the existing pattern used in development.json if available. Include references that allow ECS services to retrieve database connection parameters through environment variables or secrets.",
+            "status": "pending",
+            "testStrategy": "Validate the updated production.json file by running 'cdk synth TrialFinderV2DataStack --profile to-prd-admin' to ensure configuration is properly loaded. Verify that the ECS task definitions in TrialFinderV2EcsStack can reference the database configuration values. Check CloudFormation outputs to confirm database endpoint is properly exported."
+          },
+          {
+            "id": 5,
+            "title": "Deploy and validate Aurora cluster in production",
+            "description": "Execute the deployment of TrialFinderV2DataStack to production and perform comprehensive validation",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Deploy the TrialFinderV2DataStack to production using CDK with the to-prd-admin profile. Monitor CloudFormation stack creation for any errors. Once deployed, validate that the Aurora cluster is running, accessible from within the VPC, and properly configured. Test connectivity from an EC2 instance or ECS container within the same VPC to ensure the database is reachable on port 5432. Verify all security, backup, and maintenance configurations are applied correctly.",
+            "status": "pending",
+            "testStrategy": "Execute 'cdk deploy TrialFinderV2DataStack --profile to-prd-admin' and monitor deployment. After successful deployment, run comprehensive validation: 'aws rds describe-db-clusters --db-cluster-identifier prod-trialfinder-aurora-cluster --profile to-prd-admin' to verify cluster status. Test connectivity using 'nc -zv <cluster-endpoint> 5432' from an instance within the VPC. Verify CloudFormation outputs contain the cluster endpoint and confirm ECS services can reference the database configuration."
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "Implement CDK/GitHub Actions deployment pattern for ECS tasks with infrastructure and application separation",
+        "description": "Create a deployment pattern where CDK manages ECS infrastructure with placeholder containers while GitHub Actions handles application deployments, preventing CloudFormation state drift.",
+        "details": "1. Update ECS Task Definition Configuration:\n   - Modify TrialFinderV2EcsStack to create task definitions with placeholder containers\n   - Set placeholder image (e.g., 'nginx:latest' or 'busybox:latest') for initial deployment\n   - Configure consistent logging using CloudWatch log groups with retention policies\n   - Ensure task definitions include all required fields (cpu, memory, networkMode, family)\n   - Add environment variable placeholders that GitHub Actions can override\n\n2. Create Dedicated IAM Roles:\n   - Create TaskRole for each ECS task family with minimal permissions for application runtime\n   - Create ExecutionRole for each task family with permissions for image pulling, logging, and secrets access\n   - Follow naming convention: {environment}-{service}-task-role and {environment}-{service}-execution-role\n   - Add IAM policies for accessing Secrets Manager secrets with resource-scoped permissions\n   - Configure roles to be assumable by ECS tasks service\n\n3. Implement GitHub Actions Workflow:\n   - Create sample workflow file (.github/workflows/deploy-ecs.yml) demonstrating the deployment pattern\n   - Use AWS CLI to update existing task definition with new revision\n   - Add environment variable updates to validate the approach (e.g., DEPLOYMENT_VERSION, BUILD_NUMBER)\n   - Implement workflow to register new task definition revision without updating CDK stack\n   - Add workflow step to update ECS service to use new task definition revision\n   - Include rollback mechanism in case of deployment failure\n\n4. Configure State Management:\n   - Ensure CDK stack outputs task definition ARN and family name for GitHub Actions consumption\n   - Document the separation of concerns: CDK manages infrastructure, GitHub Actions manages application code\n   - Add validation to prevent CDK from overwriting application-specific task definition changes\n   - Implement mechanism to detect and handle task definition drift between CDK and GitHub Actions",
+        "testStrategy": "1. Validate CDK Infrastructure:\n   - Deploy updated TrialFinderV2EcsStack and verify task definitions are created with placeholder containers\n   - Confirm dedicated TaskRole and ExecutionRole are created for each task family\n   - Test that ECS service can start with placeholder containers and reach healthy state\n   - Verify CloudWatch log groups are created with proper retention policies\n\n2. Test GitHub Actions Deployment:\n   - Run sample GitHub Actions workflow to update task definition with new environment variables\n   - Verify that workflow can successfully register new task definition revision\n   - Confirm ECS service updates to use new task definition without CloudFormation involvement\n   - Test rollback functionality by deploying a failing task definition\n\n3. Validate State Separation:\n   - After GitHub Actions deployment, run 'cdk diff' to confirm no drift is detected\n   - Verify CloudFormation stack remains unchanged after application deployment\n   - Test that subsequent CDK deployments don't overwrite GitHub Actions changes\n   - Confirm task definition revisions created by GitHub Actions persist through CDK updates\n\n4. Integration Testing:\n   - Deploy multiple application versions through GitHub Actions workflow\n   - Verify environment variable updates are properly applied to running containers\n   - Test that IAM roles provide appropriate permissions for application runtime\n   - Confirm logging and monitoring continue to work correctly with GitHub Actions deployments",
+        "status": "pending",
+        "dependencies": [
+          13,
+          14,
+          7,
+          18
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update ECS Task Definition Configuration with Placeholder Containers",
+            "description": "Modify TrialFinderV2EcsStack to create task definitions with placeholder containers and configure logging infrastructure",
+            "dependencies": [],
+            "details": "Update the TrialFinderV2EcsStack.cs file to:\n- Configure task definitions to use placeholder containers (nginx:latest or busybox:latest)\n- Set up CloudWatch log groups with retention policies (e.g., 7 days for dev, 30 days for prod)\n- Define consistent task definition parameters including cpu (256-1024), memory (512-2048), networkMode (awsvpc)\n- Add environment variable placeholders like DEPLOYMENT_VERSION, BUILD_NUMBER, APP_ENV\n- Ensure task definition family names follow pattern: {environment}-{service}-task",
+            "status": "pending",
+            "testStrategy": "Deploy the updated stack to development environment and verify:\n- Task definitions are created with placeholder containers\n- CloudWatch log groups are created with correct retention\n- Task definitions can be retrieved via AWS CLI\n- Placeholder containers can start successfully in ECS"
+          },
+          {
+            "id": 2,
+            "title": "Create Dedicated IAM Roles for ECS Tasks",
+            "description": "Implement TaskRole and ExecutionRole for each ECS task family with appropriate permissions and naming conventions",
+            "dependencies": [
+              1
+            ],
+            "details": "Create IAM roles in the CDK stack:\n- TaskRole: {environment}-{service}-task-role with permissions for application runtime (S3, DynamoDB, etc.)\n- ExecutionRole: {environment}-{service}-execution-role with permissions for ECR image pulling, CloudWatch logging, and Secrets Manager access\n- Add trust relationships allowing ecs-tasks.amazonaws.com to assume these roles\n- Implement resource-scoped policies for Secrets Manager: arn:aws:secretsmanager:{region}:{account}:secret:/{environment}/{service}/*\n- Add permissions for KMS decrypt operations on secrets",
+            "status": "pending",
+            "testStrategy": "Validate IAM roles creation:\n- Use AWS CLI to verify roles exist with correct naming\n- Test role assumption by ECS tasks service\n- Verify policy attachments include required permissions\n- Test Secrets Manager access with resource-scoped permissions"
+          },
+          {
+            "id": 3,
+            "title": "Implement GitHub Actions Workflow for ECS Deployments",
+            "description": "Create a sample GitHub Actions workflow that updates ECS task definitions and services without modifying CDK infrastructure",
+            "dependencies": [
+              2
+            ],
+            "details": "Create .github/workflows/deploy-ecs.yml with:\n- AWS authentication using OIDC roles (dev-tfv2-role-ue2-github-actions)\n- Steps to retrieve current task definition using AWS CLI\n- Update task definition with new container image and environment variables\n- Register new task definition revision\n- Update ECS service to use new revision with deployment configuration\n- Implement health check waiting and rollback on failure\n- Add workflow inputs for service name, image tag, and environment",
+            "status": "pending",
+            "testStrategy": "Test the workflow by:\n- Running workflow with test image tag\n- Verifying new task definition revision is created\n- Confirming ECS service updates to new revision\n- Testing rollback mechanism by deploying a failing image\n- Validating environment variables are updated correctly"
+          },
+          {
+            "id": 4,
+            "title": "Configure CDK Stack Outputs and State Management",
+            "description": "Set up CDK stack outputs for GitHub Actions consumption and implement state separation mechanisms",
+            "dependencies": [
+              3
+            ],
+            "details": "Update CDK stack to:\n- Export task definition ARNs and family names as CloudFormation outputs\n- Export ECS service ARNs and names for GitHub Actions reference\n- Add CDK context or tags to mark resources as 'GitHub-managed' for application deployments\n- Implement CDK aspect or custom resource to validate task definitions haven't been modified outside CDK\n- Document the separation pattern in stack comments and README\n- Add stack tags indicating deployment method (CDK vs GitHub Actions)",
+            "status": "pending",
+            "testStrategy": "Verify state management by:\n- Deploying CDK stack and checking exported outputs\n- Using GitHub Actions to update task definition\n- Re-running CDK deploy to ensure no drift detection\n- Testing that CDK doesn't overwrite GitHub Actions changes\n- Validating outputs can be consumed by GitHub workflows"
+          },
+          {
+            "id": 5,
+            "title": "Create Documentation and Validation Mechanisms",
+            "description": "Document the deployment pattern and implement validation to prevent infrastructure drift between CDK and GitHub Actions",
+            "dependencies": [
+              4
+            ],
+            "details": "Create comprehensive documentation:\n- Write deployment pattern guide in docs/ecs-deployment-pattern.md\n- Document CDK responsibilities (infrastructure) vs GitHub Actions (applications)\n- Create runbook for handling task definition drift scenarios\n- Implement validation script to detect differences between CDK and running task definitions\n- Add pre-deployment checks in GitHub Actions to validate infrastructure compatibility\n- Create troubleshooting guide for common deployment issues",
+            "status": "pending",
+            "testStrategy": "Validate documentation and mechanisms:\n- Follow documentation to perform end-to-end deployment\n- Test drift detection script with intentional changes\n- Verify pre-deployment checks catch incompatible changes\n- Test various failure scenarios and validate runbook procedures\n- Ensure new team members can follow documentation successfully"
+          }
+        ]
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-15T04:09:17.536Z"
+      "updated": "2025-07-15T14:20:28.160Z"
     }
   }
 }

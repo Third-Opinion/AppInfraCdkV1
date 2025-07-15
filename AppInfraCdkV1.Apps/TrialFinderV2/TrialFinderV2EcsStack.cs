@@ -5,6 +5,7 @@ using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
+using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
@@ -40,6 +41,9 @@ public class TrialFinderV2EcsStack : Stack
 
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, context);
+
+        // Create test secrets for the current environment
+        CreateTestSecrets();
     }
 
     /// <summary>
@@ -270,6 +274,9 @@ public class TrialFinderV2EcsStack : Stack
         {
             containerOptions.Cpu = containerConfig.Cpu.Value;
         }
+
+        // Add secrets from Secrets Manager
+        containerOptions.Secrets = GetContainerSecrets(context);
 
         taskDefinition.AddContainer(containerName, containerOptions);
     }
@@ -533,6 +540,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = CreateDefaultEnvironmentVariables(context),
+            Secrets = GetContainerSecrets(context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -572,6 +580,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = CreateDefaultEnvironmentVariables(context),
+            Secrets = GetContainerSecrets(context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -641,6 +650,9 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[] { "*" }
         }));
 
+        // Add Secrets Manager permissions for environment-specific secrets
+        AddSecretsManagerPermissions(taskRole);
+
         return taskRole;
     }
 
@@ -698,6 +710,9 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[] { "*" }
         }));
 
+        // Add Secrets Manager permissions for container startup
+        AddSecretsManagerPermissions(executionRole);
+
         return executionRole;
     }
 
@@ -729,6 +744,168 @@ public class TrialFinderV2EcsStack : Stack
             ContainerName = containerName;
             ContainerPort = containerPort;
         }
+    }
+
+    /// <summary>
+    /// Add Secrets Manager permissions to IAM role with environment-specific scoping
+    /// </summary>
+    private void AddSecretsManagerPermissions(IRole role)
+    {
+        // Cast to Role to access AddToPolicy method
+        var concreteRole = role as Role;
+        if (concreteRole == null) return;
+
+        // Environment-specific secret path pattern
+        var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
+        var secretResourceArn = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{_context.Application.Name.ToLowerInvariant()}/*";
+        
+        // Add Secrets Manager permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret"
+            },
+            Resources = new[] { secretResourceArn },
+            Conditions = new Dictionary<string, object>
+            {
+                ["StringLike"] = new Dictionary<string, string>
+                {
+                    ["secretsmanager:SecretId"] = $"/{environmentPrefix}/{_context.Application.Name.ToLowerInvariant()}/*"
+                }
+            }
+        }));
+
+        // Add KMS permissions for secret decryption using default AWS managed key
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "kms:Decrypt",
+                "kms:DescribeKey"
+            },
+            Resources = new[] { $"arn:aws:kms:{_context.Environment.Region}:{_context.Environment.AccountId}:key/alias/aws/secretsmanager" }
+        }));
+
+        // Add explicit deny for cross-environment access
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.DENY,
+            Actions = new[]
+            {
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret"
+            },
+            Resources = new[] { "*" },
+            Conditions = new Dictionary<string, object>
+            {
+                ["StringNotLike"] = new Dictionary<string, string>
+                {
+                    ["secretsmanager:SecretId"] = $"/{environmentPrefix}/{_context.Application.Name.ToLowerInvariant()}/*"
+                }
+            }
+        }));
+    }
+
+    /// <summary>
+    /// Get container secrets from Secrets Manager
+    /// </summary>
+    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(DeploymentContext context)
+    {
+        var environmentPrefix = context.Environment.Name.ToLowerInvariant();
+        var applicationName = context.Application.Name.ToLowerInvariant();
+        
+        return new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
+        {
+            ["DB_CONNECTION_STRING"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
+                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "DbSecretRef", 
+                    $"/{environmentPrefix}/{applicationName}/database-connection")),
+            ["API_KEY"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
+                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ApiKeySecretRef", 
+                    $"/{environmentPrefix}/{applicationName}/api-key")),
+            ["SERVICE_CLIENT_ID"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
+                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ServiceCredentialsSecretRef", 
+                    $"/{environmentPrefix}/{applicationName}/service-credentials"), "clientId"),
+            ["SERVICE_CLIENT_SECRET"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
+                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ServiceCredentialsSecretRef2", 
+                    $"/{environmentPrefix}/{applicationName}/service-credentials"), "clientSecret")
+        };
+    }
+
+    /// <summary>
+    /// Create test secrets in Secrets Manager for the current environment
+    /// </summary>
+    private void CreateTestSecrets()
+    {
+        var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
+        var applicationName = _context.Application.Name.ToLowerInvariant();
+        
+        // Create database connection secret
+        var dbSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "DatabaseConnectionSecret", new SecretProps
+        {
+            SecretName = $"/{environmentPrefix}/{applicationName}/database-connection",
+            Description = $"Database connection string for {_context.Application.Name} in {_context.Environment.Name}",
+            GenerateSecretString = new SecretStringGenerator
+            {
+                SecretStringTemplate = "{\"username\":\"trialfinderuser\"}",
+                GenerateStringKey = "password",
+                PasswordLength = 32,
+                ExcludeCharacters = "\"@/\\"
+            }
+        });
+
+        // Create API key secret
+        var apiKeySecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "ApiKeySecret", new SecretProps
+        {
+            SecretName = $"/{environmentPrefix}/{applicationName}/api-key",
+            Description = $"API key for {_context.Application.Name} in {_context.Environment.Name}",
+            GenerateSecretString = new SecretStringGenerator
+            {
+                SecretStringTemplate = "{\"service\":\"trial-finder\"}",
+                GenerateStringKey = "apiKey",
+                PasswordLength = 64,
+                ExcludeCharacters = "\"@/\\"
+            }
+        });
+
+        // Create service credentials secret
+        var serviceCredentialsSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "ServiceCredentialsSecret", new SecretProps
+        {
+            SecretName = $"/{environmentPrefix}/{applicationName}/service-credentials",
+            Description = $"Service credentials for {_context.Application.Name} in {_context.Environment.Name}",
+            GenerateSecretString = new SecretStringGenerator
+            {
+                SecretStringTemplate = "{\"clientId\":\"trial-finder-client\"}",
+                GenerateStringKey = "clientSecret",
+                PasswordLength = 48,
+                ExcludeCharacters = "\"@/\\"
+            }
+        });
+
+        // Export secret ARNs for reference
+        new CfnOutput(this, "DatabaseSecretArn", new CfnOutputProps
+        {
+            Value = dbSecret.SecretArn,
+            Description = "Database connection secret ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-db-secret-arn"
+        });
+
+        new CfnOutput(this, "ApiKeySecretArn", new CfnOutputProps
+        {
+            Value = apiKeySecret.SecretArn,
+            Description = "API key secret ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-api-key-secret-arn"
+        });
+
+        new CfnOutput(this, "ServiceCredentialsSecretArn", new CfnOutputProps
+        {
+            Value = serviceCredentialsSecret.SecretArn,
+            Description = "Service credentials secret ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-service-credentials-secret-arn"
+        });
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 # Task ID: 9
 # Title: Create VPC endpoints and security group for secure AWS service access
-# Status: pending
+# Status: done
 # Dependencies: 4, 5
 # Priority: medium
 # Description: Create a security group allowing HTTPS traffic from ECS services and deploy four VPC endpoints for AWS services, copying configuration from existing endpoints to ensure secure private connectivity within the VPC.
@@ -77,3 +77,38 @@
    - From an EC2 instance in the private subnet, run nslookup for service endpoints
    - Confirm DNS resolves to private IP addresses within the VPC
    - Validate no internet gateway traffic for AWS service calls
+
+# Subtasks:
+## 1. Create VPC endpoints security group with HTTPS configuration [done]
+### Dependencies: None
+### Description: Create a dedicated security group for VPC endpoints that allows HTTPS (port 443) ingress from the VPC CIDR range and appropriate egress rules
+### Details:
+Define a new security group in CDK that will be used by all interface endpoints. Configure ingress rule for port 443 from VPC CIDR block, and egress rules as needed. Add proper tagging and naming conventions consistent with the existing infrastructure
+
+## 2. Implement S3 gateway endpoint with route table associations [done]
+### Dependencies: None
+### Description: Create an S3 gateway endpoint and associate it with all private subnet route tables to enable private S3 connectivity
+### Details:
+Use CDK to create an S3 gateway endpoint in the VPC. Automatically associate the endpoint with all private subnet route tables. Ensure the endpoint policy allows necessary S3 operations for ECR image storage and application needs
+<info added on 2025-07-12T20:13:08.655Z>
+Implementation completed successfully. Created S3 gateway endpoint (vpce-0f350066b32c8b324) with automatic association to 6 route tables covering all private and isolated subnets. Endpoint is in 'available' state and properly configured for ECR image storage access. Part of comprehensive VPC endpoints deployment including DynamoDB gateway, ECR API/Docker interfaces, and CloudWatch Logs endpoints - all operational.
+</info added on 2025-07-12T20:13:08.655Z>
+
+## 3. Configure ECR interface endpoints with DNS and security [done]
+### Dependencies: 9.1
+### Description: Create interface endpoints for ECR API (ecr.api) and Docker Registry (ecr.dkr) with private DNS enabled and appropriate security group attachment
+### Details:
+Implement two interface endpoints for ECR services using CDK. Enable private DNS for both endpoints. Attach the VPC endpoints security group created in subtask 1. Deploy endpoints across all availability zones for high availability
+<info added on 2025-07-12T20:14:00.179Z>
+Implementation completed successfully. ECR API endpoint (vpce-0e7b36cb842a61925) and ECR Docker endpoint (vpce-0fe345c5dcb0b5991) are both deployed and operational. Private DNS is enabled with proper DNS resolution. Security group sg-06e618c39d5837ae1 (dev-shared-sg-ue2-vpc-endpoints) is attached with HTTPS ingress rules configured for ECS and VPC CIDR access. Multi-AZ deployment confirmed for high availability.
+</info added on 2025-07-12T20:14:00.179Z>
+
+## 4. Create Secrets Manager endpoint and consolidate endpoint management [done]
+### Dependencies: 9.1, 9.3
+### Description: Implement Secrets Manager interface endpoint and refactor CDK code to manage all VPC endpoints in a centralized, maintainable structure
+### Details:
+Add Secrets Manager interface endpoint with the same security and DNS configuration. Create a reusable CDK construct or function to standardize endpoint creation. Ensure all endpoints are properly tagged and follow naming conventions. Update documentation to reflect the private connectivity setup
+<info added on 2025-07-12T20:17:19.791Z>
+COMPLETED: Successfully implemented Secrets Manager VPC endpoint (vpce-0772faf4d73eb8c88) with private DNS enabled and security group sg-06e618c39d5837ae1 attached. All 6 VPC endpoints are now operational and deployed across availability zones for high availability: S3 gateway, DynamoDB gateway, ECR API interface, ECR Docker interface, CloudWatch Logs interface, and Secrets Manager interface. CDK implementation consolidated in EnvironmentBaseStack with centralized endpoint management pattern established.
+</info added on 2025-07-12T20:17:19.791Z>
+

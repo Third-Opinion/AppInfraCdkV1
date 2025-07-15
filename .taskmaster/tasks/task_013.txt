@@ -1,0 +1,115 @@
+# Task ID: 13
+# Title: Refactor TrialFinderV2Stack into specialized ALB, ECS, and Data stacks with enhanced configuration management
+# Status: done
+# Dependencies: 3, 6, 7, 8, 10, 12
+# Priority: medium
+# Description: Split the monolithic TrialFinderV2Stack (AppInfraCdkV1.Apps/TrialFinderV2/TrialFinderV2Stack.cs) into three specialized stacks (TrialFinderV2AlbStack, TrialFinderV2EcsStack, TrialFinderV2DataStack) with updated container configurations, GitHub Actions deployment pipeline, and proper stack dependencies.
+# Details:
+1. Create TrialFinderV2AlbStack:
+   - Extract Application Load Balancer, security groups, and networking components from existing TrialFinderV2Stack.cs
+   - Include listeners, target groups, and SSL certificate configurations
+   - Maintain existing ALB configuration while separating into dedicated stack
+   - Export necessary outputs for ECS stack consumption (ALB ARN, target group ARNs, security group IDs)
+
+2. Create TrialFinderV2EcsStack:
+   - Extract ECS cluster, services, and task definitions into dedicated stack
+   - Update ECS task to deploy nginx:latest container listening on port 8080
+   - Import ALB stack outputs for service configuration
+   - Implement container definitions with health checks and environment variables
+   - Configure service discovery and auto-scaling policies
+
+3. Create TrialFinderV2DataStack:
+   - Extract RDS instances, S3 buckets, and data-related resources
+   - Implement independent deployment capability
+   - Configure backup and retention policies
+   - Export database connection strings and S3 bucket names for application use
+
+4. Update TrialFinderV2 Configuration Management:
+   - Modify development.json, production.json, staging.json, and integration.json in AppInfraCdkV1.Apps/TrialFinderV2/config/
+   - Implement code-based container definitions with configuration overrides
+   - Add example containerDefinitions with doc-nlp-service-web configuration
+   - Include port mappings, environment variables, and health check configurations
+
+5. Update TrialFinderV2Stack.cs and TrialFinderV2Config.cs:
+   - Modify existing TrialFinderV2Stack.cs to support multi-stack architecture
+   - Update TrialFinderV2Config.cs to handle new configuration structure
+   - Implement cross-stack references and dependency management
+
+6. GitHub Actions Pipeline Updates:
+   - Create stack configuration file defining deployment order and dependencies
+   - Update infrastructure-pr.yml to validate all TrialFinderV2 stacks exist
+   - Implement separate cdk diff, synth, and deploy commands for each TrialFinderV2 stack
+   - Configure deployment dependencies: TrialFinderV2AlbStack → TrialFinderV2EcsStack → TrialFinderV2DataStack
+   - Add stack existence validation before deployment attempts
+
+7. Stack Dependency Management:
+   - Implement cross-stack references using CloudFormation exports/imports
+   - Configure proper dependency order in deployment pipeline
+   - Ensure TrialFinderV2EcsStack can reference TrialFinderV2AlbStack outputs
+   - Validate independent TrialFinderV2DataStack deployment capability
+
+# Test Strategy:
+1. Validate Stack Separation:
+   - Deploy each TrialFinderV2 stack independently to verify proper resource allocation
+   - Confirm no circular dependencies exist between TrialFinderV2 stacks
+   - Test rollback capabilities for each individual TrialFinderV2 stack
+
+2. Test Container Configuration:
+   - Deploy nginx:latest container and verify port 8080 accessibility
+   - Validate containerDefinitions configuration loading from TrialFinderV2 JSON files
+   - Test health check functionality and container restart behavior
+
+3. GitHub Actions Validation:
+   - Run infrastructure-pr.yml workflow to verify TrialFinderV2 stack existence checks
+   - Test deployment pipeline with proper dependency ordering for TrialFinderV2 stacks
+   - Confirm cdk diff, synth, and deploy work for each TrialFinderV2 stack independently
+   - Validate deployment fails gracefully when dependencies are missing
+
+4. Integration Testing:
+   - Deploy all TrialFinderV2 stacks in correct order and verify application functionality
+   - Test ALB routing to ECS services across TrialFinderV2 stack boundaries
+   - Confirm data stack resources are accessible from TrialFinderV2 ECS services
+   - Validate cross-stack communication and resource sharing within TrialFinderV2 application
+
+5. Configuration Management Testing:
+   - Verify configuration overrides work correctly for different TrialFinderV2 environments
+   - Test container definition loading and application to TrialFinderV2 ECS tasks
+   - Confirm environment-specific settings are properly applied across all config files
+
+# Subtasks:
+## 1. Create TrialFinderV2AlbStack with networking components [done]
+### Dependencies: None
+### Description: Extract Application Load Balancer, security groups, and networking components from TrialFinderV2Stack.cs into a dedicated TrialFinderV2AlbStack with proper exports for ECS consumption.
+### Details:
+Create new TrialFinderV2AlbStack class extending Stack in AppInfraCdkV1.Apps/TrialFinderV2/ directory. Extract ALB, listeners, target groups, SSL certificate configurations, and security groups from existing TrialFinderV2Stack.cs. Configure CloudFormation exports for ALB ARN, target group ARNs, and security group IDs using CfnOutput. Maintain existing ALB configuration including health checks and routing rules. Update stack instantiation in CDK app to deploy TrialFinderV2AlbStack before TrialFinderV2EcsStack.
+
+## 2. Create TrialFinderV2EcsStack with updated container configurations [done]
+### Dependencies: 13.1
+### Description: Extract ECS cluster, services, and task definitions from TrialFinderV2Stack.cs into dedicated TrialFinderV2EcsStack with nginx:latest container deployment and ALB integration.
+### Details:
+Create new TrialFinderV2EcsStack class that imports TrialFinderV2AlbStack outputs using Fn.importValue(). Extract ECS cluster, services, and task definitions from existing TrialFinderV2Stack.cs. Update task definition to deploy nginx:latest container listening on port 8080. Configure container definitions with health checks, environment variables, and port mappings. Implement service discovery and auto-scaling policies. Connect ECS service to ALB target groups using imported values from TrialFinderV2AlbStack.
+
+## 3. Create TrialFinderV2DataStack with database and storage resources [done]
+### Dependencies: None
+### Description: Extract RDS instances, S3 buckets, and data-related resources from TrialFinderV2Stack.cs into independent TrialFinderV2DataStack with proper backup and retention policies.
+### Details:
+Create new TrialFinderV2DataStack class for all TrialFinderV2 data-related resources. Extract RDS instances, S3 buckets, and any other data storage components from existing TrialFinderV2Stack.cs. Configure backup policies, retention settings, and encryption for all data resources. Export database connection strings and S3 bucket names using CloudFormation outputs for TrialFinderV2 application consumption. Ensure TrialFinderV2DataStack can be deployed independently without dependencies on TrialFinderV2AlbStack or TrialFinderV2EcsStack.
+
+## 4. Update TrialFinderV2 configuration management with containerDefinitions [done]
+### Dependencies: 13.2
+### Description: Modify all TrialFinderV2 configuration files (development.json, production.json, staging.json, integration.json) to include containerDefinitions array with code-based container definitions and environment-specific overrides.
+### Details:
+Update AppInfraCdkV1.Apps/TrialFinderV2/config/development.json, production.json, staging.json, and integration.json files to include containerDefinitions array property. Implement containerDefinitions structure with doc-nlp-service-web configuration including image, port mappings (8080), environment variables, health check configurations, and resource limits. Create configuration overrides for different TrialFinderV2 environments. Update TrialFinderV2Stack.cs and TrialFinderV2Config.cs to read containerDefinitions from configuration files and apply them to ECS task definitions. Ensure configuration supports multiple container definitions per TrialFinderV2 service.
+
+## 5. Update GitHub Actions pipeline for TrialFinderV2 multi-stack deployment [done]
+### Dependencies: 13.1, 13.2, 13.3, 13.4
+### Description: Create stack configuration file and update GitHub Actions workflows to support independent deployment of TrialFinderV2AlbStack, TrialFinderV2EcsStack, and TrialFinderV2DataStack with proper dependency management.
+### Details:
+Create TrialFinderV2-stack-config.json file defining deployment order (TrialFinderV2AlbStack → TrialFinderV2EcsStack → TrialFinderV2DataStack) and stack dependencies. Update infrastructure-pr.yml workflow to validate all three TrialFinderV2 stacks exist before deployment attempts. Implement separate CDK commands for diff, synth, and deploy for each TrialFinderV2 stack. Add stack existence validation step using cdk list command filtered for TrialFinderV2 stacks. Configure deployment matrix or sequential jobs respecting TrialFinderV2 dependency order. Update workflow to handle TrialFinderV2 stack-specific failures and rollback scenarios. Add conditional deployment logic based on changed files in TrialFinderV2 directory.
+
+## 6. Update TrialFinderV2Stack.cs and TrialFinderV2Config.cs for multi-stack architecture [done]
+### Dependencies: 13.1, 13.2, 13.3, 13.4
+### Description: Modify existing TrialFinderV2Stack.cs and TrialFinderV2Config.cs files to support the new multi-stack architecture and cross-stack references.
+### Details:
+Update TrialFinderV2Stack.cs to either act as a parent stack that orchestrates the three specialized stacks or modify it to work alongside the new specialized stacks. Update TrialFinderV2Config.cs to handle the new configuration structure including containerDefinitions and cross-stack reference parameters. Implement methods to parse and validate the updated configuration files. Add support for environment-specific stack naming and cross-stack dependency resolution. Ensure backward compatibility during the transition period.
+
