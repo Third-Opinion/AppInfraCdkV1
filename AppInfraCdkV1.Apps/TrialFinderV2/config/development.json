@@ -1,7 +1,7 @@
 {
   "vpcNamePattern": "dev-shared-vpc-ue2-main",
   "ecsConfiguration": {
-    "deployTestContainer": false,
+    "deployTestContainer": true,
     "taskDefinition": {
       "taskDefinitionName": "TrialFinderTaskDefinition",
       "containerDefinitions": [
@@ -9,7 +9,7 @@
           "name": "doc-nlp-service-web",
           "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
           "cpu": 0,
-          "skip": false,
+          "skip": true,
           "portMappings": [
             {
               "name": "doc-nlp-service-web-8080-tcp",

@@ -294,32 +294,6 @@ cd ../project-auth && claude    # Terminal 1: Auth work
 cd ../project-api && claude     # Terminal 2: API work
 ```
 
-## Troubleshooting
-
-### AI Commands Failing
-
-```bash
-# Check API keys are configured
-cat .env                           # For CLI usage
-
-# Verify model configuration
-task-master models
-
-# Test with different model
-task-master models --set-fallback gpt-4o-mini
-```
-
-```bash
-# Regenerate task files from tasks.json
-task-master generate
-
-# Fix dependency issues
-task-master fix-dependencies
-```
-
-DO NOT RE-INITIALIZE. That will not do anything beyond re-adding the same Taskmaster core files.
-
-
 ### File Management
 
 - Never manually edit `tasks.json` - use commands instead
