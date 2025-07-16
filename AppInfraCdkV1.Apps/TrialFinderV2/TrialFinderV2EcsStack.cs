@@ -128,8 +128,9 @@ public class TrialFinderV2EcsStack : Stack
 
         // Use the first task definition from config or fallback to default naming
         TaskDefinitionConfig? firstTaskDef = ecsConfig.TaskDefinition?.FirstOrDefault();
-        var taskDefinitionName = firstTaskDef?.TaskDefinitionName ??
-                                 context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
+        var taskDefinitionName = firstTaskDef?.TaskDefinitionName != null
+            ? context.Namer.EcsTaskDefinition(firstTaskDef.TaskDefinitionName)
+            : context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
 
         // Create Fargate task definition
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName,
