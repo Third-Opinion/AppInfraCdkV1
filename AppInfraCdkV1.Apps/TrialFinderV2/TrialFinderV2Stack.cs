@@ -29,20 +29,10 @@ public class TrialFinderV2Stack : WebApplicationStack
     {
         _context = context;
         
-        // Check if we should deploy individual stacks instead of the monolithic stack
-        var stackType = System.Environment.GetEnvironmentVariable("CDK_STACK_TYPE");
-        
-        if (!string.IsNullOrEmpty(stackType))
-        {
-            // Deploy individual stack based on stack type
-            DeployIndividualStack(stackType, context);
-        }
-        else
-        {
-            // Legacy behavior: validate external dependencies and create all resources
-            ValidateExternalDependencies(context);
-            CreateTrialFinderSpecificResources(context);
-        }
+        // This stack should no longer be used for monolithic deployments
+        // Individual stacks (ALB, ECS, DATA) should be used instead
+        throw new InvalidOperationException(
+            "TrialFinderV2Stack is deprecated. Use individual stacks (TrialFinderV2AlbStack, TrialFinderV2EcsStack, TrialFinderV2DataStack) instead.");
     }
 
     private void DeployIndividualStack(string stackType, DeploymentContext context)

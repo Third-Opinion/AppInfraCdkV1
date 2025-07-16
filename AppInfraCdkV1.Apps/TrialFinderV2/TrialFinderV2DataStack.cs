@@ -10,9 +10,9 @@ public class TrialFinderV2DataStack : Stack
 {
     private readonly DeploymentContext _context;
     private Bucket? _documentsBucket;
-    private Bucket? _appBucket;
-    private Bucket? _uploadsBucket;
-    private Bucket? _backupsBucket;
+    private IBucket? _appBucket;
+    private IBucket? _uploadsBucket;
+    private IBucket? _backupsBucket;
     
     public TrialFinderV2DataStack(Construct scope,
         string id,
@@ -68,78 +68,15 @@ public class TrialFinderV2DataStack : Stack
             }
         });
 
+        // Import existing buckets instead of creating new ones to avoid conflicts
         // App-specific bucket for application data
-        _appBucket = new Bucket(this, "TrialFinderAppBucket", new BucketProps
-        {
-            BucketName = context.Namer.S3Bucket(StoragePurpose.App),
-            Versioned = true,
-            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
-            AutoDeleteObjects = false,
-            LifecycleRules = new ILifecycleRule[]
-            {
-                new LifecycleRule
-                {
-                    Id = "CleanupOldVersions",
-                    Enabled = true,
-                    NoncurrentVersionExpiration = Duration.Days(context.Environment.IsProductionClass ? 365 : 90)
-                }
-            }
-        });
+        _appBucket = Bucket.FromBucketName(this, "TrialFinderAppBucket", context.Namer.S3Bucket(StoragePurpose.App));
 
         // Uploads bucket for user uploads
-        _uploadsBucket = new Bucket(this, "TrialFinderUploadsBucket", new BucketProps
-        {
-            BucketName = context.Namer.S3Bucket(StoragePurpose.Uploads),
-            Versioned = false,
-            RemovalPolicy = RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
-            AutoDeleteObjects = false,
-            LifecycleRules = new ILifecycleRule[]
-            {
-                new LifecycleRule
-                {
-                    Id = "DeleteTempUploads",
-                    Enabled = true,
-                    Expiration = Duration.Days(7),
-                    AbortIncompleteMultipartUploadAfter = Duration.Days(1)
-                }
-            }
-        });
+        _uploadsBucket = Bucket.FromBucketName(this, "TrialFinderUploadsBucket", context.Namer.S3Bucket(StoragePurpose.Uploads));
 
         // Backups bucket for database and application backups
-        _backupsBucket = new Bucket(this, "TrialFinderBackupsBucket", new BucketProps
-        {
-            BucketName = context.Namer.S3Bucket(StoragePurpose.Backups),
-            Versioned = true,
-            RemovalPolicy = RemovalPolicy.RETAIN,
-            AutoDeleteObjects = false,
-            LifecycleRules = new ILifecycleRule[]
-            {
-                new LifecycleRule
-                {
-                    Id = "BackupRetention",
-                    Enabled = true,
-                    Transitions = new[]
-                    {
-                        new Transition
-                        {
-                            StorageClass = StorageClass.INFREQUENT_ACCESS,
-                            TransitionAfter = Duration.Days(30)
-                        },
-                        new Transition
-                        {
-                            StorageClass = StorageClass.GLACIER,
-                            TransitionAfter = Duration.Days(90)
-                        },
-                        new Transition
-                        {
-                            StorageClass = StorageClass.DEEP_ARCHIVE,
-                            TransitionAfter = Duration.Days(context.Environment.IsProductionClass ? 365 : 180) // Only transition to DEEP_ARCHIVE in prod after 1 year, non-prod after 180 days
-                        }
-                    },
-                    Expiration = Duration.Days(context.Environment.IsProductionClass ? 2555 : 730) // 7 years for prod, 2 years for non-prod
-                }
-            }
-        });
+        _backupsBucket = Bucket.FromBucketName(this, "TrialFinderBackupsBucket", context.Namer.S3Bucket(StoragePurpose.Backups));
     }
 
     /// <summary>

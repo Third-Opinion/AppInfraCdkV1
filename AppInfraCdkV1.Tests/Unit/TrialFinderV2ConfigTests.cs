@@ -223,17 +223,20 @@ public class ConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = "TestTaskDefinition",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
+                new TaskDefinitionConfig
                 {
-                    new ContainerDefinitionConfig
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
                     {
-                        Name = "test-container",
-                        Image = "nginx:latest",
-                        Skip = false,
-                        Essential = true
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            Secrets = new List<string> { "test-secret", "api-key" }
+                        }
                     }
                 }
             }
@@ -250,10 +253,13 @@ public class ConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = null,
-                ContainerDefinitions = new List<ContainerDefinitionConfig>()
+                new TaskDefinitionConfig
+                {
+                    TaskDefinitionName = null,
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>()
+                }
             }
         };
 
@@ -263,30 +269,18 @@ public class ConfigurationLoaderTests
     }
 
     [Fact]
-    public void ValidateConfiguration_WithAllContainersSkipped_ShouldThrow()
+    public void ValidateConfiguration_WithEmptyTaskDefinitionList_ShouldThrow()
     {
         // Arrange
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
-            {
-                TaskDefinitionName = "TestTaskDefinition",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
-                {
-                    new ContainerDefinitionConfig
-                    {
-                        Name = "test-container",
-                        Image = "nginx:latest",
-                        Skip = true
-                    }
-                }
-            }
+            TaskDefinition = new List<TaskDefinitionConfig>()
         };
 
         // Act & Assert
         var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
-        exception.Message.ShouldBe("At least one container must not be skipped");
+        exception.Message.ShouldBe("At least one TaskDefinition configuration is required");
     }
 
     [Fact]
@@ -296,22 +290,25 @@ public class ConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = "TestTaskDefinition",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
+                new TaskDefinitionConfig
                 {
-                    new ContainerDefinitionConfig
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
                     {
-                        Name = "duplicate-name",
-                        Image = "nginx:latest",
-                        Skip = false
-                    },
-                    new ContainerDefinitionConfig
-                    {
-                        Name = "duplicate-name",
-                        Image = "nginx:latest",
-                        Skip = false
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "duplicate-name",
+                            Image = "nginx:latest",
+                            Essential = true
+                        },
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "duplicate-name",
+                            Image = "nginx:latest",
+                            Essential = true
+                        }
                     }
                 }
             }
@@ -319,7 +316,7 @@ public class ConfigurationLoaderTests
 
         // Act & Assert
         var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
-        exception.Message.ShouldContain("Duplicate container names found: duplicate-name");
+        exception.Message.ShouldContain("Duplicate container names found in task 'TestTaskDefinition': duplicate-name");
     }
 
     [Fact]
@@ -329,16 +326,19 @@ public class ConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = "TestTaskDefinition",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
+                new TaskDefinitionConfig
                 {
-                    new ContainerDefinitionConfig
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
                     {
-                        Name = "",
-                        Image = "nginx:latest",
-                        Skip = false
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "",
+                            Image = "nginx:latest",
+                            Essential = true
+                        }
                     }
                 }
             }
@@ -356,21 +356,25 @@ public class ConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = "TestTaskDefinition",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
+                new TaskDefinitionConfig
                 {
-                    new ContainerDefinitionConfig
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
                     {
-                        Name = "test-container",
-                        Image = "nginx:latest",
-                        Skip = false,
-                        PortMappings = new List<AppInfraCdkV1.Apps.TrialFinderV2.Configuration.PortMapping>
+                        new ContainerDefinitionConfig
                         {
-                            new AppInfraCdkV1.Apps.TrialFinderV2.Configuration.PortMapping
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            PortMappings = new List<AppInfraCdkV1.Apps.TrialFinderV2.Configuration.PortMapping>
                             {
-                                ContainerPort = 0
+                                new AppInfraCdkV1.Apps.TrialFinderV2.Configuration.PortMapping
+                                {
+                                    ContainerPort = 0,
+                                    Protocol = "tcp"
+                                }
                             }
                         }
                     }
@@ -384,26 +388,32 @@ public class ConfigurationLoaderTests
     }
 
     [Fact]
-    public void ValidateConfiguration_WithInvalidHealthCheckInterval_ShouldThrow()
+    public void ValidateConfiguration_WithMissingProtocol_ShouldThrow()
     {
         // Arrange
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = "TestTaskDefinition",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
+                new TaskDefinitionConfig
                 {
-                    new ContainerDefinitionConfig
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
                     {
-                        Name = "test-container",
-                        Image = "nginx:latest",
-                        Skip = false,
-                        HealthCheck = new HealthCheckConfig
+                        new ContainerDefinitionConfig
                         {
-                            Command = new List<string> { "CMD-SHELL", "curl -f http://localhost/ || exit 1" },
-                            Interval = 400 // Invalid - too high
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            PortMappings = new List<AppInfraCdkV1.Apps.TrialFinderV2.Configuration.PortMapping>
+                            {
+                                new AppInfraCdkV1.Apps.TrialFinderV2.Configuration.PortMapping
+                                {
+                                    ContainerPort = 8080,
+                                    Protocol = null
+                                }
+                            }
                         }
                     }
                 }
@@ -412,7 +422,7 @@ public class ConfigurationLoaderTests
 
         // Act & Assert
         var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
-        exception.Message.ShouldContain("health check interval must be between 5 and 300 seconds");
+        exception.Message.ShouldContain("Protocol is required");
     }
 
     [Fact]
@@ -422,21 +432,25 @@ public class ConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new TaskDefinitionConfig
+            TaskDefinition = new List<TaskDefinitionConfig>
             {
-                TaskDefinitionName = "${TASK_DEFINITION_FAMILY}",
-                ContainerDefinitions = new List<ContainerDefinitionConfig>
+                new TaskDefinitionConfig
                 {
-                    new ContainerDefinitionConfig
+                    TaskDefinitionName = "${TASK_DEFINITION_FAMILY}",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
                     {
-                        Name = "test-container",
-                        Image = "nginx:latest",
-                        Environment = new List<AppInfraCdkV1.Apps.TrialFinderV2.Configuration.EnvironmentVariable>
+                        new ContainerDefinitionConfig
                         {
-                            new AppInfraCdkV1.Apps.TrialFinderV2.Configuration.EnvironmentVariable
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            Environment = new List<AppInfraCdkV1.Apps.TrialFinderV2.Configuration.EnvironmentVariable>
                             {
-                                Name = "ENVIRONMENT",
-                                Value = "${ENVIRONMENT}"
+                                new AppInfraCdkV1.Apps.TrialFinderV2.Configuration.EnvironmentVariable
+                                {
+                                    Name = "ENVIRONMENT",
+                                    Value = "${ENVIRONMENT}"
+                                }
                             }
                         }
                     }
@@ -466,10 +480,100 @@ public class ConfigurationLoaderTests
 
         // Assert
         result.TaskDefinition.ShouldNotBeNull();
-        result.TaskDefinition.TaskDefinitionName.ShouldNotBeNull();
-        result.TaskDefinition.TaskDefinitionName.ShouldNotContain("${");
-        result.TaskDefinition.ContainerDefinitions.ShouldNotBeNull();
-        result.TaskDefinition.ContainerDefinitions.First().Environment.ShouldNotBeNull();
-        result.TaskDefinition.ContainerDefinitions.First().Environment.First().Value.ShouldBe("Development");
+        result.TaskDefinition.First().TaskDefinitionName.ShouldNotBeNull();
+        result.TaskDefinition.First().TaskDefinitionName.ShouldNotContain("${");
+        result.TaskDefinition.First().ContainerDefinitions.ShouldNotBeNull();
+        result.TaskDefinition.First().ContainerDefinitions.First().Environment.ShouldNotBeNull();
+        result.TaskDefinition.First().ContainerDefinitions.First().Environment.First().Value.ShouldBe("Development");
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithSecrets_ShouldNotThrow()
+    {
+        // Arrange
+        var loader = new ConfigurationLoader();
+        var config = new EcsTaskConfiguration
+        {
+            TaskDefinition = new List<TaskDefinitionConfig>
+            {
+                new TaskDefinitionConfig
+                {
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    {
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            Secrets = new List<string> { "test-secret", "api-key", "db-password" }
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act & Assert
+        Should.NotThrow(() => loader.ValidateConfiguration(config));
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithEmptySecrets_ShouldNotThrow()
+    {
+        // Arrange
+        var loader = new ConfigurationLoader();
+        var config = new EcsTaskConfiguration
+        {
+            TaskDefinition = new List<TaskDefinitionConfig>
+            {
+                new TaskDefinitionConfig
+                {
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    {
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            Secrets = new List<string>()
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act & Assert
+        Should.NotThrow(() => loader.ValidateConfiguration(config));
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithNullSecrets_ShouldNotThrow()
+    {
+        // Arrange
+        var loader = new ConfigurationLoader();
+        var config = new EcsTaskConfiguration
+        {
+            TaskDefinition = new List<TaskDefinitionConfig>
+            {
+                new TaskDefinitionConfig
+                {
+                    TaskDefinitionName = "TestTaskDefinition",
+                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    {
+                        new ContainerDefinitionConfig
+                        {
+                            Name = "test-container",
+                            Image = "nginx:latest",
+                            Essential = true,
+                            Secrets = null
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act & Assert
+        Should.NotThrow(() => loader.ValidateConfiguration(config));
     }
 }

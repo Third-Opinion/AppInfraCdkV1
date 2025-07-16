@@ -1,18 +1,16 @@
 {
   "vpcNamePattern": "prod-shared-vpc-ue2-main",
   "ecsConfiguration": {
-    "deployTestContainer": true,
-    "taskDefinition": {
-      "taskDefinitionName": "TrialFinderTaskDefinition",
-      "containerDefinitions": [
+    "taskDefinition": [
+      {
+        "taskDefinitionName": "main",
+        "containerDefinitions": [
         {
           "name": "doc-nlp-service-web",
-          "image": "442042533707.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
+          "image": "placholder",
           "cpu": 0,
-          "skip": true,
           "portMappings": [
             {
-              "name": "doc-nlp-service-web-8080-tcp",
               "containerPort": 8080,
               "hostPort": 8080,
               "protocol": "tcp",
@@ -20,18 +18,12 @@
             }
           ],
           "essential": false,
-          "healthCheck": {
-            "command": [
-              "CMD-SHELL",
-              "curl -f http://localhost:8080/ || exit 1"
-            ],
-            "interval": 40,
-            "timeout": 30,
-            "retries": 5,
-            "startPeriod": 60
-          }
+          "secrets": [
+            "test-secret"
+          ]
         }
       ]
-    }
+      }
+    ]
   }
 }

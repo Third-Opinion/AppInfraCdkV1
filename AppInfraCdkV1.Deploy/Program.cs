@@ -89,25 +89,16 @@ public abstract class Program
                 return;
             }
 
-            // Default behavior: deploy application stack
-            string defaultStackName = GenerateStackName(context);
-
-            var defaultStack = appName.ToLower() switch
+            // Require explicit stack type for TrialFinderV2 - no monolithic deployments
+            if (appName.ToLower() == "trialfinderv2")
             {
-                "trialfinderv2" => new TrialFinderV2Stack(app, defaultStackName, new StackProps
-                {
-                    Env = environmentConfig.ToAwsEnvironment(),
-                    Description
-                        = $"{appName} infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
-                    Tags = context.GetCommonTags(),
-                    StackName = defaultStackName
-                }, context),
-                _ => throw new ArgumentException(
-                    $"Unknown application: {appName}. Register new applications in NamingConvention.cs")
-            };
+                throw new ArgumentException(
+                    "TrialFinderV2 requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: ALB, ECS, DATA");
+            }
 
-            Console.WriteLine($"✅ Stack '{defaultStackName}' configured successfully");
-            app.Synth();
+            // Default behavior for other applications (if any)
+            throw new ArgumentException(
+                $"Unknown application: {appName}. Register new applications in NamingConvention.cs");
         }
         catch (Exception ex)
         {

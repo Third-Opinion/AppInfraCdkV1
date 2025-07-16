@@ -48,34 +48,17 @@ public class TrialFinderV2AlbStack : Stack
     }
 
     /// <summary>
-    /// Create security groups for ALB and ECS based on existing patterns
+    /// Import security groups from shared stack
     /// </summary>
     private (ISecurityGroup AlbSecurityGroup, ISecurityGroup EcsSecurityGroup) CreateSecurityGroups(IVpc vpc, DeploymentContext context)
     {
-        // ALB Security Group - allows HTTPS traffic from internet
-        var albSecurityGroup = new SecurityGroup(this, "TrialFinderAlbSecurityGroup", new SecurityGroupProps
-        {
-            Vpc = vpc,
-            SecurityGroupName = context.Namer.SecurityGroupForAlb(ResourcePurpose.Web),
-            Description = "Security group for TrialFinder ALB - allows HTTPS from internet",
-            AllowAllOutbound = true
-        });
+        // Import ALB Security Group from shared stack
+        var albSecurityGroupId = Fn.ImportValue($"{context.Environment.Name}-sg-alb-id");
+        var albSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "SharedAlbSecurityGroup", albSecurityGroupId);
 
-        // Allow HTTPS inbound from anywhere
-        albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(443), "HTTPS from internet");
-        albSecurityGroup.AddIngressRule(Peer.AnyIpv4(), Port.Tcp(80), "HTTP from internet (redirect to HTTPS)");
-
-        // Create ECS Security Group
-        var ecsSecurityGroup = new SecurityGroup(this, "TrialFinderEcsSecurityGroup", new SecurityGroupProps
-        {
-            Vpc = vpc,
-            SecurityGroupName = context.Namer.SecurityGroupForEcs(ResourcePurpose.Web),
-            Description = "Security group for TrialFinder ECS tasks",
-            AllowAllOutbound = true
-        });
-
-        // Allow ALB to communicate with ECS on port 8080
-        ecsSecurityGroup.AddIngressRule(albSecurityGroup, Port.Tcp(8080), "Load balancer to target");
+        // Import ECS Security Group from shared stack
+        var ecsSecurityGroupId = Fn.ImportValue($"{context.Environment.Name}-sg-ecs-id");
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "SharedEcsSecurityGroup", ecsSecurityGroupId);
 
         return (albSecurityGroup, ecsSecurityGroup);
     }
@@ -255,25 +238,27 @@ public class TrialFinderV2AlbStack : Stack
     }
 
     /// <summary>
-    /// Create VPC reference using dynamic lookup by name or fallback to hardcoded ID
+    /// Create VPC reference using shared stack exports
     /// </summary>
     private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
     {
-        // Validate VPC name pattern is provided
-        if (string.IsNullOrEmpty(vpcNamePattern))
-        {
-            throw new InvalidOperationException(
-                $"VPC name pattern is required but not found in configuration for environment '{context.Environment.Name}'. " +
-                "Please add 'vpcNamePattern' to the configuration file.");
-        }
+        // Import VPC attributes from shared stack
+        var vpcId = Fn.ImportValue($"{context.Environment.Name}-vpc-id");
+        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr");
+        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3);
+        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3);
+        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
+        var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
         
-        // Use dynamic lookup by VPC name tag
-        return Vpc.FromLookup(this, "ExistingVpc", new VpcLookupOptions
+        // Use VPC attributes to create reference
+        return Vpc.FromVpcAttributes(this, "ExistingVpc", new VpcAttributes
         {
-            Tags = new Dictionary<string, string>
-            {
-                { "Name", vpcNamePattern }
-            }
+            VpcId = vpcId,
+            VpcCidrBlock = vpcCidr,
+            AvailabilityZones = availabilityZones,
+            PublicSubnetIds = publicSubnetIds,
+            PrivateSubnetIds = privateSubnetIds,
+            IsolatedSubnetIds = isolatedSubnetIds
         });
     }
     
