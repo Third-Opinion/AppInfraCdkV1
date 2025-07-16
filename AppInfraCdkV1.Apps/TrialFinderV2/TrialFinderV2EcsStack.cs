@@ -49,25 +49,27 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Create VPC reference using dynamic lookup by name or fallback to hardcoded ID
+    /// Create VPC reference using shared stack exports
     /// </summary>
     private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
     {
-        // Validate VPC name pattern is provided
-        if (string.IsNullOrEmpty(vpcNamePattern))
-        {
-            throw new InvalidOperationException(
-                $"VPC name pattern is required but not found in configuration for environment '{context.Environment.Name}'. " +
-                "Please add 'vpcNamePattern' to the configuration file.");
-        }
+        // Import VPC attributes from shared stack
+        var vpcId = Fn.ImportValue($"{context.Environment.Name}-vpc-id");
+        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr");
+        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3);
+        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3);
+        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
+        var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
         
-        // Use dynamic lookup by VPC name tag
-        return Vpc.FromLookup(this, "SharedVpc", new VpcLookupOptions
+        // Use VPC attributes to create reference
+        return Vpc.FromVpcAttributes(this, "SharedVpc", new VpcAttributes
         {
-            Tags = new Dictionary<string, string>
-            {
-                { "Name", vpcNamePattern }
-            }
+            VpcId = vpcId,
+            VpcCidrBlock = vpcCidr,
+            AvailabilityZones = availabilityZones,
+            PublicSubnetIds = publicSubnetIds,
+            PrivateSubnetIds = privateSubnetIds,
+            IsolatedSubnetIds = isolatedSubnetIds
         });
     }
 
@@ -838,12 +840,11 @@ public class TrialFinderV2EcsStack : Stack
             foreach (var secretName in secretNames)
             {
                 var fullSecretName = BuildSecretName(secretName, context);
-                GetOrCreateSecret(secretName, fullSecretName, context);
+                var secret = GetOrCreateSecret(secretName, fullSecretName, context);
                 
                 // Use the secret name as the environment variable name (converted to uppercase)
                 var envVarName = secretName.ToUpperInvariant().Replace("-", "_");
-                secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
-                    Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"SecretRef-{secretName}", fullSecretName));
+                secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
             }
         }
         
@@ -863,8 +864,14 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get or create a secret in Secrets Manager
     /// </summary>
-    private string GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
+    private Amazon.CDK.AWS.SecretsManager.Secret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
     {
+        // Check if we already created this secret
+        if (_createdSecrets.ContainsKey(secretName))
+        {
+            return _createdSecrets[secretName];
+        }
+
         // Create the secret with a placeholder value
         var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
         {
@@ -880,12 +887,9 @@ public class TrialFinderV2EcsStack : Stack
         });
 
         // Store the secret reference for exporting ARN later
-        if (!_createdSecrets.ContainsKey(secretName))
-        {
-            _createdSecrets[secretName] = secret;
-        }
+        _createdSecrets[secretName] = secret;
 
-        return secret.SecretArn;
+        return secret;
     }
 
     /// <summary>
