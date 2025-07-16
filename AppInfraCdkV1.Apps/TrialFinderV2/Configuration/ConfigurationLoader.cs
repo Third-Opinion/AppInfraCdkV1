@@ -54,57 +54,49 @@ public class ConfigurationLoader
     /// </summary>
     public void ValidateConfiguration(EcsTaskConfiguration config)
     {
-        if (config.TaskDefinition == null)
+        if (config.TaskDefinition == null || config.TaskDefinition.Count == 0)
         {
-            throw new InvalidOperationException("TaskDefinition configuration is required");
+            throw new InvalidOperationException("At least one TaskDefinition configuration is required");
         }
         
-        if (string.IsNullOrWhiteSpace(config.TaskDefinition.TaskDefinitionName))
+        
+        foreach (var taskDef in config.TaskDefinition)
         {
-            throw new InvalidOperationException("TaskDefinitionName is required in the configuration");
-        }
-        
-        var containerDefinitions = config.TaskDefinition.ContainerDefinitions;
-        
-        // If deployTestContainer is true, validation of container definitions is skipped
-        if (config.DeployTestContainer)
-        {
-            return;
-        }
-        
-        if (containerDefinitions == null || containerDefinitions.Count == 0)
-        {
-            // This is allowed - will fallback to default container
-            return;
-        }
-        
-        var activeContainers = containerDefinitions.Where(c => c.Skip != true).ToList();
-        if (activeContainers.Count == 0)
-        {
-            throw new InvalidOperationException("At least one container must not be skipped");
-        }
-        
-        // Validate each active container
-        foreach (var container in activeContainers)
-        {
-            ValidateContainerDefinition(container);
-        }
-        
-        // Check for duplicate container names
-        var containerNames = activeContainers
-            .Where(c => !string.IsNullOrWhiteSpace(c.Name))
-            .Select(c => c.Name!)
-            .ToList();
+            if (string.IsNullOrWhiteSpace(taskDef.TaskDefinitionName))
+            {
+                throw new InvalidOperationException("TaskDefinitionName is required in the configuration");
+            }
             
-        var duplicateNames = containerNames
-            .GroupBy(name => name)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToList();
+            var containerDefinitions = taskDef.ContainerDefinitions;
             
-        if (duplicateNames.Count > 0)
-        {
-            throw new InvalidOperationException($"Duplicate container names found: {string.Join(", ", duplicateNames)}");
+            if (containerDefinitions == null || containerDefinitions.Count == 0)
+            {
+                // This is allowed - will fallback to default container
+                continue;
+            }
+            
+            // Validate each container
+            foreach (var container in containerDefinitions)
+            {
+                ValidateContainerDefinition(container);
+            }
+            
+            // Check for duplicate container names within this task definition
+            var containerNames = containerDefinitions
+                .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => c.Name!)
+                .ToList();
+                
+            var duplicateNames = containerNames
+                .GroupBy(name => name)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+                
+            if (duplicateNames.Count > 0)
+            {
+                throw new InvalidOperationException($"Duplicate container names found in task '{taskDef.TaskDefinitionName}': {string.Join(", ", duplicateNames)}");
+            }
         }
     }
     
@@ -137,32 +129,20 @@ public class ConfigurationLoader
                 {
                     throw new InvalidOperationException($"Container '{container.Name}' has invalid port mapping: ContainerPort must be <= 65535");
                 }
+                
+                if (string.IsNullOrWhiteSpace(portMapping.Protocol))
+                {
+                    throw new InvalidOperationException($"Container '{container.Name}' has invalid port mapping: Protocol is required");
+                }
+                
+                var validProtocols = new[] { "tcp", "udp", "TCP", "UDP" };
+                if (!validProtocols.Contains(portMapping.Protocol))
+                {
+                    throw new InvalidOperationException($"Container '{container.Name}' has invalid port mapping: Protocol must be 'tcp' or 'udp', got '{portMapping.Protocol}'");
+                }
             }
         }
         
-        // Validate health check
-        if (container.HealthCheck != null)
-        {
-            if (container.HealthCheck.Command == null || container.HealthCheck.Command.Count == 0)
-            {
-                throw new InvalidOperationException($"Container '{container.Name}' health check requires a command");
-            }
-            
-            if (container.HealthCheck.Interval < 5 || container.HealthCheck.Interval > 300)
-            {
-                throw new InvalidOperationException($"Container '{container.Name}' health check interval must be between 5 and 300 seconds");
-            }
-            
-            if (container.HealthCheck.Timeout < 2 || container.HealthCheck.Timeout > 60)
-            {
-                throw new InvalidOperationException($"Container '{container.Name}' health check timeout must be between 2 and 60 seconds");
-            }
-            
-            if (container.HealthCheck.Retries < 1 || container.HealthCheck.Retries > 10)
-            {
-                throw new InvalidOperationException($"Container '{container.Name}' health check retries must be between 1 and 10");
-            }
-        }
     }
     
     /// <summary>
@@ -236,13 +216,13 @@ public class EcsTaskConfigurationWrapper
 
 public class EcsTaskConfiguration
 {
-    public TaskDefinitionConfig? TaskDefinition { get; set; }
-    public bool DeployTestContainer { get; set; } = false;
+    public string ServiceName { get; set; } = string.Empty;
+    public List<TaskDefinitionConfig> TaskDefinition { get; set; } = new();
 }
 
 public class TaskDefinitionConfig
 {
-    public string? TaskDefinitionName { get; set; }
+    public string TaskDefinitionName { get; set; } = string.Empty;
     public List<ContainerDefinitionConfig>? ContainerDefinitions { get; set; }
 }
 
@@ -251,29 +231,18 @@ public class ContainerDefinitionConfig
     public string? Name { get; set; }
     public string? Image { get; set; }
     public int? Cpu { get; set; }
-    public bool? Skip { get; set; }
     public bool? Essential { get; set; }
     public List<PortMapping>? PortMappings { get; set; }
     public List<EnvironmentVariable>? Environment { get; set; }
-    public HealthCheckConfig? HealthCheck { get; set; }
+    public List<string>? Secrets { get; set; }
 }
 
 public class PortMapping
 {
-    public string? Name { get; set; }
     public int? ContainerPort { get; set; }
     public int? HostPort { get; set; }
     public string? Protocol { get; set; }
     public string? AppProtocol { get; set; }
-}
-
-public class HealthCheckConfig
-{
-    public List<string>? Command { get; set; }
-    public int? Interval { get; set; }
-    public int? Timeout { get; set; }
-    public int? Retries { get; set; }
-    public int? StartPeriod { get; set; }
 }
 
 public class EnvironmentVariable

@@ -18,6 +18,7 @@ public class TrialFinderV2EcsStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
+    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.Secret> _createdSecrets = new();
 
     public TrialFinderV2EcsStack(Construct scope,
         string id,
@@ -43,8 +44,8 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, context);
 
-        // Create test secrets for the current environment
-        CreateTestSecrets();
+        // Export secret ARNs for all created secrets
+        ExportSecretArns();
     }
 
     /// <summary>
@@ -123,8 +124,9 @@ public class TrialFinderV2EcsStack : Stack
             RemovalPolicy = RemovalPolicy.DESTROY
         });
 
-        // Use taskDefinitionName from config or fallback to default naming
-        var taskDefinitionName = ecsConfig.TaskDefinition?.TaskDefinitionName ??
+        // Use the first task definition from config or fallback to default naming
+        TaskDefinitionConfig? firstTaskDef = ecsConfig.TaskDefinition?.FirstOrDefault();
+        var taskDefinitionName = firstTaskDef?.TaskDefinitionName ??
                                  context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
 
         // Create Fargate task definition
@@ -144,7 +146,7 @@ public class TrialFinderV2EcsStack : Stack
             });
 
         // Add containers from configuration and get primary container info
-        var primaryContainer = AddContainersFromConfiguration(taskDefinition, ecsConfig, logGroup, context);
+        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
 
         // Import security group from ALB stack
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
@@ -186,52 +188,43 @@ public class TrialFinderV2EcsStack : Stack
     /// Add containers from configuration with conditional logic
     /// </summary>
     private ContainerInfo AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
-        EcsTaskConfiguration ecsConfig,
+        TaskDefinitionConfig? taskDefConfig,
         ILogGroup logGroup,
         DeploymentContext context)
     {
-        // Check if deployTestContainer flag is enabled
-        if (ecsConfig.DeployTestContainer)
-        {
-            AddPlaceholderContainer(taskDefinition, logGroup, context);
-            return new ContainerInfo("app", 8080);
-        }
-
-        var containerDefinitions = ecsConfig.TaskDefinition?.ContainerDefinitions;
+        var containerDefinitions = taskDefConfig?.ContainerDefinitions;
         if (containerDefinitions == null || containerDefinitions.Count == 0)
         {
-            // Fallback to default nginx container if no configuration provided
-            AddDefaultContainer(taskDefinition, logGroup, context);
-            return new ContainerInfo("trial-finder-v2", 8080);
+            // Fallback to placeholder container if no configuration provided
+            AddPlaceholderContainer(taskDefinition, logGroup, context);
+            return new ContainerInfo("app", 8080);
         }
 
         ContainerInfo? primaryContainer = null;
 
         foreach (var containerConfig in containerDefinitions)
         {
-            // Skip containers marked with skip: true
-            if (containerConfig.Skip == true)
+            if (string.IsNullOrWhiteSpace(containerConfig.Name))
             {
-                continue;
+                throw new InvalidOperationException("Container name is required in configuration");
             }
-
-            var containerName = containerConfig.Name ?? "default-container";
+            var containerName = containerConfig.Name;
             var containerPort = GetContainerPort(containerConfig, containerName);
             
             AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
 
-            // Use the first non-skipped container as the primary container for load balancing
+            // Use the first container as the primary container for load balancing
             if (primaryContainer == null)
             {
                 primaryContainer = new ContainerInfo(containerName, containerPort);
             }
         }
 
-        // If no containers were processed, fall back to default
+        // If no containers were processed, fall back to placeholder
         if (primaryContainer == null)
         {
-            AddDefaultContainer(taskDefinition, logGroup, context);
-            return new ContainerInfo("trial-finder-v2", 8080);
+            AddPlaceholderContainer(taskDefinition, logGroup, context);
+            return new ContainerInfo("app", 8080);
         }
 
         return primaryContainer;
@@ -246,12 +239,38 @@ public class TrialFinderV2EcsStack : Stack
         DeploymentContext context)
     {
         var containerName = containerConfig.Name ?? "default-container";
-        var image = containerConfig.Image ?? GetDefaultImage(containerName);
+        
+        // Determine if we should use placeholder or specified image
+        ContainerImage containerImage;
+        Dictionary<string, string> environmentVars;
+        
+        if (string.IsNullOrWhiteSpace(containerConfig.Image) || containerConfig.Image == "placeholder")
+        {
+            // Use placeholder repository
+            var placeholderRepository = Repository.FromRepositoryName(this, $"PlaceholderRepository-{containerName}",
+                "thirdopinion/infra/deploy-placeholder");
+            containerImage = ContainerImage.FromEcrRepository(placeholderRepository, "latest");
+            
+            // Add placeholder-specific environment variables
+            environmentVars = CreateDefaultEnvironmentVariables(context);
+            environmentVars["DEPLOYMENT_TYPE"] = "placeholder";
+            environmentVars["MANAGED_BY"] = "CDK";
+            environmentVars["APP_NAME"] = context.Application.Name;
+            environmentVars["APP_VERSION"] = "placeholder";
+        }
+        else
+        {
+            // Use specified image
+            containerImage = ContainerImage.FromRegistry(containerConfig.Image);
+            environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
+        }
 
         var containerOptions = new ContainerDefinitionOptions
         {
-            Image = ContainerImage.FromRegistry(image),
+            Image = containerImage,
             Essential = containerConfig.Essential ?? GetDefaultEssential(containerName),
+            Environment = environmentVars,
+            Secrets = GetContainerSecrets(containerConfig.Secrets, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -262,16 +281,8 @@ public class TrialFinderV2EcsStack : Stack
         // Add port mappings with defaults
         containerOptions.PortMappings = GetPortMappings(containerConfig, containerName);
 
-        // Add environment variables with defaults
-        containerOptions.Environment
-            = GetEnvironmentVariables(containerConfig, context, containerName);
-
-        // Add health check with defaults
-        var healthCheck = GetHealthCheck(containerConfig, containerName);
-        if (healthCheck != null)
-        {
-            containerOptions.HealthCheck = healthCheck;
-        }
+        // Add standard health check for all containers
+        containerOptions.HealthCheck = GetStandardHealthCheck();
 
         // Add CPU allocation if specified
         if (containerConfig.Cpu.HasValue && containerConfig.Cpu.Value > 0)
@@ -279,41 +290,14 @@ public class TrialFinderV2EcsStack : Stack
             containerOptions.Cpu = containerConfig.Cpu.Value;
         }
 
-        // Add secrets from Secrets Manager
-        containerOptions.Secrets = GetContainerSecrets(context);
-
         taskDefinition.AddContainer(containerName, containerOptions);
     }
 
-    /// <summary>
-    /// Get default container image based on container name
-    /// </summary>
-    private string GetDefaultImage(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => "nginx:latest",
-            "doc-nlp-service-web" =>
-                $"{_context.Environment.AccountId}.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/doc-nlp-service:latest",
-            _ => "nginx:latest"
-        };
-    }
+
+
 
     /// <summary>
-    /// Get default essential setting based on container name
-    /// </summary>
-    private bool GetDefaultEssential(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => true,
-            "doc-nlp-service-web" => false,
-            _ => true
-        };
-    }
-
-    /// <summary>
-    /// Get port mappings with defaults
+    /// Get port mappings from JSON configuration with generated names
     /// </summary>
     private Amazon.CDK.AWS.ECS.PortMapping[] GetPortMappings(
         ContainerDefinitionConfig containerConfig,
@@ -322,34 +306,29 @@ public class TrialFinderV2EcsStack : Stack
         if (containerConfig.PortMappings?.Count > 0)
         {
             return containerConfig.PortMappings
+                .Where(pm => pm.ContainerPort.HasValue && !string.IsNullOrWhiteSpace(pm.Protocol)) // Require both port and protocol
                 .Select(pm => new Amazon.CDK.AWS.ECS.PortMapping
                 {
-                    ContainerPort = pm.ContainerPort ?? GetDefaultPort(containerName)
+                    Name = GeneratePortMappingName(containerName, pm.ContainerPort!.Value, pm.Protocol!),
+                    ContainerPort = pm.ContainerPort!.Value,
+                    HostPort = pm.HostPort,
+                    Protocol = GetProtocol(pm.Protocol),
+                    AppProtocol = GetAppProtocol(pm.AppProtocol)
                 })
                 .ToArray();
         }
 
-        // Default port mapping for all containers
-        return new[]
-        {
-            new Amazon.CDK.AWS.ECS.PortMapping
-            {
-                ContainerPort = GetDefaultPort(containerName)
-            }
-        };
+        // Return empty array if no port mappings defined in JSON
+        return Array.Empty<Amazon.CDK.AWS.ECS.PortMapping>();
     }
 
+
     /// <summary>
-    /// Get default port based on container name
+    /// Get default essential setting for containers
     /// </summary>
-    private int GetDefaultPort(string containerName)
+    private bool GetDefaultEssential(string containerName)
     {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => 8080,
-            "doc-nlp-service-web" => 8080,
-            _ => 8080
-        };
+        return true; // All containers are essential by default
     }
 
     /// <summary>
@@ -421,110 +400,24 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get health check with defaults
+    /// Get standard health check for all containers
     /// </summary>
-    private Amazon.CDK.AWS.ECS.HealthCheck? GetHealthCheck(
-        ContainerDefinitionConfig containerConfig,
-        string containerName)
+    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck()
     {
-        if (containerConfig.HealthCheck?.Command?.Count > 0)
+        return new Amazon.CDK.AWS.ECS.HealthCheck
         {
-            return new Amazon.CDK.AWS.ECS.HealthCheck
+            Command = new[]
             {
-                Command = containerConfig.HealthCheck.Command.ToArray(),
-                Interval = Duration.Seconds(containerConfig.HealthCheck.Interval ??
-                                            GetDefaultHealthCheckInterval(containerName)),
-                Timeout = Duration.Seconds(containerConfig.HealthCheck.Timeout ??
-                                           GetDefaultHealthCheckTimeout(containerName)),
-                Retries = containerConfig.HealthCheck.Retries ??
-                          GetDefaultHealthCheckRetries(containerName),
-                StartPeriod = Duration.Seconds(containerConfig.HealthCheck.StartPeriod ??
-                                               GetDefaultHealthCheckStartPeriod(containerName))
-            };
-        }
-
-        // Return default health check for specific containers
-        var defaultCommand = GetDefaultHealthCheckCommand(containerName);
-        if (defaultCommand.Length > 0)
-        {
-            return new Amazon.CDK.AWS.ECS.HealthCheck
-            {
-                Command = defaultCommand,
-                Interval = Duration.Seconds(GetDefaultHealthCheckInterval(containerName)),
-                Timeout = Duration.Seconds(GetDefaultHealthCheckTimeout(containerName)),
-                Retries = GetDefaultHealthCheckRetries(containerName),
-                StartPeriod = Duration.Seconds(GetDefaultHealthCheckStartPeriod(containerName))
-            };
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Get default health check command for container
-    /// </summary>
-    private string[] GetDefaultHealthCheckCommand(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => new[] { "CMD-SHELL", "curl -f http://localhost:8080/ || exit 1" },
-            "doc-nlp-service-web" => new[]
-                { "CMD-SHELL", "curl -f http://localhost:8080/ || exit 1" },
-            _ => Array.Empty<string>()
+                "CMD-SHELL",
+                "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
+            },
+            Interval = Duration.Seconds(30),
+            Timeout = Duration.Seconds(5),
+            Retries = 3,
+            StartPeriod = Duration.Seconds(60)
         };
     }
 
-    /// <summary>
-    /// Get default health check interval for container
-    /// </summary>
-    private int GetDefaultHealthCheckInterval(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => 30,
-            "doc-nlp-service-web" => 20,
-            _ => 30
-        };
-    }
-
-    /// <summary>
-    /// Get default health check timeout for container
-    /// </summary>
-    private int GetDefaultHealthCheckTimeout(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => 10,
-            "doc-nlp-service-web" => 30,
-            _ => 10
-        };
-    }
-
-    /// <summary>
-    /// Get default health check retries for container
-    /// </summary>
-    private int GetDefaultHealthCheckRetries(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => 3,
-            "doc-nlp-service-web" => 5,
-            _ => 3
-        };
-    }
-
-    /// <summary>
-    /// Get default health check start period for container
-    /// </summary>
-    private int GetDefaultHealthCheckStartPeriod(string containerName)
-    {
-        return containerName.ToLowerInvariant() switch
-        {
-            "trial-finder-v2" => 120,
-            "doc-nlp-service-web" => 120,
-            _ => 120
-        };
-    }
 
     /// <summary>
     /// Add default nginx container when no configuration is provided
@@ -544,7 +437,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = CreateDefaultEnvironmentVariables(context),
-            Secrets = GetContainerSecrets(context),
+            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -593,7 +486,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = placeholderEnv,
-            Secrets = GetContainerSecrets(context),
+            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -768,18 +661,67 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get container port for load balancer registration
+    /// Get container port for load balancer registration from JSON configuration
     /// </summary>
     private int GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
     {
         // Use the first port mapping if available
         if (containerConfig.PortMappings?.Count > 0)
         {
-            return containerConfig.PortMappings[0].ContainerPort ?? GetDefaultPort(containerName);
+            var firstPortMapping = containerConfig.PortMappings[0];
+            if (firstPortMapping.ContainerPort.HasValue)
+            {
+                return firstPortMapping.ContainerPort.Value;
+            }
         }
 
-        // Fall back to default port
-        return GetDefaultPort(containerName);
+        // If no port mappings defined, this container cannot be used as primary container
+        throw new InvalidOperationException($"Container '{containerName}' must have at least one port mapping defined to be used as primary container");
+    }
+
+    /// <summary>
+    /// Generate port mapping name based on container name, port, and protocol
+    /// </summary>
+    private string GeneratePortMappingName(string containerName, int containerPort, string protocol)
+    {
+        return $"{containerName}-{containerPort}-{protocol.ToLowerInvariant()}";
+    }
+
+    /// <summary>
+    /// Get protocol from string (required)
+    /// </summary>
+    private Amazon.CDK.AWS.ECS.Protocol GetProtocol(string? protocol)
+    {
+        if (string.IsNullOrWhiteSpace(protocol))
+        {
+            throw new InvalidOperationException("Protocol is required in port mapping configuration");
+        }
+
+        return protocol.ToUpperInvariant() switch
+        {
+            "TCP" => Amazon.CDK.AWS.ECS.Protocol.TCP,
+            "UDP" => Amazon.CDK.AWS.ECS.Protocol.UDP,
+            _ => throw new InvalidOperationException($"Unsupported protocol '{protocol}'. Supported protocols: TCP, UDP")
+        };
+    }
+
+    /// <summary>
+    /// Get application protocol from string with default
+    /// </summary>
+    private Amazon.CDK.AWS.ECS.AppProtocol? GetAppProtocol(string? appProtocol)
+    {
+        if (string.IsNullOrWhiteSpace(appProtocol))
+        {
+            return Amazon.CDK.AWS.ECS.AppProtocol.Http;
+        }
+
+        return appProtocol.ToLowerInvariant() switch
+        {
+            "http" => Amazon.CDK.AWS.ECS.AppProtocol.Http,
+            "https" => Amazon.CDK.AWS.ECS.AppProtocol.Http,
+            "grpc" => Amazon.CDK.AWS.ECS.AppProtocol.Grpc,
+            _ => Amazon.CDK.AWS.ECS.AppProtocol.Http
+        };
     }
 
     /// <summary>
@@ -887,26 +829,80 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get container secrets from Secrets Manager
     /// </summary>
-    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(DeploymentContext context)
+    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, DeploymentContext context)
+    {
+        var secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>();
+        
+        if (secretNames?.Count > 0)
+        {
+            foreach (var secretName in secretNames)
+            {
+                var fullSecretName = BuildSecretName(secretName, context);
+                GetOrCreateSecret(secretName, fullSecretName, context);
+                
+                // Use the secret name as the environment variable name (converted to uppercase)
+                var envVarName = secretName.ToUpperInvariant().Replace("-", "_");
+                secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
+                    Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"SecretRef-{secretName}", fullSecretName));
+            }
+        }
+        
+        return secrets;
+    }
+
+    /// <summary>
+    /// Build full secret name following the naming convention: /{environmentPrefix}/{applicationName}/{secretName}
+    /// </summary>
+    private string BuildSecretName(string secretName, DeploymentContext context)
     {
         var environmentPrefix = context.Environment.Name.ToLowerInvariant();
         var applicationName = context.Application.Name.ToLowerInvariant();
-        
-        return new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
+        return $"/{environmentPrefix}/{applicationName}/{secretName}";
+    }
+
+    /// <summary>
+    /// Get or create a secret in Secrets Manager
+    /// </summary>
+    private string GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
+    {
+        // Create the secret with a placeholder value
+        var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
         {
-            ["DB_CONNECTION_STRING"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
-                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "DbSecretRef", 
-                    $"/{environmentPrefix}/{applicationName}/database-connection")),
-            ["API_KEY"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
-                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ApiKeySecretRef", 
-                    $"/{environmentPrefix}/{applicationName}/api-key")),
-            ["SERVICE_CLIENT_ID"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
-                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ServiceCredentialsSecretRef", 
-                    $"/{environmentPrefix}/{applicationName}/service-credentials"), "clientId"),
-            ["SERVICE_CLIENT_SECRET"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
-                Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "ServiceCredentialsSecretRef2", 
-                    $"/{environmentPrefix}/{applicationName}/service-credentials"), "clientSecret")
-        };
+            SecretName = fullSecretName,
+            Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+            GenerateSecretString = new SecretStringGenerator
+            {
+                SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
+                GenerateStringKey = "value",
+                PasswordLength = 32,
+                ExcludeCharacters = "\"@/\\"
+            }
+        });
+
+        // Store the secret reference for exporting ARN later
+        if (!_createdSecrets.ContainsKey(secretName))
+        {
+            _createdSecrets[secretName] = secret;
+        }
+
+        return secret.SecretArn;
+    }
+
+    /// <summary>
+    /// Export secret ARNs for all created secrets
+    /// </summary>
+    private void ExportSecretArns()
+    {
+        foreach (var (secretName, secret) in _createdSecrets)
+        {
+            var exportName = $"{_context.Environment.Name}-{_context.Application.Name}-{secretName}-secret-arn";
+            new CfnOutput(this, $"SecretArn-{secretName}", new CfnOutputProps
+            {
+                Value = secret.SecretArn,
+                Description = $"ARN for secret '{secretName}'",
+                ExportName = exportName
+            });
+        }
     }
 
     /// <summary>
