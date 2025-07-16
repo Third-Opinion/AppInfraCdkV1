@@ -79,6 +79,70 @@
             "details": "Verify all external and internal links are functional. Test code examples and snippets to ensure they execute correctly. Validate installation and setup instructions. Check that all referenced resources are accessible and current.\n<info added on 2025-07-12T00:44:25.019Z>\nDocumentation validation completed successfully. All core commands verified functional: dotnet build executes without errors, dotnet run with --validate-only and --show-names-only flags work as documented and produce expected outputs, dotnet test performs test discovery correctly. Installation procedures and usage instructions tested and confirmed accurate. All code examples and command snippets execute properly. Documentation now provides reliable guidance for end users.\n</info added on 2025-07-12T00:44:25.019Z>",
             "status": "done",
             "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Discover and inventory all markdown files in project",
+            "description": "Scan entire project directory structure to identify and catalog all *.md files including their locations, sizes, and modification dates",
+            "dependencies": [],
+            "details": "Use find command or glob patterns to locate all markdown files recursively. Create inventory list with file paths, last modified dates, and basic file information. Include hidden directories and subdirectories in search scope.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Analyze existing documentation structure and content",
+            "description": "Review each discovered markdown file to understand current documentation organization, content quality, and identify gaps or outdated information",
+            "dependencies": [
+              7
+            ],
+            "details": "Read through each markdown file to assess content structure, completeness, and relevance. Document existing sections, headings, and overall organization. Identify missing documentation areas and outdated content that needs updating.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Cross-reference documentation with actual codebase state",
+            "description": "Compare documentation content against actual code implementation to identify discrepancies and ensure technical accuracy",
+            "dependencies": [
+              8
+            ],
+            "details": "Validate that code examples, API references, configuration instructions, and technical specifications in documentation match the current codebase. Check for references to deprecated functions, outdated configurations, or missing new features.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Update README.md with accurate project information",
+            "description": "Revise README.md to reflect current project state, including updated installation instructions, usage examples, and project description",
+            "dependencies": [
+              9
+            ],
+            "details": "Update README.md with accurate project description, current installation steps, working usage examples, updated dependencies, and proper project metadata. Ensure all sections are current and relevant to the project's current state.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 11,
+            "title": "Ensure consistency and formatting across all documentation",
+            "description": "Standardize formatting, style, and structure across all markdown files to maintain consistency and improve readability",
+            "dependencies": [
+              10
+            ],
+            "details": "Apply consistent markdown formatting, heading structures, code block styling, and link formatting. Ensure uniform style for lists, tables, and emphasis. Standardize file naming conventions and directory structure organization.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 12,
+            "title": "Validate and test all documentation content including links and examples",
+            "description": "Verify all internal and external links work correctly and test all code examples to ensure they execute properly",
+            "dependencies": [
+              11
+            ],
+            "details": "Test all hyperlinks to ensure they resolve correctly. Verify internal links navigate to existing sections. Test all code examples and installation instructions in a clean environment. Validate that all referenced files and directories exist.",
+            "status": "pending",
+            "testStrategy": ""
           }
         ]
       },
@@ -992,7 +1056,7 @@
         "description": "Create a deployment pattern where CDK manages ECS infrastructure with placeholder containers while GitHub Actions handles application deployments, preventing CloudFormation state drift.",
         "details": "1. Update ECS Task Definition Configuration:\n   - Modify TrialFinderV2EcsStack to create task definitions with placeholder containers\n   - Set placeholder image (e.g., 'nginx:latest' or 'busybox:latest') for initial deployment\n   - Configure consistent logging using CloudWatch log groups with retention policies\n   - Ensure task definitions include all required fields (cpu, memory, networkMode, family)\n   - Add environment variable placeholders that GitHub Actions can override\n\n2. Create Dedicated IAM Roles:\n   - Create TaskRole for each ECS task family with minimal permissions for application runtime\n   - Create ExecutionRole for each task family with permissions for image pulling, logging, and secrets access\n   - Follow naming convention: {environment}-{service}-task-role and {environment}-{service}-execution-role\n   - Add IAM policies for accessing Secrets Manager secrets with resource-scoped permissions\n   - Configure roles to be assumable by ECS tasks service\n\n3. Implement GitHub Actions Workflow:\n   - Create sample workflow file (.github/workflows/deploy-ecs.yml) demonstrating the deployment pattern\n   - Use AWS CLI to update existing task definition with new revision\n   - Add environment variable updates to validate the approach (e.g., DEPLOYMENT_VERSION, BUILD_NUMBER)\n   - Implement workflow to register new task definition revision without updating CDK stack\n   - Add workflow step to update ECS service to use new task definition revision\n   - Include rollback mechanism in case of deployment failure\n\n4. Configure State Management:\n   - Ensure CDK stack outputs task definition ARN and family name for GitHub Actions consumption\n   - Document the separation of concerns: CDK manages infrastructure, GitHub Actions manages application code\n   - Add validation to prevent CDK from overwriting application-specific task definition changes\n   - Implement mechanism to detect and handle task definition drift between CDK and GitHub Actions",
         "testStrategy": "1. Validate CDK Infrastructure:\n   - Deploy updated TrialFinderV2EcsStack and verify task definitions are created with placeholder containers\n   - Confirm dedicated TaskRole and ExecutionRole are created for each task family\n   - Test that ECS service can start with placeholder containers and reach healthy state\n   - Verify CloudWatch log groups are created with proper retention policies\n\n2. Test GitHub Actions Deployment:\n   - Run sample GitHub Actions workflow to update task definition with new environment variables\n   - Verify that workflow can successfully register new task definition revision\n   - Confirm ECS service updates to use new task definition without CloudFormation involvement\n   - Test rollback functionality by deploying a failing task definition\n\n3. Validate State Separation:\n   - After GitHub Actions deployment, run 'cdk diff' to confirm no drift is detected\n   - Verify CloudFormation stack remains unchanged after application deployment\n   - Test that subsequent CDK deployments don't overwrite GitHub Actions changes\n   - Confirm task definition revisions created by GitHub Actions persist through CDK updates\n\n4. Integration Testing:\n   - Deploy multiple application versions through GitHub Actions workflow\n   - Verify environment variable updates are properly applied to running containers\n   - Test that IAM roles provide appropriate permissions for application runtime\n   - Confirm logging and monitoring continue to work correctly with GitHub Actions deployments",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           13,
           14,
@@ -1006,8 +1070,8 @@
             "title": "Update ECS Task Definition Configuration with Placeholder Containers",
             "description": "Modify TrialFinderV2EcsStack to create task definitions with placeholder containers and configure logging infrastructure",
             "dependencies": [],
-            "details": "Update the TrialFinderV2EcsStack.cs file to:\n- Configure task definitions to use placeholder containers (nginx:latest or busybox:latest)\n- Set up CloudWatch log groups with retention policies (e.g., 7 days for dev, 30 days for prod)\n- Define consistent task definition parameters including cpu (256-1024), memory (512-2048), networkMode (awsvpc)\n- Add environment variable placeholders like DEPLOYMENT_VERSION, BUILD_NUMBER, APP_ENV\n- Ensure task definition family names follow pattern: {environment}-{service}-task",
-            "status": "pending",
+            "details": "Update the TrialFinderV2EcsStack.cs file to:\n- Configure task definitions to use placeholder containers (nginx:latest or busybox:latest)\n- Set up CloudWatch log groups with retention policies (e.g., 7 days for dev, 30 days for prod)\n- Define consistent task definition parameters including cpu (256-1024), memory (512-2048), networkMode (awsvpc)\n- Add environment variable placeholders like DEPLOYMENT_VERSION, BUILD_NUMBER, APP_ENV\n- Ensure task definition family names follow pattern: {environment}-{service}-task\n<info added on 2025-07-15T16:43:19.764Z>\nSuccessfully implemented placeholder container configuration with standardized setup. Container name changed to 'app' for consistency. CloudWatch log retention configured with environment-specific policies (30 days for production, 7 days for non-production). Added comprehensive environment variable placeholders including DEPLOYMENT_VERSION, BUILD_NUMBER, APP_ENV for GitHub Actions integration. Health check endpoint updated to /health. Applied memory and CPU constraints to placeholder container for resource optimization.\n</info added on 2025-07-15T16:43:19.764Z>",
+            "status": "done",
             "testStrategy": "Deploy the updated stack to development environment and verify:\n- Task definitions are created with placeholder containers\n- CloudWatch log groups are created with correct retention\n- Task definitions can be retrieved via AWS CLI\n- Placeholder containers can start successfully in ECS"
           },
           {
@@ -1017,8 +1081,8 @@
             "dependencies": [
               1
             ],
-            "details": "Create IAM roles in the CDK stack:\n- TaskRole: {environment}-{service}-task-role with permissions for application runtime (S3, DynamoDB, etc.)\n- ExecutionRole: {environment}-{service}-execution-role with permissions for ECR image pulling, CloudWatch logging, and Secrets Manager access\n- Add trust relationships allowing ecs-tasks.amazonaws.com to assume these roles\n- Implement resource-scoped policies for Secrets Manager: arn:aws:secretsmanager:{region}:{account}:secret:/{environment}/{service}/*\n- Add permissions for KMS decrypt operations on secrets",
-            "status": "pending",
+            "details": "Create IAM roles in the CDK stack:\n- TaskRole: {environment}-{service}-task-role with permissions for application runtime (S3, DynamoDB, etc.)\n- ExecutionRole: {environment}-{service}-execution-role with permissions for ECR image pulling, CloudWatch logging, and Secrets Manager access\n- Add trust relationships allowing ecs-tasks.amazonaws.com to assume these roles\n- Implement resource-scoped policies for Secrets Manager: arn:aws:secretsmanager:{region}:{account}:secret:/{environment}/{service}/*\n- Add permissions for KMS decrypt operations on secrets\n<info added on 2025-07-15T16:47:38.064Z>\nImplementation completed with the following enhancements:\n\n- Successfully created dedicated IAM roles following the naming convention {environment}-{service}-task-role and {environment}-{service}-execution-role\n- Task role configured with proper permissions for CloudWatch logs, Session Manager, and Secrets Manager access\n- Execution role configured with scoped ECR permissions and Secrets Manager access\n- Added comprehensive role tagging for identification and management\n- Implemented cross-environment access denial policies for enhanced security\n- Roles now properly scoped to prevent unauthorized access across environments\n</info added on 2025-07-15T16:47:38.064Z>",
+            "status": "done",
             "testStrategy": "Validate IAM roles creation:\n- Use AWS CLI to verify roles exist with correct naming\n- Test role assumption by ECS tasks service\n- Verify policy attachments include required permissions\n- Test Secrets Manager access with resource-scoped permissions"
           },
           {
@@ -1061,7 +1125,7 @@
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-15T14:20:28.160Z"
+      "updated": "2025-07-15T16:47:45.120Z"
     }
   }
 }

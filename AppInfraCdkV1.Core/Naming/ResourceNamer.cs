@@ -30,11 +30,26 @@ public class ResourceNamer
             NamingConvention.ResourceTypes.EcsTask, purpose.ToStringValue());
     }
 
+    public string EcsTaskDefinition(string descriptiveName)
+    {
+        // Allows for custom ECS task definition names that still follow the naming convention
+        return NamingConvention.GenerateResourceName(_context,
+            NamingConvention.ResourceTypes.EcsTask, descriptiveName);
+    }
+
     public string EcsService(ResourcePurpose purpose)
     {
         return NamingConvention.GenerateResourceName(_context,
             NamingConvention.ResourceTypes.EcsService, purpose.ToStringValue());
     }
+
+    public string EcsService(string descriptiveName)
+    {
+        // Allows for custom ECS service names that still follow the naming convention
+        return NamingConvention.GenerateResourceName(_context,
+            NamingConvention.ResourceTypes.EcsService, descriptiveName);
+    }
+
 
     public string ApplicationLoadBalancer(ResourcePurpose purpose)
     {
@@ -107,25 +122,29 @@ public class ResourceNamer
     public string SecurityGroupForAlb(ResourcePurpose albPurpose)
     {
         return NamingConvention.GenerateSecurityGroupName(_context,
-            NamingConvention.SecurityGroupProtectedResources.ApplicationLoadBalancer, albPurpose.ToStringValue());
+            NamingConvention.SecurityGroupProtectedResources.ApplicationLoadBalancer,
+            albPurpose.ToStringValue());
     }
 
     public string SecurityGroupForEcs(ResourcePurpose ecsPurpose)
     {
         return NamingConvention.GenerateSecurityGroupName(_context,
-            NamingConvention.SecurityGroupProtectedResources.EcsService, ecsPurpose.ToStringValue());
+            NamingConvention.SecurityGroupProtectedResources.EcsService,
+            ecsPurpose.ToStringValue());
     }
 
     public string SecurityGroupForRds(ResourcePurpose rdsPurpose)
     {
         return NamingConvention.GenerateSecurityGroupName(_context,
-            NamingConvention.SecurityGroupProtectedResources.RdsInstance, rdsPurpose.ToStringValue());
+            NamingConvention.SecurityGroupProtectedResources.RdsInstance,
+            rdsPurpose.ToStringValue());
     }
 
     public string SecurityGroupForCache(StoragePurpose cachePurpose)
     {
         return NamingConvention.GenerateSecurityGroupName(_context,
-            NamingConvention.SecurityGroupProtectedResources.ElastiCache, cachePurpose.ToStringValue());
+            NamingConvention.SecurityGroupProtectedResources.ElastiCache,
+            cachePurpose.ToStringValue());
     }
 
     public string SecurityGroupForLambda(ResourcePurpose lambdaPurpose)
@@ -137,7 +156,8 @@ public class ResourceNamer
     public string SecurityGroupForOpenSearch(ResourcePurpose searchPurpose)
     {
         return NamingConvention.GenerateSecurityGroupName(_context,
-            NamingConvention.SecurityGroupProtectedResources.OpenSearch, searchPurpose.ToStringValue());
+            NamingConvention.SecurityGroupProtectedResources.OpenSearch,
+            searchPurpose.ToStringValue());
     }
 
     public string SecurityGroupForBastion(ResourcePurpose purpose = ResourcePurpose.Admin)
@@ -155,7 +175,8 @@ public class ResourceNamer
     // CloudWatch log groups
     public string LogGroup(string serviceType, ResourcePurpose purpose)
     {
-        return NamingConvention.GenerateLogGroupName(_context, serviceType, purpose.ToStringValue());
+        return NamingConvention.GenerateLogGroupName(_context, serviceType,
+            purpose.ToStringValue());
     }
 
     // Messaging
@@ -196,11 +217,12 @@ public class ResourceNamer
     /// </summary>
     public string Custom(string resourceType, ResourcePurpose purpose)
     {
-        return NamingConvention.GenerateResourceName(_context, resourceType, purpose.ToStringValue());
+        return NamingConvention.GenerateResourceName(_context, resourceType,
+            purpose.ToStringValue());
     }
 
     // ARN Generation Methods
-    
+
     /// <summary>
     /// Generates the expected ARN for an IAM role
     /// </summary>
@@ -243,7 +265,8 @@ public class ResourceNamer
     public string SqsQueueArn(QueuePurpose purpose)
     {
         var queueName = SqsQueue(purpose);
-        return $"arn:aws:sqs:{_context.Environment.Region}:{_context.Environment.AccountId}:{queueName}";
+        return
+            $"arn:aws:sqs:{_context.Environment.Region}:{_context.Environment.AccountId}:{queueName}";
     }
 
     /// <summary>
@@ -252,17 +275,19 @@ public class ResourceNamer
     public string SnsTopicArn(NotificationPurpose purpose)
     {
         var topicName = SnsTopics(purpose);
-        return $"arn:aws:sns:{_context.Environment.Region}:{_context.Environment.AccountId}:{topicName}";
+        return
+            $"arn:aws:sns:{_context.Environment.Region}:{_context.Environment.AccountId}:{topicName}";
     }
 
     // Shared resource naming methods
-    
+
     /// <summary>
     /// Generates a shared VPC name using shared resource naming convention
     /// </summary>
     public string SharedVpc(string specificName = "main")
     {
-        return NamingConvention.GenerateSharedResourceName(_context, NamingConvention.ResourceTypes.Vpc, specificName);
+        return NamingConvention.GenerateSharedResourceName(_context,
+            NamingConvention.ResourceTypes.Vpc, specificName);
     }
 
     /// <summary>
@@ -270,7 +295,8 @@ public class ResourceNamer
     /// </summary>
     public string SharedSecurityGroup(string specificName)
     {
-        return NamingConvention.GenerateSharedResourceName(_context, NamingConvention.ResourceTypes.SecurityGroup, specificName);
+        return NamingConvention.GenerateSharedResourceName(_context,
+            NamingConvention.ResourceTypes.SecurityGroup, specificName);
     }
 
     /// <summary>
@@ -280,6 +306,7 @@ public class ResourceNamer
     public string SharedLogGroup(string serviceType = "shared", string specificName = "main")
     {
         string envPrefix = NamingConvention.GetEnvironmentPrefix(_context.Environment.Name);
-        return $"/aws/{serviceType.ToLowerInvariant()}/{envPrefix}-shared-{specificName.ToLowerInvariant()}";
+        return
+            $"/aws/{serviceType.ToLowerInvariant()}/{envPrefix}-shared-{specificName.ToLowerInvariant()}";
     }
 }
