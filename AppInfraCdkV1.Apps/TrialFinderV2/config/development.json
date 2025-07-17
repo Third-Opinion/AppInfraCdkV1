@@ -6,25 +6,8 @@
         "taskDefinitionName": "main",
         "containerDefinitions": [
           {
-            "name": "web",
-            "image": "placeholder",
-            "cpu": 0,
-            "portMappings": [
-              {
-                "containerPort": 8080,
-                "hostPort": 8080,
-                "protocol": "tcp",
-                "appProtocol": "http"
-              }
-            ],
-            "essential": false,
-            "secrets": [
-              "test-secret"
-            ]
-          },
-          {
             "name": "trial-finder-v2",
-            "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/trialfinderv2:17e0c9c6341f84405bb2b7604b554bbecf0fda96",
+            "image": "placeholder",
             "cpu": 0,
             "portMappings": [
                 {
@@ -99,7 +82,7 @@
           },
           {
             "name": "trial-finder-v2-loader",
-            "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/trialfinderloader:17e0c9c6341f84405bb2b7604b554bbecf0fda96",
+            "image": "placeholder",
             "cpu": 0,
             "portMappings": [],
             "essential": false,
