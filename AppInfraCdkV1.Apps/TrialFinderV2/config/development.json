@@ -25,7 +25,7 @@
         ]
       },
       {
-            "name": "trial-finder-v2",
+            "taskDefinitionName": "trial-finder-v2",
             "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/trialfinderv2:17e0c9c6341f84405bb2b7604b554bbecf0fda96",
             "cpu": 0,
             "portMappings": [
@@ -100,7 +100,7 @@
             "systemControls": []
         },
         {
-            "name": "trial-finder-v2-loader",
+            "taskDefinitionName": "trial-finder-v2-loader",
             "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/trialfinderloader:17e0c9c6341f84405bb2b7604b554bbecf0fda96",
             "cpu": 0,
             "portMappings": [],
