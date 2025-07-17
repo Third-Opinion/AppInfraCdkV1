@@ -6,11 +6,19 @@
         "taskDefinitionName": "main",
         "containerDefinitions": [
           {
-            "name": "web",
+            "name": "trial-finder-v2",
             "image": "placeholder",
             "cpu": 0,
             "portMappings": [
               {
+                "name": "trial-finder-v2-80-tcp",
+                "containerPort": 80,
+                "hostPort": 80,
+                "protocol": "tcp",
+                "appProtocol": "http"
+              },
+              {
+                "name": "trial-finder-v2-8080-tcp",
                 "containerPort": 8080,
                 "hostPort": 8080,
                 "protocol": "tcp",
@@ -19,14 +27,68 @@
             ],
             "essential": true,
             "secrets": [
+              "ConnectionStrings__DefaultConnection",
+              "OpenAiOptions__ApiKey",
+              "GoogleMaps__ApiKey",
+              "MmrfConfigurations__ClientSecret",
+              "ZipCodeApi__ApiKey",
+              "MmrfConfigurations__ClientId",
               "test-secret"
-            ]
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                "awslogs-group": "/ecs/trial-finder-v2",
+                "mode": "non-blocking",
+                "awslogs-create-group": "true",
+                "max-buffer-size": "25m",
+                "awslogs-region": "us-east-2",
+                "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+            },
+            "healthCheck": {
+              "command": [
+                "curl -f http://localhost:8080/ || exit 1"
+              ],
+              "interval": 30,
+              "timeout": 5,
+              "retries": 3
+            },
+            "systemControls": []
           },
           {
-            "name": "trial-loader",
+            "name": "trial-finder-v2-loader",
             "image": "placeholder",
             "cpu": 0,
+            "portMappings": [],
             "essential": false,
+            "secrets": [
+              "ConnectionStrings__DefaultConnection",
+              "OpenAiOptions__ApiKey",
+              "GoogleMaps__ApiKey",
+              "MmrfConfigurations__ClientSecret",
+              "ZipCodeApi__ApiKey",
+              "MmrfConfigurations__ClientId",
+              "test-secret"
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                "awslogs-group": "/ecs/trial-finder-v2-loader",
+                "mode": "non-blocking",
+                "awslogs-create-group": "true",
+                "max-buffer-size": "25m",
+                "awslogs-region": "us-east-2",
+                "awslogs-stream-prefix": "ecs"
+              },
+              "secretOptions": []
+            },
+            "systemControls": [],
             "healthCheck": {
               "command": [
                 "CMD-SHELL",
@@ -36,10 +98,7 @@
               "timeout": 5,
               "retries": 3,
               "startPeriod": 60
-            },
-            "secrets": [
-              "test-secret"
-            ]
+            }
           }
         ]
       }
