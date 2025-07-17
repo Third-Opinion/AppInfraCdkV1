@@ -114,9 +114,13 @@ public class TrialFinderV2EcsStack : Stack
         AlbStackOutputs albOutputs,
         DeploymentContext context)
     {
+        Console.WriteLine("\n🚀 Creating ECS Service...");
+        
         // Load configuration from JSON
         var ecsConfig = _configLoader.LoadEcsConfig(context.Environment.Name);
         ecsConfig = _configLoader.SubstituteVariables(ecsConfig, context);
+        
+        Console.WriteLine($"📋 Loading ECS configuration for environment: {context.Environment.Name}");
 
         // Create log group for ECS tasks with appropriate retention
         var logGroup = new LogGroup(this, "TrialFinderLogGroup", new LogGroupProps
@@ -149,6 +153,7 @@ public class TrialFinderV2EcsStack : Stack
             });
 
         // Add containers from configuration and get primary container info
+        Console.WriteLine("📦 Configuring containers from configuration...");
         var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
 
         // Import security group from ALB stack
@@ -173,6 +178,10 @@ public class TrialFinderV2EcsStack : Stack
         // Only attach to target group if primary container has a valid port
         if (primaryContainer.ContainerPort > 0)
         {
+            Console.WriteLine($"🔗 Attaching ECS service to ALB target group");
+            Console.WriteLine($"   Container: {primaryContainer.ContainerName}");
+            Console.WriteLine($"   Port: {primaryContainer.ContainerPort}");
+            
             // Import target group from ALB stack and attach service
             var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
                 "ImportedTargetGroup", new TargetGroupAttributes
@@ -185,6 +194,11 @@ public class TrialFinderV2EcsStack : Stack
 
             // Register ECS service with target group using explicit container and port
             service.AttachToApplicationTargetGroup(targetGroup);
+            Console.WriteLine("✅ ECS service attached to target group successfully");
+        }
+        else
+        {
+            Console.WriteLine("⚠️  Skipping ALB target group attachment - no container with valid port found");
         }
         
         // Export task definition ARN and family name for GitHub Actions
@@ -219,6 +233,20 @@ public class TrialFinderV2EcsStack : Stack
             var containerName = containerConfig.Name;
             var containerPort = GetContainerPort(containerConfig, containerName);
             
+            Console.WriteLine($"  📋 Adding container: {containerName}");
+            Console.WriteLine($"     Image: {containerConfig.Image ?? "placeholder"}");
+            Console.WriteLine($"     Essential: {containerConfig.Essential ?? true}");
+            Console.WriteLine($"     Port mappings: {containerConfig.PortMappings?.Count ?? 0}");
+            
+            if (containerPort.HasValue)
+            {
+                Console.WriteLine($"     Primary port: {containerPort.Value}");
+            }
+            else
+            {
+                Console.WriteLine($"     Primary port: None (no port mappings)");
+            }
+            
             AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
             containersProcessed++;
 
@@ -226,12 +254,14 @@ public class TrialFinderV2EcsStack : Stack
             if (primaryContainer == null && containerPort.HasValue)
             {
                 primaryContainer = new ContainerInfo(containerName, containerPort.Value);
+                Console.WriteLine($"  ✅ Selected '{containerName}' as primary container for load balancing (port: {containerPort.Value})");
             }
         }
 
         // If no containers were processed at all, fall back to placeholder
         if (containersProcessed == 0)
         {
+            Console.WriteLine("  ⚠️  No containers defined in configuration, adding placeholder container");
             AddPlaceholderContainer(taskDefinition, logGroup, context);
             return new ContainerInfo("app", 8080);
         }
@@ -242,8 +272,14 @@ public class TrialFinderV2EcsStack : Stack
         {
             // Use the first container name for reference, even without ports
             var firstContainerName = containerDefinitions.First().Name ?? "default-container";
+            Console.WriteLine($"  ⚠️  No containers with port mappings found. Load balancer attachment will be skipped.");
+            Console.WriteLine($"     Using '{firstContainerName}' as reference container (no ports)");
             return new ContainerInfo(firstContainerName, 0); // Port 0 indicates no port mapping
         }
+
+        Console.WriteLine($"  📊 Container configuration summary:");
+        Console.WriteLine($"     Total containers: {containersProcessed}");
+        Console.WriteLine($"     Primary container: {primaryContainer.ContainerName} (port: {primaryContainer.ContainerPort})");
 
         return primaryContainer;
     }
@@ -274,7 +310,7 @@ public class TrialFinderV2EcsStack : Stack
             environmentVars["DEPLOYMENT_TYPE"] = "placeholder";
             environmentVars["MANAGED_BY"] = "CDK";
             environmentVars["APP_NAME"] = context.Application.Name;
-            environmentVars["APP_VERSION"] = "placeholder";
+            environmentVars["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
         }
         else
         {
@@ -301,6 +337,11 @@ public class TrialFinderV2EcsStack : Stack
         if (portMappings.Length > 0)
         {
             containerOptions.PortMappings = portMappings;
+            Console.WriteLine($"     Added {portMappings.Length} port mapping(s) to container '{containerName}'");
+        }
+        else
+        {
+            Console.WriteLine($"     No port mappings configured for container '{containerName}'");
         }
 
         // Add standard health check for all containers
@@ -493,7 +534,7 @@ public class TrialFinderV2EcsStack : Stack
         placeholderEnv["DEPLOYMENT_TYPE"] = "placeholder";
         placeholderEnv["MANAGED_BY"] = "CDK";
         placeholderEnv["APP_NAME"] = context.Application.Name;
-        placeholderEnv["APP_VERSION"] = "placeholder";
+        placeholderEnv["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
 
         taskDefinition.AddContainer("app", new ContainerDefinitionOptions
         {
@@ -538,7 +579,7 @@ public class TrialFinderV2EcsStack : Stack
         {
             ["ENVIRONMENT"] = context.Environment.Name,
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
-            ["APP_VERSION"] = context.Application.Version,
+            ["APP_VERSION"] = "1.0.0", // Static version to prevent unnecessary redeployments
             ["PORT"] = "8080",
             ["HEALTH_CHECK_PATH"] = "/"
         };
