@@ -54,7 +54,8 @@ jobs:
     - name: CDK Bootstrap (if needed)
       run: |
         cd AppInfraCdkV1.Deploy
-        cdk bootstrap --require-approval never
+        cdk bootstrap --app="dotnet run -- --deploy-base --environment=${{ env.CDK_ENVIRONMENT }}" \
+                      --require-approval never
     
     - name: Deploy Base Stack
       run: |
