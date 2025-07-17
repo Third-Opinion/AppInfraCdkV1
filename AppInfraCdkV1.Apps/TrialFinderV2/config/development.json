@@ -130,7 +130,17 @@
                 },
                 "secretOptions": []
             },
-            "systemControls": []
+            "systemControls": [],
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "ps || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 60
+            }
           }
         ]
       }
