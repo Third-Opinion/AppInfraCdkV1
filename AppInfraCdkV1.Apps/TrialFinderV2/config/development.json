@@ -17,13 +17,140 @@
                 "appProtocol": "http"
               }
             ],
-            "essential": true,
+            "essential": false,
             "secrets": [
               "test-secret"
             ]
           }
         ]
-      }
+      },
+      {
+            "name": "trial-finder-v2",
+            "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/trialfinderv2:17e0c9c6341f84405bb2b7604b554bbecf0fda96",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "name": "trial-finder-v2-80-tcp",
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                },
+                {
+                    "name": "trial-finder-v2-8080-tcp",
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "ConnectionStrings__DefaultConnection",
+                    "value": "Host=database-trailfinder-v2-dev.cluster-c5io68y0ownm.us-east-2.rds.amazonaws.com;Port=5432;Database=trialfinder;Username=postgres;Password=e3k[z1-EJkfR_>avjxsC>P<sxmRX"
+                },
+                {
+                    "name": "ASPNETCORE_ENVIRONMENT",
+                    "value": "Development"
+                },
+                {
+                    "name": "OpenAiOptions__ApiKey",
+                    "value": "1183d272002a4de58dfb0640b33402bc"
+                },
+                {
+                    "name": "GoogleMaps__ApiKey",
+                    "value": "AIzaSyB-UVZZ2Fd-E-pBuBF_dcszxk_ujHOYDP4"
+                },
+                {
+                    "name": "MmrfConfigurations__ClientSecret",
+                    "value": "E3F768271115F650300B1B611EB889EA920794EE8D6ED4CC7D6E6431799BB02D"
+                },
+                {
+                    "name": "ZipCodeApi__ApiKey",
+                    "value": "3fSu775b4WPQWQcbza3SzpjAhaSAbeQPp91uXxoY40P3NV4zElCMmAacoW7uWmM6"
+                },
+                {
+                    "name": "MmrfConfigurations__ClientId",
+                    "value": "3MVG9szVa2RxsqBbyFUk8jXN.IBh7_c_3COFvxHcEUTiNnCM4Tb_XbG4gYWXqHM1u_wvjFQXG.NmAnwDdys6J"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/trial-finder-v2",
+                    "mode": "non-blocking",
+                    "awslogs-create-group": "true",
+                    "max-buffer-size": "25m",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "healthCheck": {
+                "command": [
+                    "curl -f http://localhost:8080/ || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3
+            },
+            "systemControls": []
+        },
+        {
+            "name": "trial-finder-v2-loader",
+            "image": "615299752206.dkr.ecr.us-east-2.amazonaws.com/thirdopinion/trialfinderloader:17e0c9c6341f84405bb2b7604b554bbecf0fda96",
+            "cpu": 0,
+            "portMappings": [],
+            "essential": false,
+            "environment": [
+                {
+                    "name": "ConnectionStrings__DefaultConnection",
+                    "value": "Host=database-trailfinder-v2-dev.cluster-c5io68y0ownm.us-east-2.rds.amazonaws.com;Port=5432;Database=trialfinder;Username=postgres;Password=e3k[z1-EJkfR_>avjxsC>P<sxmRX"
+                },
+                {
+                    "name": "ASPNETCORE_ENVIRONMENT",
+                    "value": "Development"
+                },
+                {
+                    "name": "OpenAiOptions__ApiKey",
+                    "value": "1183d272002a4de58dfb0640b33402bc"
+                },
+                {
+                    "name": "GoogleMaps__ApiKey",
+                    "value": "AIzaSyB-UVZZ2Fd-E-pBuBF_dcszxk_ujHOYDP4"
+                },
+                {
+                    "name": "MmrfConfigurations__ClientSecret",
+                    "value": "E3F768271115F650300B1B611EB889EA920794EE8D6ED4CC7D6E6431799BB02D"
+                },
+                {
+                    "name": "ZipCodeApi__ApiKey",
+                    "value": "3fSu775b4WPQWQcbza3SzpjAhaSAbeQPp91uXxoY40P3NV4zElCMmAacoW7uWmM6"
+                },
+                {
+                    "name": "MmrfConfigurations__ClientId",
+                    "value": "3MVG9szVa2RxsqBbyFUk8jXN.IBh7_c_3COFvxHcEUTiNnCM4Tb_XbG4gYWXqHM1u_wvjFQXG.NmAnwDdys6J"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/trial-finder-v2-loader",
+                    "mode": "non-blocking",
+                    "awslogs-create-group": "true",
+                    "max-buffer-size": "25m",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        }
     ]
   }
 }
