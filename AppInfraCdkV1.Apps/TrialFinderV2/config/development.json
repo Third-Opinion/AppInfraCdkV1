@@ -21,6 +21,25 @@
             "secrets": [
               "test-secret"
             ]
+          },
+          {
+            "name": "trial-loader",
+            "image": "placeholder",
+            "cpu": 0,
+            "essential": false,
+            "healthCheck": {
+              "command": [
+                "CMD-SHELL",
+                "ps || exit 1"
+              ],
+              "interval": 30,
+              "timeout": 5,
+              "retries": 3,
+              "startPeriod": 60
+            },
+            "secrets": [
+              "test-secret"
+            ]
           }
         ]
       }
