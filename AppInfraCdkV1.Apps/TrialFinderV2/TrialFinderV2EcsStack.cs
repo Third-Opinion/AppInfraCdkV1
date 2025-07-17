@@ -203,6 +203,17 @@ public class TrialFinderV2EcsStack : Stack
         
         // Export task definition ARN and family name for GitHub Actions
         ExportTaskDefinitionOutputs(taskDefinition, service, context);
+        
+        // Display summary of created secrets
+        if (_createdSecrets.Count > 0)
+        {
+            Console.WriteLine($"\n  🔑 Secrets Manager Summary:");
+            Console.WriteLine($"     Total secrets created/referenced: {_createdSecrets.Count}");
+            foreach (var kvp in _createdSecrets)
+            {
+                Console.WriteLine($"     - {kvp.Key}: {kvp.Value.SecretName}");
+            }
+        }
     }
 
     /// <summary>
@@ -237,6 +248,7 @@ public class TrialFinderV2EcsStack : Stack
             Console.WriteLine($"     Image: {containerConfig.Image ?? "placeholder"}");
             Console.WriteLine($"     Essential: {containerConfig.Essential ?? true}");
             Console.WriteLine($"     Port mappings: {containerConfig.PortMappings?.Count ?? 0}");
+            Console.WriteLine($"     Secrets: {containerConfig.Secrets?.Count ?? 0}");
             
             if (containerPort.HasValue)
             {
@@ -898,6 +910,7 @@ public class TrialFinderV2EcsStack : Stack
         
         if (secretNames?.Count > 0)
         {
+            Console.WriteLine($"     🔐 Processing {secretNames.Count} secret(s):");
             foreach (var secretName in secretNames)
             {
                 var fullSecretName = BuildSecretName(secretName, context);
@@ -906,6 +919,9 @@ public class TrialFinderV2EcsStack : Stack
                 // Use the secret name as the environment variable name (converted to uppercase)
                 var envVarName = secretName.ToUpperInvariant().Replace("-", "_");
                 secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
+                
+                Console.WriteLine($"        - Secret '{secretName}' -> Environment variable '{envVarName}'");
+                Console.WriteLine($"          Full secret path: {fullSecretName}");
             }
         }
         
@@ -930,10 +946,12 @@ public class TrialFinderV2EcsStack : Stack
         // Check if we already created this secret
         if (_createdSecrets.ContainsKey(secretName))
         {
+            Console.WriteLine($"          ℹ️  Using existing secret reference for '{secretName}'");
             return _createdSecrets[secretName];
         }
 
         // Create the secret with a placeholder value
+        Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}'");
         var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
         {
             SecretName = fullSecretName,
