@@ -170,18 +170,22 @@ public class TrialFinderV2EcsStack : Stack
             EnableExecuteCommand = true
         });
 
-        // Import target group from ALB stack and attach service
-        var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
-            "ImportedTargetGroup", new TargetGroupAttributes
-            {
-                TargetGroupArn = albOutputs.TargetGroupArn,
-                LoadBalancerArns
-                    = albOutputs
-                        .TargetGroupArn // This will be overridden by the actual target group
-            });
+        // Only attach to target group if primary container has a valid port
+        if (primaryContainer.ContainerPort > 0)
+        {
+            // Import target group from ALB stack and attach service
+            var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
+                "ImportedTargetGroup", new TargetGroupAttributes
+                {
+                    TargetGroupArn = albOutputs.TargetGroupArn,
+                    LoadBalancerArns
+                        = albOutputs
+                            .TargetGroupArn // This will be overridden by the actual target group
+                });
 
-        // Register ECS service with target group using explicit container and port
-        service.AttachToApplicationTargetGroup(targetGroup);
+            // Register ECS service with target group using explicit container and port
+            service.AttachToApplicationTargetGroup(targetGroup);
+        }
         
         // Export task definition ARN and family name for GitHub Actions
         ExportTaskDefinitionOutputs(taskDefinition, service, context);
@@ -204,6 +208,7 @@ public class TrialFinderV2EcsStack : Stack
         }
 
         ContainerInfo? primaryContainer = null;
+        var containersProcessed = 0;
 
         foreach (var containerConfig in containerDefinitions)
         {
@@ -215,19 +220,29 @@ public class TrialFinderV2EcsStack : Stack
             var containerPort = GetContainerPort(containerConfig, containerName);
             
             AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
+            containersProcessed++;
 
-            // Use the first container as the primary container for load balancing
-            if (primaryContainer == null)
+            // Use the first container with ports as the primary container for load balancing
+            if (primaryContainer == null && containerPort.HasValue)
             {
-                primaryContainer = new ContainerInfo(containerName, containerPort);
+                primaryContainer = new ContainerInfo(containerName, containerPort.Value);
             }
         }
 
-        // If no containers were processed, fall back to placeholder
-        if (primaryContainer == null)
+        // If no containers were processed at all, fall back to placeholder
+        if (containersProcessed == 0)
         {
             AddPlaceholderContainer(taskDefinition, logGroup, context);
             return new ContainerInfo("app", 8080);
+        }
+
+        // If containers were processed but none have ports, we can't attach to load balancer
+        // Return null to indicate no primary container available
+        if (primaryContainer == null)
+        {
+            // Use the first container name for reference, even without ports
+            var firstContainerName = containerDefinitions.First().Name ?? "default-container";
+            return new ContainerInfo(firstContainerName, 0); // Port 0 indicates no port mapping
         }
 
         return primaryContainer;
@@ -281,8 +296,12 @@ public class TrialFinderV2EcsStack : Stack
             })
         };
 
-        // Add port mappings with defaults
-        containerOptions.PortMappings = GetPortMappings(containerConfig, containerName);
+        // Add port mappings only if they exist in configuration
+        var portMappings = GetPortMappings(containerConfig, containerName);
+        if (portMappings.Length > 0)
+        {
+            containerOptions.PortMappings = portMappings;
+        }
 
         // Add standard health check for all containers
         containerOptions.HealthCheck = GetStandardHealthCheck();
@@ -666,7 +685,7 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get container port for load balancer registration from JSON configuration
     /// </summary>
-    private int GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
+    private int? GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
     {
         // Use the first port mapping if available
         if (containerConfig.PortMappings?.Count > 0)
@@ -678,8 +697,8 @@ public class TrialFinderV2EcsStack : Stack
             }
         }
 
-        // If no port mappings defined, this container cannot be used as primary container
-        throw new InvalidOperationException($"Container '{containerName}' must have at least one port mapping defined to be used as primary container");
+        // Return null if no port mappings defined - container cannot be used as primary container
+        return null;
     }
 
     /// <summary>

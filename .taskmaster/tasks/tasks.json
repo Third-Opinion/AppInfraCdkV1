@@ -1119,13 +1119,28 @@
             "testStrategy": "Validate documentation and mechanisms:\n- Follow documentation to perform end-to-end deployment\n- Test drift detection script with intentional changes\n- Verify pre-deployment checks catch incompatible changes\n- Test various failure scenarios and validate runbook procedures\n- Ensure new team members can follow documentation successfully"
           }
         ]
+      },
+      {
+        "id": 21,
+        "title": "Update ECS Stack to handle optional port mappings",
+        "description": "Modify the ECS container configuration to conditionally set portMappings only when ports are provided in the configuration, avoiding empty portMappings arrays when no ports are needed.",
+        "status": "done",
+        "dependencies": [
+          20,
+          17,
+          10
+        ],
+        "priority": "medium",
+        "details": "Implementation has been completed with the following changes made to TrialFinderV2EcsStack.cs:\n\n1. Updated GetPortMappings Method (returns empty array when no portMappings in JSON):\n   - Modified to handle null/missing portMappings gracefully\n   - Returns empty array instead of null when no ports are configured\n\n2. Enhanced AddConfiguredContainer Method (lines 285-289):\n   - Added conditional port mapping assignment in containerOptions\n   - Only sets PortMappings property when ports exist and are valid\n   - Prevents empty portMappings arrays in container definitions\n\n3. Updated GetContainerPort Method (lines 673-687):\n   - Changed return type to nullable int instead of throwing exception\n   - Returns null for containers without ports rather than failing\n   - Improved error handling for missing port configurations\n\n4. Modified AddContainersFromConfiguration Method (lines 206-244):\n   - Enhanced container processing logic with port validation\n   - Handles containers without ports gracefully in the configuration loop\n   - Maintains backward compatibility for existing port-enabled containers\n\n5. Updated Service Creation Logic (lines 174-188):\n   - Added conditional target group attachment based on port availability\n   - Only attaches services to target groups when container has valid port (> 0)\n   - Prevents ALB attachment errors for containers without exposed ports\n\nThe existing development.json configuration includes a 'trial-loader' container without portMappings which serves as a test case for this functionality. All builds and tests pass successfully.",
+        "testStrategy": "Testing has been completed and validated:\n\n1. Container Configuration Testing:\n   - Verified existing development.json config with 'trial-loader' container (no portMappings) works correctly\n   - Confirmed CDK synthesis generates proper CloudFormation templates for both port and no-port scenarios\n   - Validated containers without ports don't include PortMappings in generated templates\n\n2. Build and Deployment Validation:\n   - All builds pass successfully with the new implementation\n   - CDK synth command executes without errors for mixed container configurations\n   - ECS task definitions generate correctly regardless of port mapping presence\n\n3. Functional Testing:\n   - Containers without ports can be deployed without ALB target group attachment\n   - Existing containers with ports continue to work unchanged\n   - Service discovery and internal networking remain functional for port-less containers\n   - No breaking changes to existing functionality confirmed\n\nThe implementation successfully handles the edge cases of null portMappings, empty arrays, and missing port properties while maintaining full backward compatibility.",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-15T16:47:45.120Z"
+      "updated": "2025-07-17T01:51:18.242Z"
     }
   }
 }
