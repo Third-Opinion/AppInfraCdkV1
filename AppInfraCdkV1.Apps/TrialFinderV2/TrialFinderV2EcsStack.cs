@@ -20,6 +20,8 @@ public class TrialFinderV2EcsStack : Stack
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.Secret> _createdSecrets = new();
 
+    private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
+
     public TrialFinderV2EcsStack(Construct scope,
         string id,
         IStackProps props,
@@ -910,22 +912,59 @@ public class TrialFinderV2EcsStack : Stack
         
         if (secretNames?.Count > 0)
         {
+            // Build the mapping dictionary dynamically from the secret names
+            BuildSecretNameMapping(secretNames);
+            
             Console.WriteLine($"     🔐 Processing {secretNames.Count} secret(s):");
-            foreach (var secretName in secretNames)
+            foreach (var envVarName in secretNames)
             {
+                // Use the mapping to get the secret name, or fall back to the original name
+                var secretName = GetSecretNameFromEnvVar(envVarName);
+                
                 var fullSecretName = BuildSecretName(secretName, context);
                 var secret = GetOrCreateSecret(secretName, fullSecretName, context);
                 
-                // Use the secret name as the environment variable name (converted to uppercase)
-                var envVarName = secretName.ToUpperInvariant().Replace("-", "_");
+                // Use the original environment variable name from the configuration
                 secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
                 
-                Console.WriteLine($"        - Secret '{secretName}' -> Environment variable '{envVarName}'");
+                Console.WriteLine($"        - Environment variable '{envVarName}' -> Secret '{secretName}'");
                 Console.WriteLine($"          Full secret path: {fullSecretName}");
             }
         }
         
         return secrets;
+    }
+
+    /// <summary>
+    /// Build the mapping dictionary from secret names in configuration
+    /// </summary>
+    private void BuildSecretNameMapping(List<string> secretNames)
+    {
+        _envVarToSecretNameMapping.Clear();
+        
+        foreach (var secretName in secretNames)
+        {
+            // Convert the secret name to a valid AWS Secrets Manager name
+            // Replace __ with - and convert to lowercase
+            var mappedSecretName = secretName.Replace("__", "-").ToLowerInvariant();
+            _envVarToSecretNameMapping[secretName] = mappedSecretName;
+        }
+    }
+
+    /// <summary>
+    /// Get secret name from environment variable name using mapping
+    /// </summary>
+    private string GetSecretNameFromEnvVar(string envVarName)
+    {
+        // Use the dynamically built mapping
+        if (_envVarToSecretNameMapping.TryGetValue(envVarName, out var mappedSecretName))
+        {
+            return mappedSecretName;
+        }
+        
+        // Fallback: convert the environment variable name to a valid secret name
+        // Replace __ with - and convert to lowercase
+        return envVarName.ToLowerInvariant().Replace("__", "-");
     }
 
     /// <summary>
