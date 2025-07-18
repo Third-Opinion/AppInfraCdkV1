@@ -1134,13 +1134,42 @@
         "details": "Implementation has been completed with the following changes made to TrialFinderV2EcsStack.cs:\n\n1. Updated GetPortMappings Method (returns empty array when no portMappings in JSON):\n   - Modified to handle null/missing portMappings gracefully\n   - Returns empty array instead of null when no ports are configured\n\n2. Enhanced AddConfiguredContainer Method (lines 285-289):\n   - Added conditional port mapping assignment in containerOptions\n   - Only sets PortMappings property when ports exist and are valid\n   - Prevents empty portMappings arrays in container definitions\n\n3. Updated GetContainerPort Method (lines 673-687):\n   - Changed return type to nullable int instead of throwing exception\n   - Returns null for containers without ports rather than failing\n   - Improved error handling for missing port configurations\n\n4. Modified AddContainersFromConfiguration Method (lines 206-244):\n   - Enhanced container processing logic with port validation\n   - Handles containers without ports gracefully in the configuration loop\n   - Maintains backward compatibility for existing port-enabled containers\n\n5. Updated Service Creation Logic (lines 174-188):\n   - Added conditional target group attachment based on port availability\n   - Only attaches services to target groups when container has valid port (> 0)\n   - Prevents ALB attachment errors for containers without exposed ports\n\nThe existing development.json configuration includes a 'trial-loader' container without portMappings which serves as a test case for this functionality. All builds and tests pass successfully.",
         "testStrategy": "Testing has been completed and validated:\n\n1. Container Configuration Testing:\n   - Verified existing development.json config with 'trial-loader' container (no portMappings) works correctly\n   - Confirmed CDK synthesis generates proper CloudFormation templates for both port and no-port scenarios\n   - Validated containers without ports don't include PortMappings in generated templates\n\n2. Build and Deployment Validation:\n   - All builds pass successfully with the new implementation\n   - CDK synth command executes without errors for mixed container configurations\n   - ECS task definitions generate correctly regardless of port mapping presence\n\n3. Functional Testing:\n   - Containers without ports can be deployed without ALB target group attachment\n   - Existing containers with ports continue to work unchanged\n   - Service discovery and internal networking remain functional for port-less containers\n   - No breaking changes to existing functionality confirmed\n\nThe implementation successfully handles the edge cases of null portMappings, empty arrays, and missing port properties while maintaining full backward compatibility.",
         "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Update IAM role 'ev-g-policy-g-gh-ecs-deploy' to add new permissions for CloudFormation, ECR, ECS, and IAM PassRole operations",
+        "description": "Investigation completed: The requested IAM role permissions already exist in the correct policy. The policy 'dev-g-policy-g-gh-ecs-deploy' (attached to GitHub Actions role 'dev-tfv2-role-g-ecsdeploy-github-actions') already contains all required CloudFormation, ECR, ECS, and IAM PassRole permissions.",
+        "status": "done",
+        "dependencies": [
+          6,
+          20
+        ],
+        "priority": "medium",
+        "details": "Investigation Results:\n1. Role Name Correction: The target role is 'dev-tfv2-role-g-ecsdeploy-github-actions' with attached policy 'dev-g-policy-g-gh-ecs-deploy' (not 'ev-g-policy-g-gh-ecs-deploy')\n2. Policy Status: Current policy version v5 already contains all requested permissions:\n   - CloudFormation DescribeStacks permission\n   - ECR GetAuthorizationToken permission\n   - ECS DescribeTaskDefinition permission\n   - IAM PassRole permissions for ecsTaskExecutionRole and service/task roles\n3. Verification Completed: Used IAM policy simulator to confirm all permissions work correctly\n4. Conclusion: No policy updates needed - all requested permissions are already present and functional",
+        "testStrategy": "Validation Completed:\n1. Policy Analysis: Confirmed all required permissions exist in current policy version v5\n2. IAM Policy Simulation: Tested CloudFormation, ECR, ECS, and PassRole permissions using aws iam simulate-principal-policy - all tests passed\n3. Permission Verification: Confirmed policy allows:\n   - CloudFormation stack operations\n   - ECR token authentication\n   - ECS task definition access\n   - IAM PassRole for ECS execution and service roles\n4. Security Review: Verified permissions follow principle of least privilege with proper resource constraints",
+        "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Update dev-g-policy-g-gh-ecs-deploy IAM policy to include iam:PassRole permissions for ECS task execution",
+        "description": "Add iam:PassRole permissions to the dev-g-policy-g-gh-ecs-deploy IAM policy to allow ECS tasks to assume their execution roles during deployment with specific resource constraints.",
+        "details": "1. Retrieve Current Policy Version:\n   - Use AWS CLI with to-dev-admin profile: aws iam get-policy-version --policy-arn arn:aws:iam::615299752206:policy/dev-g-policy-g-gh-ecs-deploy --version-id $(aws iam get-policy --policy-arn arn:aws:iam::615299752206:policy/dev-g-policy-g-gh-ecs-deploy --query 'Policy.DefaultVersionId' --output text)\n   - Document current policy structure and existing permissions\n\n2. Create Updated Policy Document:\n   - Add new IAM statement with Action: 'iam:PassRole'\n   - Configure Resource array with the following ARNs:\n     * arn:aws:iam::*:role/ecsTaskExecutionRole\n     * arn:aws:iam::*:role/*-service-role\n     * arn:aws:iam::*:role/*task-role\n     * arn:aws:iam::*:role/*execution-role\n   - Ensure Effect is set to 'Allow'\n   - Add appropriate condition constraints if needed for security\n\n3. Update IAM Policy:\n   - Create new policy version using aws iam create-policy-version\n   - Set the new version as default with --set-as-default flag\n   - Verify policy update was successful\n\n4. Validate Policy Attachment:\n   - Confirm policy is still attached to dev-tfv2-role-ue2-github-actions role\n   - Check that no existing permissions were removed or modified",
+        "testStrategy": "1. Policy Permission Validation:\n   - Use aws iam simulate-principal-policy to test PassRole permissions on each specified resource pattern\n   - Verify GitHub Actions role can pass roles matching the resource constraints\n   - Confirm access is denied for roles not matching the specified patterns\n\n2. ECS Deployment Test:\n   - Deploy an ECS task using GitHub Actions that requires role assumption\n   - Verify task can successfully assume its execution role during deployment\n   - Monitor CloudTrail logs for successful PassRole actions\n\n3. Security Constraint Verification:\n   - Attempt to pass a role that doesn't match the resource patterns (should fail)\n   - Confirm policy doesn't grant excessive permissions beyond ECS task execution\n   - Test that existing CDK and ECS permissions remain functional",
+        "status": "pending",
+        "dependencies": [
+          22,
+          6,
+          20
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0",
       "created": "2025-01-12T00:21:00.000Z",
       "description": "Tasks for master context",
-      "updated": "2025-07-17T01:51:18.242Z"
+      "updated": "2025-07-17T15:13:47.044Z"
     }
   }
 }
