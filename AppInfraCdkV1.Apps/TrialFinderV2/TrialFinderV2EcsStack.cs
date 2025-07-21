@@ -658,6 +658,9 @@ public class TrialFinderV2EcsStack : Stack
         // Add Secrets Manager permissions for environment-specific secrets
         AddSecretsManagerPermissions(taskRole);
 
+        // Add QuickSight permissions for embedding functionality
+        AddQuickSightPermissions(taskRole);
+
         // Add tag for identification
         Amazon.CDK.Tags.Of(taskRole).Add("ManagedBy", "CDK");
         Amazon.CDK.Tags.Of(taskRole).Add("Purpose", "ECS-Task");
@@ -905,6 +908,74 @@ public class TrialFinderV2EcsStack : Stack
                 }
             }));
         }
+    }
+
+    /// <summary>
+    /// Add QuickSight permissions to IAM role for embedding functionality
+    /// </summary>
+    private void AddQuickSightPermissions(IRole role)
+    {
+        // Cast to Role to access AddToPolicy method
+        var concreteRole = role as Role;
+        if (concreteRole == null) return;
+
+        // QuickSight user management permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightUserManagement",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:RegisterUser",
+                "quicksight:UnregisterUser",
+                "quicksight:DescribeUser",
+                "quicksight:ListUsers",
+                "quicksight:UpdateUser"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:user/*"
+            }
+        }));
+
+        // QuickSight embedding permissions (includes Generative Q&A)
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightEmbedding",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:GenerateEmbedUrlForRegisteredUser", // For Generative Q&A and dashboard embedding
+                "quicksight:GetDashboardEmbedUrl",
+                "quicksight:GetSessionEmbedUrl",
+                "quicksight:DescribeDashboard",
+                "quicksight:ListDashboards",
+                "quicksight:DescribeDataSet",
+                "quicksight:ListDataSets"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:user/*",
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:dashboard/*",
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:dataset/*"
+            }
+        }));
+
+        // QuickSight namespace permissions (for multi-tenant scenarios)
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightNamespaceAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeNamespace",
+                "quicksight:ListNamespaces"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:namespace/*"
+            }
+        }));
     }
 
     /// <summary>
