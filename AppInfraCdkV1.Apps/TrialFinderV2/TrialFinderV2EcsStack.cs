@@ -154,6 +154,10 @@ public class TrialFinderV2EcsStack : Stack
                 }
             });
 
+        // Collect all secret names from all containers first and build mapping once
+        Console.WriteLine("🔐 Collecting all secret names and building mapping...");
+        CollectAllSecretsAndBuildMapping(firstTaskDef, context);
+        
         // Add containers from configuration and get primary container info
         Console.WriteLine("📦 Configuring containers from configuration...");
         var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
@@ -904,6 +908,37 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Collect all secret names from all containers and build mapping once
+    /// </summary>
+    private void CollectAllSecretsAndBuildMapping(TaskDefinitionConfig? taskDefConfig, DeploymentContext context)
+    {
+        var allSecretNames = new HashSet<string>();
+        
+        // Collect secrets from container definitions
+        var containerDefinitions = taskDefConfig?.ContainerDefinitions;
+        if (containerDefinitions != null)
+        {
+            foreach (var containerConfig in containerDefinitions)
+            {
+                if (containerConfig.Secrets != null)
+                {
+                    foreach (var secretName in containerConfig.Secrets)
+                    {
+                        allSecretNames.Add(secretName);
+                    }
+                }
+            }
+        }
+        
+        // Add any hardcoded secrets (like test-secret)
+        allSecretNames.Add("test-secret");
+        
+        // Build mapping for all collected secrets
+        Console.WriteLine($"   Found {allSecretNames.Count} unique secret(s) across all containers");
+        BuildSecretNameMapping(allSecretNames.ToList());
+    }
+
+    /// <summary>
     /// Get container secrets from Secrets Manager
     /// </summary>
     private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, DeploymentContext context)
@@ -912,9 +947,6 @@ public class TrialFinderV2EcsStack : Stack
         
         if (secretNames?.Count > 0)
         {
-            // Build the mapping dictionary dynamically from the secret names
-            BuildSecretNameMapping(secretNames);
-            
             Console.WriteLine($"     🔐 Processing {secretNames.Count} secret(s):");
             foreach (var envVarName in secretNames)
             {
@@ -940,14 +972,16 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private void BuildSecretNameMapping(List<string> secretNames)
     {
-        _envVarToSecretNameMapping.Clear();
-        
         foreach (var secretName in secretNames)
         {
-            // Convert the secret name to a valid AWS Secrets Manager name
-            // Replace __ with - and convert to lowercase
-            var mappedSecretName = secretName.Replace("__", "-").ToLowerInvariant();
-            _envVarToSecretNameMapping[secretName] = mappedSecretName;
+            // Only add if not already present to avoid overwriting
+            if (!_envVarToSecretNameMapping.ContainsKey(secretName))
+            {
+                // Convert the secret name to a valid AWS Secrets Manager name
+                // Replace __ with - and convert to lowercase
+                var mappedSecretName = secretName.Replace("__", "-").ToLowerInvariant();
+                _envVarToSecretNameMapping[secretName] = mappedSecretName;
+            }
         }
     }
 
