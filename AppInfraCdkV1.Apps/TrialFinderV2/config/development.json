@@ -67,12 +67,12 @@
             "portMappings": [],
             "essential": false,
             "secrets": [
-              "ConnectionStringsDefaultConnection",
-              "OpenAiOptionsApiKey",
-              "GoogleMapsApiKey",
-              "MmrfConfigurationsClientSecret",
-              "ZipCodeApiApiKey",
-              "MmrfConfigurationsClientId",
+              "ConnectionStrings__DefaultConnection",
+              "OpenAiOptions__ApiKey",
+              "GoogleMaps__ApiKey",
+              "MmrfConfigurations__ClientSecret",
+              "ZipCodeApi__ApiKey",
+              "MmrfConfigurations__ClientId",
               "test-secret"
             ],
             "mountPoints": [],
