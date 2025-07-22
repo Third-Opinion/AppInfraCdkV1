@@ -46,9 +46,6 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, context);
 
-        // Create QuickSight VPC endpoints for secure database access
-        CreateQuickSightVpcEndpoints(vpc, context);
-
         // Export secret ARNs for all created secrets
         ExportSecretArns();
         
@@ -218,6 +215,9 @@ public class TrialFinderV2EcsStack : Stack
         
         // Export QuickSight-related outputs for application use
         ExportQuickSightOutputs(context);
+        
+        // Import and export QuickSight VPC endpoint information
+        ImportQuickSightVpcEndpoints(context);
         
         // Display summary of created secrets
         if (_createdSecrets.Count > 0)
@@ -1452,104 +1452,36 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Create QuickSight VPC endpoints for secure database access within the shared VPC
+    /// Import QuickSight VPC endpoint information from shared stack
     /// </summary>
-    private void CreateQuickSightVpcEndpoints(IVpc vpc, DeploymentContext context)
+    private void ImportQuickSightVpcEndpoints(DeploymentContext context)
     {
-        Console.WriteLine("\n🔗 Creating QuickSight VPC endpoints for secure database access...");
+        Console.WriteLine("\n🔗 Importing QuickSight VPC endpoint information...");
 
-        // Import the VPC endpoints security group from the shared stack
-        var vpcEndpointsSecurityGroupId = Fn.ImportValue($"{context.Environment.Name}-vpc-endpoints-sg-id");
-        var vpcEndpointsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedVpcEndpointsSecurityGroup",
-            vpcEndpointsSecurityGroupId);
+        // Import QuickSight VPC endpoint IDs from shared stack
+        var quicksightApiEndpointId = Fn.ImportValue($"{context.Environment.Name}-quicksight-api-vpc-endpoint-id");
+        var quicksightEmbeddingEndpointId = Fn.ImportValue($"{context.Environment.Name}-quicksight-embedding-vpc-endpoint-id");
 
-        // Import private subnets from shared stack
-        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
-        var privateSubnets = privateSubnetIds.Select((subnetId, index) => 
-            Subnet.FromSubnetId(this, $"PrivateSubnet{index}", subnetId)).ToArray();
-
-        // Create QuickSight VPC endpoint for API access
-        var quicksightApiEndpoint = new CfnVPCEndpoint(this, "QuickSightApiVpcEndpoint", new CfnVPCEndpointProps
-        {
-            VpcId = vpc.VpcId,
-            ServiceName = $"com.amazonaws.{context.Environment.Region}.quicksight",
-            VpcEndpointType = "Interface",
-            SubnetIds = privateSubnets.Select(s => s.SubnetId).ToArray(),
-            SecurityGroupIds = new[] { vpcEndpointsSecurityGroup.SecurityGroupId },
-            PrivateDnsEnabled = true,
-            PolicyDocument = new Dictionary<string, object>
-            {
-                ["Version"] = "2012-10-17",
-                ["Statement"] = new[]
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["Effect"] = "Allow",
-                        ["Principal"] = "*",
-                        ["Action"] = "*",
-                        ["Resource"] = "*"
-                    }
-                }
-            }
-        });
-
-        // Create QuickSight VPC endpoint for embedding (if needed for future use)
-        var quicksightEmbeddingEndpoint = new CfnVPCEndpoint(this, "QuickSightEmbeddingVpcEndpoint", new CfnVPCEndpointProps
-        {
-            VpcId = vpc.VpcId,
-            ServiceName = $"com.amazonaws.{context.Environment.Region}.quicksight-embedding",
-            VpcEndpointType = "Interface",
-            SubnetIds = privateSubnets.Select(s => s.SubnetId).ToArray(),
-            SecurityGroupIds = new[] { vpcEndpointsSecurityGroup.SecurityGroupId },
-            PrivateDnsEnabled = true,
-            PolicyDocument = new Dictionary<string, object>
-            {
-                ["Version"] = "2012-10-17",
-                ["Statement"] = new[]
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["Effect"] = "Allow",
-                        ["Principal"] = "*",
-                        ["Action"] = "*",
-                        ["Resource"] = "*"
-                    }
-                }
-            }
-        });
-
-        // Export VPC endpoint IDs for reference
+        // Export QuickSight VPC endpoint information for application use
         new CfnOutput(this, "QuickSightApiVpcEndpointId", new CfnOutputProps
         {
-            Value = quicksightApiEndpoint.Ref,
-            Description = "QuickSight API VPC Endpoint ID",
+            Value = quicksightApiEndpointId,
+            Description = "QuickSight API VPC Endpoint ID from shared stack",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-api-vpc-endpoint-id"
         });
 
         new CfnOutput(this, "QuickSightEmbeddingVpcEndpointId", new CfnOutputProps
         {
-            Value = quicksightEmbeddingEndpoint.Ref,
-            Description = "QuickSight Embedding VPC Endpoint ID",
+            Value = quicksightEmbeddingEndpointId,
+            Description = "QuickSight Embedding VPC Endpoint ID from shared stack",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-embedding-vpc-endpoint-id"
         });
 
-        // Add tags for identification
-        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("ManagedBy", "CDK");
-        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("Purpose", "QuickSight-API-Access");
-        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("Service", context.Application.Name);
-        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("Environment", context.Environment.Name);
-
-        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("ManagedBy", "CDK");
-        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("Purpose", "QuickSight-Embedding");
-        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("Service", context.Application.Name);
-        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("Environment", context.Environment.Name);
-
-        Console.WriteLine($"   ✅ Created QuickSight API VPC endpoint: {quicksightApiEndpoint.Ref}");
-        Console.WriteLine($"   ✅ Created QuickSight Embedding VPC endpoint: {quicksightEmbeddingEndpoint.Ref}");
-        Console.WriteLine($"   📍 VPC: {vpc.VpcId}");
-        Console.WriteLine($"   🔒 Security Group: {vpcEndpointsSecurityGroup.SecurityGroupId}");
-        Console.WriteLine($"   🌐 Private DNS enabled for secure access");
+        Console.WriteLine($"   ✅ Imported QuickSight API VPC endpoint: {quicksightApiEndpointId}");
+        Console.WriteLine($"   ✅ Imported QuickSight Embedding VPC endpoint: {quicksightEmbeddingEndpointId}");
     }
+
+
 
     /// <summary>
     /// Helper class to hold ALB stack outputs
