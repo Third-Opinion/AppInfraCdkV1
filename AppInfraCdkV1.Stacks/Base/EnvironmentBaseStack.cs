@@ -1,9 +1,12 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.Logs;
+using Amazon.CDK.AWS.RDS;
+using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
+using Duration = Amazon.CDK.Duration;
 
 namespace AppInfraCdkV1.Stacks.Base;
 
@@ -17,6 +20,7 @@ public class EnvironmentBaseStack : Stack
     public IVpc Vpc { get; private set; } = null!;
     public Dictionary<string, ISecurityGroup> SharedSecurityGroups { get; private set; } = new();
     public ILogGroup SharedLogGroup { get; private set; } = null!;
+    public DatabaseCluster? SharedDatabaseCluster { get; private set; }
 
     public EnvironmentBaseStack(Construct scope, string id, IStackProps props, DeploymentContext context)
         : base(scope, id, props)
@@ -34,6 +38,9 @@ public class EnvironmentBaseStack : Stack
         
         // Create shared logging infrastructure
         CreateSharedLogging();
+        
+        // Create shared database infrastructure
+        CreateSharedDatabase();
         
         // Create VPC endpoints if needed
         CreateVpcEndpoints();
@@ -219,6 +226,77 @@ public class EnvironmentBaseStack : Stack
         Console.WriteLine($"   Shared log group created: {SharedLogGroup.LogGroupName}");
     }
 
+    private void CreateSharedDatabase()
+    {
+        Console.WriteLine("🗄️  Creating shared database infrastructure...");
+        
+        // Create custom database credentials secret following naming convention
+        var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
+        var databaseSecretName = $"/{environmentPrefix}/shared/database-credentials";
+        
+        var databaseSecret = new Secret(this, "SharedDatabaseSecret", new SecretProps
+        {
+            SecretName = databaseSecretName,
+            Description = $"Database credentials for shared PostgreSQL cluster in {_context.Environment.Name}",
+            GenerateSecretString = new SecretStringGenerator
+            {
+                SecretStringTemplate = "{\"username\":\"postgres\"}",
+                GenerateStringKey = "password",
+                PasswordLength = 32,
+                ExcludeCharacters = "\"@/\\"
+            }
+        });
+        
+        // Create database subnet group for isolated subnets
+        var subnetGroup = new CfnDBSubnetGroup(this, "SharedDatabaseSubnetGroup", new CfnDBSubnetGroupProps
+        {
+            DbSubnetGroupName = $"{_context.Environment.Name}-shared-db-subnet-group",
+            DbSubnetGroupDescription = $"Shared database subnet group for {_context.Environment.Name} environment",
+            SubnetIds = Vpc.IsolatedSubnets.Select(s => s.SubnetId).ToArray()
+        });
+
+        // Create shared PostgreSQL Aurora Serverless v2 database cluster
+        SharedDatabaseCluster = new DatabaseCluster(this, "SharedDatabase", new DatabaseClusterProps
+        {
+            ClusterIdentifier = $"{_context.Environment.Name}-shared-database",
+            Engine = DatabaseClusterEngine.AuroraPostgres(new AuroraPostgresClusterEngineProps
+            {
+                Version = AuroraPostgresEngineVersion.VER_17_4
+            }),
+            Writer = ClusterInstance.ServerlessV2("writer"),
+            ServerlessV2MinCapacity = 0.5,
+            ServerlessV2MaxCapacity = 128.0,
+            Vpc = Vpc,
+            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_ISOLATED },
+            Credentials = Credentials.FromSecret(databaseSecret),
+            Backup = new BackupProps
+            {
+                Retention = Duration.Days(7),
+                PreferredWindow = "06:00-06:30"
+            },
+            StorageEncrypted = true,
+            DeletionProtection = false,
+            RemovalPolicy = RemovalPolicy.DESTROY,
+            MonitoringInterval = Duration.Minutes(1),
+            EnablePerformanceInsights = true,
+            CloudwatchLogsExports = new[] { "postgresql" },
+            IamAuthentication = true,
+            PreferredMaintenanceWindow = "fri:05:00-fri:05:30",
+            SecurityGroups = new[] { SharedSecurityGroups["rds"] }
+        });
+
+        // Add tags to database cluster
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Purpose", "SharedDatabase");
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Environment", _context.Environment.Name);
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Shared", "true");
+
+        Console.WriteLine($"   Shared database cluster created: {SharedDatabaseCluster.ClusterIdentifier}");
+        Console.WriteLine($"   Database endpoint: {SharedDatabaseCluster.ClusterEndpoint.Hostname}");
+        Console.WriteLine($"   Database subnet group: {subnetGroup.DbSubnetGroupName}");
+        Console.WriteLine($"   Database credentials secret: {databaseSecretName}");
+    }
+
     private void CreateVpcEndpoints()
     {
         Console.WriteLine("🔗 Creating VPC endpoints for AWS services...");
@@ -353,6 +431,42 @@ public class EnvironmentBaseStack : Stack
             ExportName = $"{_context.Environment.Name}-shared-log-group-name",
             Description = "Shared log group name"
         });
+
+        // Export database outputs if database cluster exists
+        if (SharedDatabaseCluster != null)
+        {
+            // Export cluster ARN
+            new CfnOutput(this, "SharedDatabaseClusterArn", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.ClusterArn,
+                ExportName = $"{_context.Environment.Name}-shared-db-cluster-arn",
+                Description = "Shared database cluster ARN"
+            });
+
+            // Export cluster endpoint
+            new CfnOutput(this, "SharedDatabaseEndpoint", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.ClusterEndpoint.Hostname,
+                ExportName = $"{_context.Environment.Name}-shared-db-endpoint",
+                Description = "Shared database cluster endpoint"
+            });
+
+            // Export cluster port
+            new CfnOutput(this, "SharedDatabasePort", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.ClusterEndpoint.Port.ToString(),
+                ExportName = $"{_context.Environment.Name}-shared-db-port",
+                Description = "Shared database cluster port"
+            });
+
+            // Export cluster secret ARN
+            new CfnOutput(this, "SharedDatabaseSecretArn", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.Secret!.SecretArn,
+                ExportName = $"{_context.Environment.Name}-shared-db-secret-arn",
+                Description = "Shared database credentials secret ARN"
+            });
+        }
         
         Console.WriteLine($"   Exported resources with prefix: {_context.Environment.Name}-*");
     }
