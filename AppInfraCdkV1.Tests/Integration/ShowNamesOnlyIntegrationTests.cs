@@ -143,11 +143,11 @@ public class ShowNamesOnlyIntegrationTests
 
         // Validate that all validations pass
         result.StandardOutput.ShouldContain("Validating naming conventions...");
-        result.StandardOutput.ShouldContain("✅ Naming conventions validated successfully");
+        result.StandardOutput.ShouldContain("Naming conventions validated successfully");
         result.StandardOutput.ShouldContain("Validating multi-environment setup...");
-        result.StandardOutput.ShouldContain("✅ Multi-environment setup validated successfully");
-        result.StandardOutput.ShouldContain("✅ All resource names within AWS limits");
-        result.StandardOutput.ShouldContain("✅ Account-level uniqueness validated");
+        result.StandardOutput.ShouldContain("Multi-environment setup validated successfully");
+        result.StandardOutput.ShouldContain("All resource names within AWS limits");
+        result.StandardOutput.ShouldContain("Account-level uniqueness validated");
     }
 
     [Fact]

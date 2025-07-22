@@ -39,14 +39,14 @@ public class EnvironmentBaseStack : Stack
         // Create shared security groups matching existing ones
         CreateSharedSecurityGroups();
         
-        // Create dedicated QuickSight security group
-        CreateQuickSightSecurityGroup();
-        
         // Create shared logging infrastructure
         CreateSharedLogging();
         
         // Create shared database infrastructure
         CreateSharedDatabase();
+        
+        // Create dedicated QuickSight security group (after RDS security group is created)
+        CreateQuickSightSecurityGroup();
         
         // Create VPC endpoints if needed
         CreateVpcEndpoints();
