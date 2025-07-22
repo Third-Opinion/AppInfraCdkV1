@@ -46,6 +46,9 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, context);
 
+        // Create QuickSight VPC endpoints for secure database access
+        CreateQuickSightVpcEndpoints(vpc, context);
+
         // Export secret ARNs for all created secrets
         ExportSecretArns();
         
@@ -212,6 +215,9 @@ public class TrialFinderV2EcsStack : Stack
         
         // Export task definition ARN and family name for GitHub Actions
         ExportTaskDefinitionOutputs(taskDefinition, service, context);
+        
+        // Export QuickSight-related outputs for application use
+        ExportQuickSightOutputs(context);
         
         // Display summary of created secrets
         if (_createdSecrets.Count > 0)
@@ -602,7 +608,12 @@ public class TrialFinderV2EcsStack : Stack
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
             ["APP_VERSION"] = "1.0.0", // Static version to prevent unnecessary redeployments
             ["PORT"] = "8080",
-            ["HEALTH_CHECK_PATH"] = "/"
+            ["HEALTH_CHECK_PATH"] = "/",
+            ["AWS_REGION"] = context.Environment.Region,
+            ["AWS_ACCOUNT_ID"] = context.Environment.AccountId,
+            ["QUICKSIGHT_NAMESPACE"] = "default",
+            ["QUICKSIGHT_DASHBOARD_ID"] = "5094c2e3-1d24-41a6-bbb3-411a190cb9de", // TrialFinder dashboard ID
+            ["QUICKSIGHT_DATASET_ID"] = "85a953d6-d101-455e-a9bb-1839e9fcfc07" // Study Locations dataset ID
         };
     }
 
@@ -915,7 +926,7 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Add QuickSight permissions to IAM role for embedding functionality
+    /// Add QuickSight permissions to IAM role for embedding functionality and database access
     /// </summary>
     private void AddQuickSightPermissions(IRole role)
     {
@@ -978,6 +989,69 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[] 
             { 
                 $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:namespace/*"
+            }
+        }));
+
+        // QuickSight data source permissions for database access
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightDataSourceAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeDataSource",
+                "quicksight:ListDataSources",
+                "quicksight:CreateDataSource",
+                "quicksight:UpdateDataSource",
+                "quicksight:DeleteDataSource",
+                "quicksight:DescribeDataSourcePermissions",
+                "quicksight:UpdateDataSourcePermissions"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:datasource/*"
+            }
+        }));
+
+        // QuickSight analysis permissions for creating and managing analyses
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightAnalysisAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeAnalysis",
+                "quicksight:ListAnalyses",
+                "quicksight:CreateAnalysis",
+                "quicksight:UpdateAnalysis",
+                "quicksight:DeleteAnalysis",
+                "quicksight:DescribeAnalysisPermissions",
+                "quicksight:UpdateAnalysisPermissions"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:analysis/*"
+            }
+        }));
+
+        // QuickSight theme permissions for consistent styling
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightThemeAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeTheme",
+                "quicksight:ListThemes",
+                "quicksight:CreateTheme",
+                "quicksight:UpdateTheme",
+                "quicksight:DeleteTheme",
+                "quicksight:DescribeThemePermissions",
+                "quicksight:UpdateThemePermissions"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:theme/*"
             }
         }));
     }
@@ -1321,6 +1395,160 @@ public class TrialFinderV2EcsStack : Stack
         Console.WriteLine($"   Imported shared database information from base stack");
         Console.WriteLine($"   Database endpoint: {sharedDbEndpoint}");
         Console.WriteLine($"   Database port: {sharedDbPort}");
+    }
+
+    /// <summary>
+    /// Export QuickSight-related outputs for application use
+    /// </summary>
+    private void ExportQuickSightOutputs(DeploymentContext context)
+    {
+        Console.WriteLine("\n📊 Exporting QuickSight-related outputs...");
+
+        // Export QuickSight dashboard ID
+        new CfnOutput(this, "QuickSightDashboardId", new CfnOutputProps
+        {
+            Value = "5094c2e3-1d24-41a6-bbb3-411a190cb9de", // TrialFinder dashboard ID
+            Description = "QuickSight Dashboard ID for TrialFinder",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-dashboard-id"
+        });
+
+        // Export QuickSight dataset ID for Study Locations
+        new CfnOutput(this, "QuickSightDatasetId", new CfnOutputProps
+        {
+            Value = "85a953d6-d101-455e-a9bb-1839e9fcfc07", // Study Locations dataset ID
+            Description = "QuickSight Dataset ID for Study Locations",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-dataset-id"
+        });
+
+        // Export QuickSight namespace
+        new CfnOutput(this, "QuickSightNamespace", new CfnOutputProps
+        {
+            Value = "default",
+            Description = "QuickSight Namespace",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-namespace"
+        });
+
+        // Export QuickSight account ID
+        new CfnOutput(this, "QuickSightAccountId", new CfnOutputProps
+        {
+            Value = context.Environment.AccountId,
+            Description = "QuickSight Account ID",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-account-id"
+        });
+
+        // Export QuickSight region
+        new CfnOutput(this, "QuickSightRegion", new CfnOutputProps
+        {
+            Value = context.Environment.Region,
+            Description = "QuickSight Region",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-region"
+        });
+
+        Console.WriteLine($"   ✅ Exported QuickSight dashboard ID: 5094c2e3-1d24-41a6-bbb3-411a190cb9de");
+        Console.WriteLine($"   ✅ Exported QuickSight dataset ID: 85a953d6-d101-455e-a9bb-1839e9fcfc07");
+        Console.WriteLine($"   ✅ Exported QuickSight namespace: default");
+        Console.WriteLine($"   ✅ Exported QuickSight account ID: {context.Environment.AccountId}");
+        Console.WriteLine($"   ✅ Exported QuickSight region: {context.Environment.Region}");
+    }
+
+    /// <summary>
+    /// Create QuickSight VPC endpoints for secure database access within the shared VPC
+    /// </summary>
+    private void CreateQuickSightVpcEndpoints(IVpc vpc, DeploymentContext context)
+    {
+        Console.WriteLine("\n🔗 Creating QuickSight VPC endpoints for secure database access...");
+
+        // Import the VPC endpoints security group from the shared stack
+        var vpcEndpointsSecurityGroupId = Fn.ImportValue($"{context.Environment.Name}-vpc-endpoints-sg-id");
+        var vpcEndpointsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedVpcEndpointsSecurityGroup",
+            vpcEndpointsSecurityGroupId);
+
+        // Import private subnets from shared stack
+        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
+        var privateSubnets = privateSubnetIds.Select((subnetId, index) => 
+            Subnet.FromSubnetId(this, $"PrivateSubnet{index}", subnetId)).ToArray();
+
+        // Create QuickSight VPC endpoint for API access
+        var quicksightApiEndpoint = new CfnVPCEndpoint(this, "QuickSightApiVpcEndpoint", new CfnVPCEndpointProps
+        {
+            VpcId = vpc.VpcId,
+            ServiceName = $"com.amazonaws.{context.Environment.Region}.quicksight",
+            VpcEndpointType = "Interface",
+            SubnetIds = privateSubnets.Select(s => s.SubnetId).ToArray(),
+            SecurityGroupIds = new[] { vpcEndpointsSecurityGroup.SecurityGroupId },
+            PrivateDnsEnabled = true,
+            PolicyDocument = new Dictionary<string, object>
+            {
+                ["Version"] = "2012-10-17",
+                ["Statement"] = new[]
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["Effect"] = "Allow",
+                        ["Principal"] = "*",
+                        ["Action"] = "*",
+                        ["Resource"] = "*"
+                    }
+                }
+            }
+        });
+
+        // Create QuickSight VPC endpoint for embedding (if needed for future use)
+        var quicksightEmbeddingEndpoint = new CfnVPCEndpoint(this, "QuickSightEmbeddingVpcEndpoint", new CfnVPCEndpointProps
+        {
+            VpcId = vpc.VpcId,
+            ServiceName = $"com.amazonaws.{context.Environment.Region}.quicksight-embedding",
+            VpcEndpointType = "Interface",
+            SubnetIds = privateSubnets.Select(s => s.SubnetId).ToArray(),
+            SecurityGroupIds = new[] { vpcEndpointsSecurityGroup.SecurityGroupId },
+            PrivateDnsEnabled = true,
+            PolicyDocument = new Dictionary<string, object>
+            {
+                ["Version"] = "2012-10-17",
+                ["Statement"] = new[]
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["Effect"] = "Allow",
+                        ["Principal"] = "*",
+                        ["Action"] = "*",
+                        ["Resource"] = "*"
+                    }
+                }
+            }
+        });
+
+        // Export VPC endpoint IDs for reference
+        new CfnOutput(this, "QuickSightApiVpcEndpointId", new CfnOutputProps
+        {
+            Value = quicksightApiEndpoint.Ref,
+            Description = "QuickSight API VPC Endpoint ID",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-api-vpc-endpoint-id"
+        });
+
+        new CfnOutput(this, "QuickSightEmbeddingVpcEndpointId", new CfnOutputProps
+        {
+            Value = quicksightEmbeddingEndpoint.Ref,
+            Description = "QuickSight Embedding VPC Endpoint ID",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-embedding-vpc-endpoint-id"
+        });
+
+        // Add tags for identification
+        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("Purpose", "QuickSight-API-Access");
+        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("Service", context.Application.Name);
+        Amazon.CDK.Tags.Of(quicksightApiEndpoint).Add("Environment", context.Environment.Name);
+
+        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("Purpose", "QuickSight-Embedding");
+        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("Service", context.Application.Name);
+        Amazon.CDK.Tags.Of(quicksightEmbeddingEndpoint).Add("Environment", context.Environment.Name);
+
+        Console.WriteLine($"   ✅ Created QuickSight API VPC endpoint: {quicksightApiEndpoint.Ref}");
+        Console.WriteLine($"   ✅ Created QuickSight Embedding VPC endpoint: {quicksightEmbeddingEndpoint.Ref}");
+        Console.WriteLine($"   📍 VPC: {vpc.VpcId}");
+        Console.WriteLine($"   🔒 Security Group: {vpcEndpointsSecurityGroup.SecurityGroupId}");
+        Console.WriteLine($"   🌐 Private DNS enabled for secure access");
     }
 
     /// <summary>
