@@ -48,6 +48,9 @@ public class TrialFinderV2EcsStack : Stack
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
+        
+        // Import and export shared database information
+        ImportSharedDatabaseInfo();
     }
 
     /// <summary>
@@ -841,7 +844,8 @@ public class TrialFinderV2EcsStack : Stack
         {
             $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{applicationName}/*",
             // Allow access to shared secrets if needed
-            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*"
+            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*",
+            // Allow access to RDS database credentials secret (including version suffixes)
         };
         
         // Add Secrets Manager permissions
@@ -1094,7 +1098,7 @@ public class TrialFinderV2EcsStack : Stack
             return _createdSecrets[secretName];
         }
 
-        // Create the secret with a placeholder value
+        // Create the secret with a simple text placeholder
         Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}'");
         var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
         {
@@ -1102,8 +1106,8 @@ public class TrialFinderV2EcsStack : Stack
             Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
             GenerateSecretString = new SecretStringGenerator
             {
-                SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
-                GenerateStringKey = "value",
+                SecretStringTemplate = $"placeholder-value-for-{secretName}",
+                GenerateStringKey = "secret",
                 PasswordLength = 32,
                 ExcludeCharacters = "\"@/\\"
             }
@@ -1272,6 +1276,51 @@ public class TrialFinderV2EcsStack : Stack
             Description = "ECS Execution IAM Role ARN",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-execution-role-arn"
         });
+    }
+
+    /// <summary>
+    /// Import shared database information from base stack
+    /// </summary>
+    private void ImportSharedDatabaseInfo()
+    {
+        // Import shared database endpoint
+        var sharedDbEndpoint = Fn.ImportValue($"{_context.Environment.Name}-shared-db-endpoint");
+        var sharedDbPort = Fn.ImportValue($"{_context.Environment.Name}-shared-db-port");
+        var sharedDbSecretArn = Fn.ImportValue($"{_context.Environment.Name}-shared-db-secret-arn");
+        var sharedDbClusterArn = Fn.ImportValue($"{_context.Environment.Name}-shared-db-cluster-arn");
+
+        // Export shared database information for application use
+        new CfnOutput(this, "SharedDatabaseEndpoint", new CfnOutputProps
+        {
+            Value = sharedDbEndpoint,
+            Description = "Shared database endpoint for application connection",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-endpoint"
+        });
+
+        new CfnOutput(this, "SharedDatabasePort", new CfnOutputProps
+        {
+            Value = sharedDbPort,
+            Description = "Shared database port for application connection",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-port"
+        });
+
+        new CfnOutput(this, "SharedDatabaseSecretArn", new CfnOutputProps
+        {
+            Value = sharedDbSecretArn,
+            Description = "Shared database credentials secret ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-secret-arn"
+        });
+
+        new CfnOutput(this, "SharedDatabaseClusterArn", new CfnOutputProps
+        {
+            Value = sharedDbClusterArn,
+            Description = "Shared database cluster ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-cluster-arn"
+        });
+
+        Console.WriteLine($"   Imported shared database information from base stack");
+        Console.WriteLine($"   Database endpoint: {sharedDbEndpoint}");
+        Console.WriteLine($"   Database port: {sharedDbPort}");
     }
 
     /// <summary>
