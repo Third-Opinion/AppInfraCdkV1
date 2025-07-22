@@ -362,23 +362,18 @@ public class EnvironmentBaseStack : Stack
             Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
         
-        // QuickSight API Interface Endpoint for secure database access
-        QuickSightApiEndpoint = new InterfaceVpcEndpoint(this, "QuickSightApiVpcEndpoint", new InterfaceVpcEndpointProps
+        // QuickSight Website Interface Endpoint for secure access
+        QuickSightApiEndpoint = new InterfaceVpcEndpoint(this, "QuickSightWebsiteVpcEndpoint", new InterfaceVpcEndpointProps
         {
             Vpc = Vpc,
-            Service = new InterfaceVpcEndpointService($"com.amazonaws.{_context.Environment.Region}.quicksight"),
+            Service = InterfaceVpcEndpointAwsService.QUICKSIGHT_WEBSITE,
             SecurityGroups = new[] { SharedSecurityGroups["vpc-endpoints"] },
             Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
         
-        // QuickSight Embedding Interface Endpoint for embedding functionality
-        QuickSightEmbeddingEndpoint = new InterfaceVpcEndpoint(this, "QuickSightEmbeddingVpcEndpoint", new InterfaceVpcEndpointProps
-        {
-            Vpc = Vpc,
-            Service = new InterfaceVpcEndpointService($"com.amazonaws.{_context.Environment.Region}.quicksight-embedding"),
-            SecurityGroups = new[] { SharedSecurityGroups["vpc-endpoints"] },
-            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
-        });
+        // Note: QuickSight API and embedding functionality are accessed through the website endpoint
+        // No separate embedding endpoint is needed as it's handled through the main QuickSight service
+        QuickSightEmbeddingEndpoint = QuickSightApiEndpoint; // Use the same endpoint for both
         
         Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, CloudWatch Logs, Secrets Manager, and QuickSight");
     }
@@ -444,19 +439,27 @@ public class EnvironmentBaseStack : Stack
             });
         }
         
-        // Export QuickSight VPC endpoint IDs
+        // Export QuickSight VPC endpoint ID (single endpoint for website access)
+        new CfnOutput(this, "QuickSightWebsiteVpcEndpointId", new CfnOutputProps
+        {
+            Value = QuickSightApiEndpoint.VpcEndpointId,
+            ExportName = $"{_context.Environment.Name}-quicksight-website-vpc-endpoint-id",
+            Description = "QuickSight Website VPC Endpoint ID"
+        });
+        
+        // Export the same endpoint ID for backward compatibility with existing code
         new CfnOutput(this, "QuickSightApiVpcEndpointId", new CfnOutputProps
         {
             Value = QuickSightApiEndpoint.VpcEndpointId,
             ExportName = $"{_context.Environment.Name}-quicksight-api-vpc-endpoint-id",
-            Description = "QuickSight API VPC Endpoint ID"
+            Description = "QuickSight API VPC Endpoint ID (same as website endpoint)"
         });
         
         new CfnOutput(this, "QuickSightEmbeddingVpcEndpointId", new CfnOutputProps
         {
             Value = QuickSightEmbeddingEndpoint.VpcEndpointId,
             ExportName = $"{_context.Environment.Name}-quicksight-embedding-vpc-endpoint-id",
-            Description = "QuickSight Embedding VPC Endpoint ID"
+            Description = "QuickSight Embedding VPC Endpoint ID (same as website endpoint)"
         });
         
         // Export shared log group name
