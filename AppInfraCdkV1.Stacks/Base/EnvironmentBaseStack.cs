@@ -21,6 +21,8 @@ public class EnvironmentBaseStack : Stack
     public Dictionary<string, ISecurityGroup> SharedSecurityGroups { get; private set; } = new();
     public ILogGroup SharedLogGroup { get; private set; } = null!;
     public DatabaseCluster? SharedDatabaseCluster { get; private set; }
+    public InterfaceVpcEndpoint QuickSightApiEndpoint { get; private set; } = null!;
+    public InterfaceVpcEndpoint QuickSightEmbeddingEndpoint { get; private set; } = null!;
 
     public EnvironmentBaseStack(Construct scope, string id, IStackProps props, DeploymentContext context)
         : base(scope, id, props)
@@ -360,7 +362,25 @@ public class EnvironmentBaseStack : Stack
             Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
         
-        Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, CloudWatch Logs, and Secrets Manager");
+        // QuickSight API Interface Endpoint for secure database access
+        QuickSightApiEndpoint = new InterfaceVpcEndpoint(this, "QuickSightApiVpcEndpoint", new InterfaceVpcEndpointProps
+        {
+            Vpc = Vpc,
+            Service = new InterfaceVpcEndpointService($"com.amazonaws.{_context.Environment.Region}.quicksight"),
+            SecurityGroups = new[] { SharedSecurityGroups["vpc-endpoints"] },
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        
+        // QuickSight Embedding Interface Endpoint for embedding functionality
+        QuickSightEmbeddingEndpoint = new InterfaceVpcEndpoint(this, "QuickSightEmbeddingVpcEndpoint", new InterfaceVpcEndpointProps
+        {
+            Vpc = Vpc,
+            Service = new InterfaceVpcEndpointService($"com.amazonaws.{_context.Environment.Region}.quicksight-embedding"),
+            SecurityGroups = new[] { SharedSecurityGroups["vpc-endpoints"] },
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        
+        Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, CloudWatch Logs, Secrets Manager, and QuickSight");
     }
 
     private void ExportSharedResources()
@@ -423,6 +443,21 @@ public class EnvironmentBaseStack : Stack
                 Description = $"Security group ID for {name}"
             });
         }
+        
+        // Export QuickSight VPC endpoint IDs
+        new CfnOutput(this, "QuickSightApiVpcEndpointId", new CfnOutputProps
+        {
+            Value = QuickSightApiEndpoint.VpcEndpointId,
+            ExportName = $"{_context.Environment.Name}-quicksight-api-vpc-endpoint-id",
+            Description = "QuickSight API VPC Endpoint ID"
+        });
+        
+        new CfnOutput(this, "QuickSightEmbeddingVpcEndpointId", new CfnOutputProps
+        {
+            Value = QuickSightEmbeddingEndpoint.VpcEndpointId,
+            ExportName = $"{_context.Environment.Name}-quicksight-embedding-vpc-endpoint-id",
+            Description = "QuickSight Embedding VPC Endpoint ID"
+        });
         
         // Export shared log group name
         new CfnOutput(this, "SharedLogGroupName", new CfnOutputProps
