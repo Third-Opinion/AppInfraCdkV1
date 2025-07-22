@@ -1106,8 +1106,8 @@ public class TrialFinderV2EcsStack : Stack
             Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
             GenerateSecretString = new SecretStringGenerator
             {
-                SecretStringTemplate = $"placeholder-value-for-{secretName}",
-                GenerateStringKey = "secret",
+                SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
+                GenerateStringKey = "value",
                 PasswordLength = 32,
                 ExcludeCharacters = "\"@/\\"
             }
