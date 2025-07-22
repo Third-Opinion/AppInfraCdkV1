@@ -23,6 +23,7 @@ public class EnvironmentBaseStack : Stack
     public DatabaseCluster? SharedDatabaseCluster { get; private set; }
     public InterfaceVpcEndpoint QuickSightApiEndpoint { get; private set; } = null!;
     public InterfaceVpcEndpoint QuickSightEmbeddingEndpoint { get; private set; } = null!;
+    public SecurityGroup QuickSightSecurityGroup { get; private set; } = null!;
 
     public EnvironmentBaseStack(Construct scope, string id, IStackProps props, DeploymentContext context)
         : base(scope, id, props)
@@ -37,6 +38,9 @@ public class EnvironmentBaseStack : Stack
         
         // Create shared security groups matching existing ones
         CreateSharedSecurityGroups();
+        
+        // Create dedicated QuickSight security group
+        CreateQuickSightSecurityGroup();
         
         // Create shared logging infrastructure
         CreateSharedLogging();
@@ -167,6 +171,9 @@ public class EnvironmentBaseStack : Stack
         // Allow PostgreSQL from ECS
         rdsSg.AddIngressRule(ecsSg, Port.Tcp(5432), "Allow PostgreSQL from ECS");
         
+        // Allow PostgreSQL from QuickSight (will be added after QuickSight security group is created)
+        // This will be handled in CreateQuickSightSecurityGroup method
+        
         SharedSecurityGroups["rds"] = rdsSg;
         
         // ECS to RDS Security Group - matches sg-0e1f1808e2e77aea1 (ecs-to-rds-security-group)
@@ -210,6 +217,71 @@ public class EnvironmentBaseStack : Stack
         SharedSecurityGroups["test"] = testSg;
         
         Console.WriteLine($"   Created {SharedSecurityGroups.Count} shared security groups matching existing ones");
+    }
+
+    private void CreateQuickSightSecurityGroup()
+    {
+        Console.WriteLine("🔒 Creating dedicated QuickSight security group...");
+        
+        // Create dedicated QuickSight security group
+        QuickSightSecurityGroup = new SecurityGroup(this, "QuickSightSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = Vpc,
+            SecurityGroupName = _context.Namer.SharedSecurityGroup("quicksight"),
+            Description = "Dedicated security group for QuickSight VPC endpoints and database access",
+            AllowAllOutbound = false
+        });
+        
+        // Inbound Rule: Allow all TCP from RDS security group (return traffic from database)
+        if (SharedSecurityGroups.ContainsKey("rds"))
+        {
+            QuickSightSecurityGroup.AddIngressRule(
+                SharedSecurityGroups["rds"], 
+                Port.AllTcp(), 
+                "Allow return traffic from RDS database"
+            );
+        }
+        
+        // Outbound Rule: Allow PostgreSQL (port 5432) to RDS security group
+        if (SharedSecurityGroups.ContainsKey("rds"))
+        {
+            QuickSightSecurityGroup.AddEgressRule(
+                SharedSecurityGroups["rds"], 
+                Port.Tcp(5432), 
+                "Allow PostgreSQL connections to RDS database"
+            );
+        }
+        
+        // Allow HTTPS outbound for AWS service access (Secrets Manager, etc.)
+        QuickSightSecurityGroup.AddEgressRule(
+            Peer.AnyIpv4(), 
+            Port.Tcp(443), 
+            "Allow HTTPS for AWS service access"
+        );
+        
+        // Allow HTTP outbound for package downloads and health checks
+        QuickSightSecurityGroup.AddEgressRule(
+            Peer.AnyIpv4(), 
+            Port.Tcp(80), 
+            "Allow HTTP for package downloads and health checks"
+        );
+        
+        // Update RDS security group to allow connections from QuickSight
+        if (SharedSecurityGroups.ContainsKey("rds"))
+        {
+            var rdsSg = SharedSecurityGroups["rds"] as SecurityGroup;
+            if (rdsSg != null)
+            {
+                rdsSg.AddIngressRule(
+                    QuickSightSecurityGroup, 
+                    Port.Tcp(5432), 
+                    "Allow PostgreSQL connections from QuickSight"
+                );
+                Console.WriteLine("   Updated RDS security group to allow connections from QuickSight");
+            }
+        }
+        
+        Console.WriteLine($"   QuickSight security group created with ID: {QuickSightSecurityGroup.SecurityGroupId}");
     }
 
     private void CreateSharedLogging()
@@ -367,7 +439,7 @@ public class EnvironmentBaseStack : Stack
         {
             Vpc = Vpc,
             Service = InterfaceVpcEndpointAwsService.QUICKSIGHT_WEBSITE,
-            SecurityGroups = new[] { SharedSecurityGroups["vpc-endpoints"] },
+            SecurityGroups = new[] { QuickSightSecurityGroup },
             Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
         
@@ -438,6 +510,14 @@ public class EnvironmentBaseStack : Stack
                 Description = $"Security group ID for {name}"
             });
         }
+        
+        // Export QuickSight security group ID
+        new CfnOutput(this, "QuickSightSecurityGroupId", new CfnOutputProps
+        {
+            Value = QuickSightSecurityGroup.SecurityGroupId,
+            ExportName = $"{_context.Environment.Name}-sg-quicksight-id",
+            Description = "Security group ID for QuickSight"
+        });
         
         // Export QuickSight VPC endpoint ID (single endpoint for website access)
         new CfnOutput(this, "QuickSightWebsiteVpcEndpointId", new CfnOutputProps
