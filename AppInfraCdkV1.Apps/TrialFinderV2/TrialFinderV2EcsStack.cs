@@ -48,9 +48,6 @@ public class TrialFinderV2EcsStack : Stack
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
-        
-        // Import and export shared database information
-        ImportSharedDatabaseInfo();
     }
 
     /// <summary>
@@ -212,12 +209,6 @@ public class TrialFinderV2EcsStack : Stack
         
         // Export task definition ARN and family name for GitHub Actions
         ExportTaskDefinitionOutputs(taskDefinition, service, context);
-        
-        // Export QuickSight-related outputs for application use
-        ExportQuickSightOutputs(context);
-        
-        // Import and export QuickSight VPC endpoint information
-        ImportQuickSightVpcEndpoints(context);
         
         // Display summary of created secrets
         if (_createdSecrets.Count > 0)
@@ -610,10 +601,8 @@ public class TrialFinderV2EcsStack : Stack
             ["PORT"] = "8080",
             ["HEALTH_CHECK_PATH"] = "/",
             ["AWS_REGION"] = context.Environment.Region,
-            ["AWS_ACCOUNT_ID"] = context.Environment.AccountId,
-            ["QUICKSIGHT_NAMESPACE"] = "default",
-            ["QUICKSIGHT_DASHBOARD_ID"] = "5094c2e3-1d24-41a6-bbb3-411a190cb9de", // TrialFinder dashboard ID
-            ["QUICKSIGHT_DATASET_ID"] = "85a953d6-d101-455e-a9bb-1839e9fcfc07" // Study Locations dataset ID
+            ["AWS_ACCOUNT_ID"] = context.Environment.AccountId
+            // Removed QuickSight-related environment variables
         };
     }
 
@@ -1351,136 +1340,6 @@ public class TrialFinderV2EcsStack : Stack
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-execution-role-arn"
         });
     }
-
-    /// <summary>
-    /// Import shared database information from base stack
-    /// </summary>
-    private void ImportSharedDatabaseInfo()
-    {
-        // Import shared database endpoint
-        var sharedDbEndpoint = Fn.ImportValue($"{_context.Environment.Name}-shared-db-endpoint");
-        var sharedDbPort = Fn.ImportValue($"{_context.Environment.Name}-shared-db-port");
-        var sharedDbSecretArn = Fn.ImportValue($"{_context.Environment.Name}-shared-db-secret-arn");
-        var sharedDbClusterArn = Fn.ImportValue($"{_context.Environment.Name}-shared-db-cluster-arn");
-
-        // Export shared database information for application use
-        new CfnOutput(this, "SharedDatabaseEndpoint", new CfnOutputProps
-        {
-            Value = sharedDbEndpoint,
-            Description = "Shared database endpoint for application connection",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-endpoint"
-        });
-
-        new CfnOutput(this, "SharedDatabasePort", new CfnOutputProps
-        {
-            Value = sharedDbPort,
-            Description = "Shared database port for application connection",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-port"
-        });
-
-        new CfnOutput(this, "SharedDatabaseSecretArn", new CfnOutputProps
-        {
-            Value = sharedDbSecretArn,
-            Description = "Shared database credentials secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-secret-arn"
-        });
-
-        new CfnOutput(this, "SharedDatabaseClusterArn", new CfnOutputProps
-        {
-            Value = sharedDbClusterArn,
-            Description = "Shared database cluster ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-shared-db-cluster-arn"
-        });
-
-        Console.WriteLine($"   Imported shared database information from base stack");
-        Console.WriteLine($"   Database endpoint: {sharedDbEndpoint}");
-        Console.WriteLine($"   Database port: {sharedDbPort}");
-    }
-
-    /// <summary>
-    /// Export QuickSight-related outputs for application use
-    /// </summary>
-    private void ExportQuickSightOutputs(DeploymentContext context)
-    {
-        Console.WriteLine("\n📊 Exporting QuickSight-related outputs...");
-
-        // Export QuickSight dashboard ID
-        new CfnOutput(this, "QuickSightDashboardId", new CfnOutputProps
-        {
-            Value = "5094c2e3-1d24-41a6-bbb3-411a190cb9de", // TrialFinder dashboard ID
-            Description = "QuickSight Dashboard ID for TrialFinder",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-dashboard-id"
-        });
-
-        // Export QuickSight dataset ID for Study Locations
-        new CfnOutput(this, "QuickSightDatasetId", new CfnOutputProps
-        {
-            Value = "85a953d6-d101-455e-a9bb-1839e9fcfc07", // Study Locations dataset ID
-            Description = "QuickSight Dataset ID for Study Locations",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-dataset-id"
-        });
-
-        // Export QuickSight namespace
-        new CfnOutput(this, "QuickSightNamespace", new CfnOutputProps
-        {
-            Value = "default",
-            Description = "QuickSight Namespace",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-namespace"
-        });
-
-        // Export QuickSight account ID
-        new CfnOutput(this, "QuickSightAccountId", new CfnOutputProps
-        {
-            Value = context.Environment.AccountId,
-            Description = "QuickSight Account ID",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-account-id"
-        });
-
-        // Export QuickSight region
-        new CfnOutput(this, "QuickSightRegion", new CfnOutputProps
-        {
-            Value = context.Environment.Region,
-            Description = "QuickSight Region",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-region"
-        });
-
-        Console.WriteLine($"   ✅ Exported QuickSight dashboard ID: 5094c2e3-1d24-41a6-bbb3-411a190cb9de");
-        Console.WriteLine($"   ✅ Exported QuickSight dataset ID: 85a953d6-d101-455e-a9bb-1839e9fcfc07");
-        Console.WriteLine($"   ✅ Exported QuickSight namespace: default");
-        Console.WriteLine($"   ✅ Exported QuickSight account ID: {context.Environment.AccountId}");
-        Console.WriteLine($"   ✅ Exported QuickSight region: {context.Environment.Region}");
-    }
-
-    /// <summary>
-    /// Import QuickSight VPC endpoint information from shared stack
-    /// </summary>
-    private void ImportQuickSightVpcEndpoints(DeploymentContext context)
-    {
-        Console.WriteLine("\n🔗 Importing QuickSight VPC endpoint information...");
-
-        // Import QuickSight VPC endpoint IDs from shared stack
-        var quicksightApiEndpointId = Fn.ImportValue($"{context.Environment.Name}-quicksight-api-vpc-endpoint-id");
-        var quicksightEmbeddingEndpointId = Fn.ImportValue($"{context.Environment.Name}-quicksight-embedding-vpc-endpoint-id");
-
-        // Export QuickSight VPC endpoint information for application use
-        new CfnOutput(this, "QuickSightApiVpcEndpointId", new CfnOutputProps
-        {
-            Value = quicksightApiEndpointId,
-            Description = "QuickSight API VPC Endpoint ID from shared stack",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-api-vpc-endpoint-id"
-        });
-
-        new CfnOutput(this, "QuickSightEmbeddingVpcEndpointId", new CfnOutputProps
-        {
-            Value = quicksightEmbeddingEndpointId,
-            Description = "QuickSight Embedding VPC Endpoint ID from shared stack",
-            ExportName = $"{context.Environment.Name}-{context.Application.Name}-quicksight-embedding-vpc-endpoint-id"
-        });
-
-        Console.WriteLine($"   ✅ Imported QuickSight API VPC endpoint: {quicksightApiEndpointId}");
-        Console.WriteLine($"   ✅ Imported QuickSight Embedding VPC endpoint: {quicksightEmbeddingEndpointId}");
-    }
-
 
 
     /// <summary>
