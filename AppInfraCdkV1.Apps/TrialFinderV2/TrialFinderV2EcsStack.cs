@@ -1107,7 +1107,6 @@ public class TrialFinderV2EcsStack : Stack
             GenerateSecretString = new SecretStringGenerator
             {
                 SecretStringTemplate = $"placeholder-value-for-{secretName}",
-                GenerateStringKey = "secret",
                 PasswordLength = 32,
                 ExcludeCharacters = "\"@/\\"
             }
