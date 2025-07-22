@@ -235,6 +235,8 @@ public class ContainerDefinitionConfig
     public List<PortMapping>? PortMappings { get; set; }
     public List<EnvironmentVariable>? Environment { get; set; }
     public List<string>? Secrets { get; set; }
+    public HealthCheckConfig? HealthCheck { get; set; }
+    public bool? DisableHealthCheck { get; set; }
 }
 
 public class PortMapping
@@ -249,4 +251,14 @@ public class EnvironmentVariable
 {
     public string? Name { get; set; }
     public string? Value { get; set; }
+}
+
+public class HealthCheckConfig
+{
+    public List<string>? Command { get; set; }
+    public int? Interval { get; set; }
+    public int? Timeout { get; set; }
+    public int? Retries { get; set; }
+    public int? StartPeriod { get; set; }
+    public bool? Disabled { get; set; }
 }

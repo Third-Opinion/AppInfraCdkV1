@@ -11,6 +11,7 @@ using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
+using System.Text.RegularExpressions;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
@@ -377,8 +378,17 @@ public class TrialFinderV2EcsStack : Stack
             Console.WriteLine($"     No port mappings configured for container '{containerName}'");
         }
 
-        // Add standard health check for all containers
-        containerOptions.HealthCheck = GetStandardHealthCheck();
+        // Apply health check based on container type
+        var healthCheck = GetContainerHealthCheck(containerConfig, containerName);
+        if (healthCheck != null)
+        {
+            containerOptions.HealthCheck = healthCheck;
+            Console.WriteLine($"     Added health check for container '{containerName}'");
+        }
+        else
+        {
+            Console.WriteLine($"     Skipping health check for cron job container '{containerName}'");
+        }
 
         // Add CPU allocation if specified
         if (containerConfig.Cpu.HasValue && containerConfig.Cpu.Value > 0)
@@ -389,7 +399,111 @@ public class TrialFinderV2EcsStack : Stack
         taskDefinition.AddContainer(containerName, containerOptions);
     }
 
+    /// <summary>
+    /// Determine appropriate health check for container based on its type
+    /// </summary>
+    private Amazon.CDK.AWS.ECS.HealthCheck? GetContainerHealthCheck(
+        ContainerDefinitionConfig containerConfig,
+        string containerName)
+    {
+        // Check if health check is explicitly disabled in configuration
+        if (containerConfig.DisableHealthCheck == true)
+        {
+            Console.WriteLine($"     Health check explicitly disabled for container '{containerName}'");
+            return null;
+        }
 
+        // Check if this is a cron job container (automatic detection)
+        if (IsCronJobContainer(containerConfig, containerName))
+        {
+            // For cron jobs, return null to disable health check
+            return null;
+        }
+
+        // Use custom health check from configuration if provided
+        if (containerConfig.HealthCheck != null)
+        {
+            var customHealthCheck = CreateCustomHealthCheck(containerConfig.HealthCheck, containerName);
+            if (customHealthCheck != null)
+            {
+                return customHealthCheck;
+            }
+        }
+
+        // For web applications, use standard health check
+        return GetStandardHealthCheck(containerConfig);
+    }
+
+    /// <summary>
+    /// Create custom health check from configuration
+    /// </summary>
+    private Amazon.CDK.AWS.ECS.HealthCheck? CreateCustomHealthCheck(
+        HealthCheckConfig healthCheckConfig,
+        string containerName)
+    {
+        // If health check is explicitly disabled in config
+        if (healthCheckConfig.Disabled == true)
+        {
+            return null;
+        }
+
+        // Validate required command
+        if (healthCheckConfig.Command == null || healthCheckConfig.Command.Count == 0)
+        {
+            Console.WriteLine($"     Warning: Custom health check for '{containerName}' has no command, using standard health check");
+            return GetStandardHealthCheck(null); // Pass null for containerConfig
+        }
+
+        return new Amazon.CDK.AWS.ECS.HealthCheck
+        {
+            Command = healthCheckConfig.Command.ToArray(),
+            Interval = Duration.Seconds(healthCheckConfig.Interval ?? 30),
+            Timeout = Duration.Seconds(healthCheckConfig.Timeout ?? 5),
+            Retries = healthCheckConfig.Retries ?? 3,
+            StartPeriod = Duration.Seconds(healthCheckConfig.StartPeriod ?? 60)
+        };
+    }
+
+    /// <summary>
+    /// Determine if a container is a cron job based on configuration and naming
+    /// </summary>
+    private bool IsCronJobContainer(ContainerDefinitionConfig containerConfig, string containerName)
+    {
+        // Check container name patterns that indicate cron jobs
+        var nameLower = containerName.ToLowerInvariant();
+        var cronJobPatterns = new[]
+        {
+            "cron", "job", "batch", "scheduler", "task", "worker", "processor", "cleanup", "backup", "sync"
+        };
+
+        if (cronJobPatterns.Any(pattern => nameLower.Contains(pattern)))
+        {
+            return true;
+        }
+
+        // Check if container has no port mappings (typical for cron jobs)
+        if (containerConfig.PortMappings?.Count == 0)
+        {
+            return true;
+        }
+
+        // Check environment variables for cron job indicators
+        if (containerConfig.Environment?.Any(e => 
+            e.Name?.ToLowerInvariant().Contains("cron") == true ||
+            e.Name?.ToLowerInvariant().Contains("schedule") == true ||
+            e.Value?.ToLowerInvariant().Contains("cron") == true) == true)
+        {
+            return true;
+        }
+
+        // Check if container is marked as non-essential (typical for cron jobs)
+        if (containerConfig.Essential == false)
+        {
+            return true;
+        }
+
+        return false;
+    }
 
 
     /// <summary>
@@ -496,22 +610,63 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get standard health check for all containers
+    /// Get standard health check for web application containers
     /// </summary>
-    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck()
+    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck(ContainerDefinitionConfig? containerConfig = null)
     {
+        // Determine health check path from configuration or environment variable
+        var healthCheckPath = GetHealthCheckPath(containerConfig);
+        
         return new Amazon.CDK.AWS.ECS.HealthCheck
         {
             Command = new[]
             {
                 "CMD-SHELL",
-                "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
+                $"wget --no-verbose --tries=1 --spider http://localhost:8080{healthCheckPath} || exit 1"
             },
             Interval = Duration.Seconds(30),
             Timeout = Duration.Seconds(5),
             Retries = 3,
             StartPeriod = Duration.Seconds(60)
         };
+    }
+
+    /// <summary>
+    /// Get health check path from configuration or environment variable
+    /// </summary>
+    private string GetHealthCheckPath(ContainerDefinitionConfig? containerConfig)
+    {
+        // Check if health check path is specified in container configuration
+        if (containerConfig?.HealthCheck?.Command?.Count > 0)
+        {
+            // If custom health check command is provided, extract path from it
+            var command = string.Join(" ", containerConfig.HealthCheck.Command);
+            if (command.Contains("http://localhost:8080"))
+            {
+                // Extract path from custom command
+                var match = Regex.Match(command, @"http://localhost:8080([^\s]+)");
+                if (match.Success)
+                {
+                    return match.Groups[1].Value;
+                }
+            }
+        }
+
+        // Check environment variables in container config for health check path
+        if (containerConfig?.Environment?.Count > 0)
+        {
+            var healthCheckPathEnv = containerConfig.Environment.FirstOrDefault(e => 
+                e.Name?.Equals("HEALTH_CHECK_PATH", StringComparison.OrdinalIgnoreCase) == true);
+            
+            if (!string.IsNullOrWhiteSpace(healthCheckPathEnv?.Value))
+            {
+                // Ensure path starts with /
+                return healthCheckPathEnv.Value.StartsWith("/") ? healthCheckPathEnv.Value : $"/{healthCheckPathEnv.Value}";
+            }
+        }
+
+        // Default health check paths based on common patterns
+        return "/health";
     }
 
 
@@ -614,7 +769,7 @@ public class TrialFinderV2EcsStack : Stack
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
             ["APP_VERSION"] = "1.0.0", // Static version to prevent unnecessary redeployments
             ["PORT"] = "8080",
-            ["HEALTH_CHECK_PATH"] = "/",
+            ["HEALTH_CHECK_PATH"] = "/health",
             ["AWS_REGION"] = context.Environment.Region,
             ["AWS_ACCOUNT_ID"] = context.Environment.AccountId
             // Removed QuickSight-related environment variables

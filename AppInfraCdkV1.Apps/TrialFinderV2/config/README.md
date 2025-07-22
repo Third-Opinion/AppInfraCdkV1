@@ -132,14 +132,68 @@ Security groups are defined in JSON with:
 
 ## Health Check Configuration
 
-Consistent health check configuration across all environments:
-- **Path**: `/`
-- **Protocol**: HTTP
-- **Port**: Container port (8080)
-- **Interval**: 30 seconds
-- **Timeout**: 5 seconds
-- **Healthy Threshold**: 2 consecutive successes
-- **Unhealthy Threshold**: 3 consecutive failures
+### Configurable Health Check Paths
+
+The health check path is now configurable and follows this priority order:
+
+1. **Custom Health Check Command**: If a custom `healthCheck.command` is specified in the configuration
+2. **Environment Variable**: `HEALTH_CHECK_PATH` environment variable in the container
+3. **Default**: `/health` (fallback)
+
+#### Examples:
+
+**Using Environment Variable:**
+```json
+{
+  "name": "api-service",
+  "image": "api:latest",
+  "essential": true,
+  "environment": [
+    {
+      "name": "HEALTH_CHECK_PATH",
+      "value": "/api/health"
+    }
+  ]
+}
+```
+
+**Using Custom Health Check Command:**
+```json
+{
+  "name": "custom-service",
+  "image": "service:latest",
+  "essential": true,
+  "healthCheck": {
+    "command": [
+      "CMD-SHELL",
+      "curl -f http://localhost:8080/status || exit 1"
+    ],
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  }
+}
+```
+
+**Default Behavior:**
+```json
+{
+  "name": "web-app",
+  "image": "app:latest",
+  "essential": true
+  // Uses /health by default
+}
+```
+
+### Health Check Parameters
+
+| Parameter | Description | Default | Recommended for Cron Jobs |
+|-----------|-------------|---------|---------------------------|
+| `command` | Health check command | `curl -f http://localhost:8080/health` | N/A (disabled) |
+| `interval` | Time between health checks (seconds) | 30 | N/A (disabled) |
+| `timeout` | Health check timeout (seconds) | 5 | N/A (disabled) |
+| `retries` | Number of consecutive failures before unhealthy | 3 | N/A (disabled) |
+| `startPeriod` | Grace period before health checks start (seconds) | 60 | N/A (disabled) |
 
 ## Access Logging
 
