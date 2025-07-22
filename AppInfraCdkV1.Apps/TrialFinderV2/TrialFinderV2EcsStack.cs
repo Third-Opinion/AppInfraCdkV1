@@ -11,6 +11,7 @@ using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
+using System.Text.RegularExpressions;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
@@ -430,7 +431,7 @@ public class TrialFinderV2EcsStack : Stack
         }
 
         // For web applications, use standard health check
-        return GetStandardHealthCheck();
+        return GetStandardHealthCheck(containerConfig);
     }
 
     /// <summary>
@@ -450,7 +451,7 @@ public class TrialFinderV2EcsStack : Stack
         if (healthCheckConfig.Command == null || healthCheckConfig.Command.Count == 0)
         {
             Console.WriteLine($"     Warning: Custom health check for '{containerName}' has no command, using standard health check");
-            return GetStandardHealthCheck();
+            return GetStandardHealthCheck(null); // Pass null for containerConfig
         }
 
         return new Amazon.CDK.AWS.ECS.HealthCheck
@@ -609,22 +610,63 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get standard health check for all containers
+    /// Get standard health check for web application containers
     /// </summary>
-    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck()
+    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck(ContainerDefinitionConfig? containerConfig = null)
     {
+        // Determine health check path from configuration or environment variable
+        var healthCheckPath = GetHealthCheckPath(containerConfig);
+        
         return new Amazon.CDK.AWS.ECS.HealthCheck
         {
             Command = new[]
             {
                 "CMD-SHELL",
-                "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
+                $"wget --no-verbose --tries=1 --spider http://localhost:8080{healthCheckPath} || exit 1"
             },
             Interval = Duration.Seconds(30),
             Timeout = Duration.Seconds(5),
             Retries = 3,
             StartPeriod = Duration.Seconds(60)
         };
+    }
+
+    /// <summary>
+    /// Get health check path from configuration or environment variable
+    /// </summary>
+    private string GetHealthCheckPath(ContainerDefinitionConfig? containerConfig)
+    {
+        // Check if health check path is specified in container configuration
+        if (containerConfig?.HealthCheck?.Command?.Count > 0)
+        {
+            // If custom health check command is provided, extract path from it
+            var command = string.Join(" ", containerConfig.HealthCheck.Command);
+            if (command.Contains("http://localhost:8080"))
+            {
+                // Extract path from custom command
+                var match = Regex.Match(command, @"http://localhost:8080([^\s]+)");
+                if (match.Success)
+                {
+                    return match.Groups[1].Value;
+                }
+            }
+        }
+
+        // Check environment variables in container config for health check path
+        if (containerConfig?.Environment?.Count > 0)
+        {
+            var healthCheckPathEnv = containerConfig.Environment.FirstOrDefault(e => 
+                e.Name?.Equals("HEALTH_CHECK_PATH", StringComparison.OrdinalIgnoreCase) == true);
+            
+            if (!string.IsNullOrWhiteSpace(healthCheckPathEnv?.Value))
+            {
+                // Ensure path starts with /
+                return healthCheckPathEnv.Value.StartsWith("/") ? healthCheckPathEnv.Value : $"/{healthCheckPathEnv.Value}";
+            }
+        }
+
+        // Default health check paths based on common patterns
+        return "/health";
     }
 
 
@@ -727,7 +769,7 @@ public class TrialFinderV2EcsStack : Stack
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
             ["APP_VERSION"] = "1.0.0", // Static version to prevent unnecessary redeployments
             ["PORT"] = "8080",
-            ["HEALTH_CHECK_PATH"] = "/",
+            ["HEALTH_CHECK_PATH"] = "/health",
             ["AWS_REGION"] = context.Environment.Region,
             ["AWS_ACCOUNT_ID"] = context.Environment.AccountId
             // Removed QuickSight-related environment variables
