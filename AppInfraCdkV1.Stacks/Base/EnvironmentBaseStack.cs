@@ -329,7 +329,7 @@ public class EnvironmentBaseStack : Stack
             SubnetIds = Vpc.IsolatedSubnets.Select(s => s.SubnetId).ToArray()
         });
 
-        // Create shared PostgreSQL Aurora Serverless v2 database cluster
+        // Create shared PostgreSQL Aurora Serverless v2 database cluster with Data API enabled
         SharedDatabaseCluster = new DatabaseCluster(this, "SharedDatabase", new DatabaseClusterProps
         {
             ClusterIdentifier = $"{_context.Environment.Name}-shared-database",
@@ -343,6 +343,7 @@ public class EnvironmentBaseStack : Stack
             Vpc = Vpc,
             VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_ISOLATED },
             Credentials = Credentials.FromSecret(databaseSecret),
+            EnableDataApi = true, // Enable Data API for serverless access
             Backup = new BackupProps
             {
                 Retention = Duration.Days(7),
@@ -364,11 +365,23 @@ public class EnvironmentBaseStack : Stack
         Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Purpose", "SharedDatabase");
         Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Environment", _context.Environment.Name);
         Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Shared", "true");
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("DataApiEnabled", "true");
+
+        // Add automatic rotation for database credentials
+        SharedDatabaseCluster.AddRotationSingleUser(new RotationSingleUserOptions
+        {
+            AutomaticallyAfter = Duration.Days(30), // Rotate every 30 days
+            ExcludeCharacters = "\"@/\\", // Same as secret generation
+            RotateImmediatelyOnUpdate = false, // Don't rotate immediately on stack updates
+            SecurityGroup = SharedSecurityGroups["rds"] as SecurityGroup // Use existing RDS security group
+        });
 
         Console.WriteLine($"   Shared database cluster created: {SharedDatabaseCluster.ClusterIdentifier}");
         Console.WriteLine($"   Database endpoint: {SharedDatabaseCluster.ClusterEndpoint.Hostname}");
         Console.WriteLine($"   Database subnet group: {subnetGroup.DbSubnetGroupName}");
         Console.WriteLine($"   Database credentials secret: {databaseSecretName}");
+        Console.WriteLine($"   Data API enabled: true");
+        Console.WriteLine($"   Automatic credential rotation: every 30 days");
     }
 
     private void CreateVpcEndpoints()
