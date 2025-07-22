@@ -94,6 +94,15 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Import shared database security group from EnvironmentBaseStack
+    /// </summary>
+    private ISecurityGroup ImportSharedDatabaseSecurityGroup()
+    {
+        var rdsSecurityGroupId = Fn.ImportValue($"{_context.Environment.Name}-sg-rds-id");
+        return SecurityGroup.FromSecurityGroupId(this, "ImportedRdsSecurityGroup", rdsSecurityGroupId);
+    }
+
+    /// <summary>
     /// Create ECS cluster
     /// </summary>
     private ICluster CreateEcsCluster(IVpc vpc, DeploymentContext context)
@@ -162,9 +171,15 @@ public class TrialFinderV2EcsStack : Stack
         Console.WriteLine("📦 Configuring containers from configuration...");
         var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
 
-        // Import security group from ALB stack
+        // Import security groups
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
             albOutputs.EcsSecurityGroupId);
+        var rdsSecurityGroup = ImportSharedDatabaseSecurityGroup();
+
+        // Add outbound rule to ECS security group to allow traffic to RDS
+        Console.WriteLine("🔗 Adding outbound rule to ECS security group for database connectivity...");
+        ecsSecurityGroup.AddEgressRule(rdsSecurityGroup, Port.Tcp(5432), "Allow PostgreSQL traffic to shared database");
+        Console.WriteLine("✅ Added outbound rule: ECS -> RDS (port 5432)");
 
         // Create ECS service with deployment-friendly settings
         var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
