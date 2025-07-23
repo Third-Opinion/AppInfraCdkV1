@@ -12,6 +12,8 @@ using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
 using System.Text.RegularExpressions;
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
@@ -1346,11 +1348,39 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Check if a secret exists in AWS Secrets Manager using AWS SDK
+    /// </summary>
+    private bool SecretExists(string secretName)
+    {
+        try
+        {
+            using var secretsManagerClient = new AmazonSecretsManagerClient();
+            var describeSecretRequest = new DescribeSecretRequest
+            {
+                SecretId = secretName
+            };
+            
+            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
+            return response != null;
+        }
+        catch (ResourceNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the deployment
+            Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Get or create a secret in Secrets Manager
-    /// This method first checks if the secret already exists in AWS Secrets Manager.
-    /// If it exists, it imports the existing secret reference.
-    /// If it doesn't exist, it creates a new secret with generated values.
-    /// This prevents CDK from trying to recreate secrets that already exist.
+    /// This method uses AWS SDK to check if secrets exist before creating them.
+    /// If a secret exists, it imports the existing secret reference to preserve manual values.
+    /// If a secret doesn't exist, it creates a new secret with generated values.
     /// </summary>
     private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
     {
@@ -1361,37 +1391,35 @@ public class TrialFinderV2EcsStack : Stack
             return _createdSecrets[secretName];
         }
 
-        // Try to import existing secret first
-        try
+        // Use AWS SDK to check if secret exists
+        Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
+        
+        if (SecretExists(fullSecretName))
         {
-            Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' already exists...");
+            // Secret exists - import it to preserve manual values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
             var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
-            
-            // If we can import it, the secret exists
-            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference");
             _createdSecrets[secretName] = existingSecret;
             return existingSecret;
         }
-        catch (Exception ex)
+        else
         {
-            // Secret doesn't exist, create it
-            Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' (existing secret not found: {ex.Message})");
+            // Secret doesn't exist - create it with generated values
+            Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
             var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
             {
                 SecretName = fullSecretName,
                 Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
                 GenerateSecretString = new SecretStringGenerator
                 {
-                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
+                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
                     GenerateStringKey = "value",
                     PasswordLength = 32,
                     ExcludeCharacters = "\"@/\\"
                 }
             });
 
-            // Store the secret reference for exporting ARN later
             _createdSecrets[secretName] = secret;
-
             return secret;
         }
     }
