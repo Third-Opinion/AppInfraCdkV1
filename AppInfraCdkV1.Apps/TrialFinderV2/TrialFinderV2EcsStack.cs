@@ -1399,6 +1399,10 @@ public class TrialFinderV2EcsStack : Stack
             // Secret exists - import it to preserve manual values
             Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
             var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+            Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
+            
             _createdSecrets[secretName] = existingSecret;
             return existingSecret;
         }
@@ -1418,6 +1422,9 @@ public class TrialFinderV2EcsStack : Stack
                     ExcludeCharacters = "\"@/\\"
                 }
             });
+
+            // Add the CDKManaged tag required by IAM policy
+            Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
 
             _createdSecrets[secretName] = secret;
             return secret;
