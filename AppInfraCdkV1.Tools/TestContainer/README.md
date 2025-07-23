@@ -1,5 +1,5 @@
 # Build
-docker build -t thirdopinion/infra/deploy-placeholder .
+docker build --platform linux/amd64 -t thirdopinion/infra/deploy-placeholder .
 
 # Test locally
 docker run -p 80:80 -p 8080:8080 thirdopinion/infra/deploy-placeholder
