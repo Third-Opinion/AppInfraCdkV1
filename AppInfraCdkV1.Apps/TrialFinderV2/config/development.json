@@ -27,14 +27,11 @@
             ],
             "essential": true,
             "secrets": [
-              "AwsSecretsManager__DbSecretsArn",
-              "ConnectionStrings__DefaultConnection",
               "OpenAiOptions__ApiKey",
               "GoogleMaps__ApiKey",
               "MmrfConfigurations__ClientSecret",
               "ZipCodeApi__ApiKey",
-              "MmrfConfigurations__ClientId",
-              "test-secret"
+              "MmrfConfigurations__ClientId"
             ],
             "mountPoints": [],
             "volumesFrom": [],
@@ -51,14 +48,12 @@
               "secretOptions": []
             },
             "healthCheck": {
-              "command": [
-                "CMD-SHELL",
-                "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
-              ],
-              "interval": 30,
-              "timeout": 5,
-              "retries": 3,
-              "startPeriod": 60
+                "command": [
+                    "curl -f http://localhost:8080/ || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3
             },
             "systemControls": []
           },
@@ -69,13 +64,11 @@
             "portMappings": [],
             "essential": false,
             "secrets": [
-              "ConnectionStrings__DefaultConnection",
               "OpenAiOptions__ApiKey",
               "GoogleMaps__ApiKey",
               "MmrfConfigurations__ClientSecret",
               "ZipCodeApi__ApiKey",
-              "MmrfConfigurations__ClientId",
-              "test-secret"
+              "MmrfConfigurations__ClientId"
             ],
             "mountPoints": [],
             "volumesFrom": [],
