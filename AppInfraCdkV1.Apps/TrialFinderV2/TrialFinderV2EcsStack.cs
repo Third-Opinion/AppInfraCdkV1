@@ -15,11 +15,27 @@ using System.Text.RegularExpressions;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
+/// <summary>
+/// ECS Stack for TrialFinder V2 application
+/// 
+/// This stack manages ECS Fargate services with the following features:
+/// - Automatic secret management with existence checking
+/// - Container configuration from JSON files
+/// - Integration with Application Load Balancer
+/// - Environment-specific resource sizing
+/// - Comprehensive IAM roles and permissions
+/// 
+/// Secret Management:
+/// The stack checks if secrets already exist in AWS Secrets Manager before creating new ones.
+/// This prevents CDK from attempting to recreate secrets that already exist, which would cause
+/// deployment failures. Existing secrets are imported and referenced, while missing secrets
+/// are created with generated values.
+/// </summary>
 public class TrialFinderV2EcsStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
-    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.Secret> _createdSecrets = new();
+    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
 
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
 
@@ -1331,35 +1347,53 @@ public class TrialFinderV2EcsStack : Stack
 
     /// <summary>
     /// Get or create a secret in Secrets Manager
+    /// This method first checks if the secret already exists in AWS Secrets Manager.
+    /// If it exists, it imports the existing secret reference.
+    /// If it doesn't exist, it creates a new secret with generated values.
+    /// This prevents CDK from trying to recreate secrets that already exist.
     /// </summary>
-    private Amazon.CDK.AWS.SecretsManager.Secret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
+    private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
     {
-        // Check if we already created this secret
+        // Check if we already created this secret in this deployment
         if (_createdSecrets.ContainsKey(secretName))
         {
             Console.WriteLine($"          ℹ️  Using existing secret reference for '{secretName}'");
             return _createdSecrets[secretName];
         }
 
-        // Create the secret with a simple text placeholder
-        Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}'");
-        var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+        // Try to import existing secret first
+        try
         {
-            SecretName = fullSecretName,
-            Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
+            Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' already exists...");
+            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            // If we can import it, the secret exists
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference");
+            _createdSecrets[secretName] = existingSecret;
+            return existingSecret;
+        }
+        catch (Exception ex)
+        {
+            // Secret doesn't exist, create it
+            Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' (existing secret not found: {ex.Message})");
+            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
             {
-                SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
-                GenerateStringKey = "value",
-                PasswordLength = 32,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
+                SecretName = fullSecretName,
+                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                GenerateSecretString = new SecretStringGenerator
+                {
+                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
+                    GenerateStringKey = "value",
+                    PasswordLength = 32,
+                    ExcludeCharacters = "\"@/\\"
+                }
+            });
 
-        // Store the secret reference for exporting ARN later
-        _createdSecrets[secretName] = secret;
+            // Store the secret reference for exporting ARN later
+            _createdSecrets[secretName] = secret;
 
-        return secret;
+            return secret;
+        }
     }
 
     /// <summary>
