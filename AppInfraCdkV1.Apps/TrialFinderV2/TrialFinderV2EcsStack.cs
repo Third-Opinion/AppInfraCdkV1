@@ -416,7 +416,7 @@ public class TrialFinderV2EcsStack : Stack
         // Check if this is a cron job container (automatic detection)
         if (IsCronJobContainer(containerConfig, containerName))
         {
-            // For cron jobs, return null to disable health check
+            Console.WriteLine($"     Skipping health check for cron job container '{containerName}'");
             return null;
         }
 
@@ -426,11 +426,13 @@ public class TrialFinderV2EcsStack : Stack
             var customHealthCheck = CreateCustomHealthCheck(containerConfig.HealthCheck, containerName);
             if (customHealthCheck != null)
             {
+                Console.WriteLine($"     Using custom health check for container '{containerName}'");
                 return customHealthCheck;
             }
         }
 
         // For web applications, use standard health check
+        Console.WriteLine($"     Using standard health check for container '{containerName}'");
         return GetStandardHealthCheck(containerConfig);
     }
 
@@ -919,15 +921,27 @@ public class TrialFinderV2EcsStack : Stack
 
     /// <summary>
     /// Get container port for load balancer registration from JSON configuration
+    /// Prefers port 8080 for web applications, falls back to first available port
     /// </summary>
     private int? GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
     {
-        // Use the first port mapping if available
         if (containerConfig.PortMappings?.Count > 0)
         {
+            // First, try to find port 8080 (preferred for web applications)
+            var preferredPortMapping = containerConfig.PortMappings.FirstOrDefault(pm => 
+                pm.ContainerPort == 8080);
+            
+            if (preferredPortMapping?.ContainerPort.HasValue == true)
+            {
+                Console.WriteLine($"     Selected preferred port 8080 for container '{containerName}'");
+                return preferredPortMapping.ContainerPort.Value;
+            }
+            
+            // Fall back to first available port mapping
             var firstPortMapping = containerConfig.PortMappings[0];
             if (firstPortMapping.ContainerPort.HasValue)
             {
+                Console.WriteLine($"     Selected fallback port {firstPortMapping.ContainerPort.Value} for container '{containerName}'");
                 return firstPortMapping.ContainerPort.Value;
             }
         }
