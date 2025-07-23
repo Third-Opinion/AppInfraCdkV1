@@ -49,7 +49,8 @@
             },
             "healthCheck": {
                 "command": [
-                    "CMD-SHELL, wget -q -O - http://localhost:8080/health || exit 1"
+                    "CMD-SHELL",
+                    "/bin/sh -c 'wget -q -O - http://localhost:8080/health || exit 1'"
                 ],
                 "interval": 30,
                 "timeout": 5,
