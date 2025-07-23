@@ -160,7 +160,7 @@ public class TrialFinderV2EcsStack : Stack
                 RuntimePlatform = new RuntimePlatform
                 {
                     OperatingSystemFamily = OperatingSystemFamily.LINUX,
-                    CpuArchitecture = CpuArchitecture.ARM64
+                    CpuArchitecture = CpuArchitecture.X86_64
                 }
             });
 
