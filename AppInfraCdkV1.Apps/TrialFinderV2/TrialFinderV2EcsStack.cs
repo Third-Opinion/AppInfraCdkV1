@@ -744,19 +744,8 @@ public class TrialFinderV2EcsStack : Stack
             {
                 LogGroup = logGroup,
                 StreamPrefix = "app"
-            }),
-            HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
-            {
-                Command = new[]
-                {
-                    "CMD-SHELL",
-                    "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
-                },
-                Interval = Duration.Seconds(30),
-                Timeout = Duration.Seconds(5),
-                Retries = 3,
-                StartPeriod = Duration.Seconds(60)
-            }
+            })
+            // Health check removed for placeholder container to prevent service failures
         });
     }
 
