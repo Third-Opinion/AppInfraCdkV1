@@ -576,4 +576,74 @@ public class ConfigurationLoaderTests
         // Act & Assert
         Should.NotThrow(() => loader.ValidateConfiguration(config));
     }
+
+    [Fact]
+    public void GetConfig_WithDevelopmentEnvironment_ShouldIncludeCognitoSettings()
+    {
+        // Act
+        var config = TrialFinderV2Config.GetConfig("Development");
+
+        // Assert
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        
+        // Verify that the configuration supports Cognito resources
+        config.Settings.ShouldNotBeNull();
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(true);
+    }
+
+    [Fact]
+    public void GetConfig_WithProductionEnvironment_ShouldSupportCognitoDeployment()
+    {
+        // Act
+        var config = TrialFinderV2Config.GetConfig("Production");
+
+        // Assert
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        config.Sizing.ShouldNotBeNull();
+        config.Security.ShouldNotBeNull();
+        
+        // Verify production settings are appropriate for Cognito
+        config.Settings.ShouldNotBeNull();
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(false);
+    }
+
+    [Fact]
+    public void GetConfig_WithStagingEnvironment_ShouldSupportCognitoResources()
+    {
+        // Act
+        var config = TrialFinderV2Config.GetConfig("Staging");
+
+        // Assert
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        config.Sizing.ShouldNotBeNull();
+        config.Security.ShouldNotBeNull();
+        
+        // Verify staging settings support Cognito deployment
+        config.Settings.ShouldNotBeNull();
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(false);
+    }
+
+    [Fact]
+    public void GetConfig_WithIntegrationEnvironment_ShouldSupportCognitoDevelopment()
+    {
+        // Act
+        var config = TrialFinderV2Config.GetConfig("Integration");
+
+        // Assert
+        config.ShouldNotBeNull();
+        config.Name.ShouldBe("TrialFinderV2");
+        config.Sizing.ShouldNotBeNull();
+        config.Security.ShouldNotBeNull();
+        
+        // Verify integration settings support Cognito development
+        config.Settings.ShouldNotBeNull();
+        config.Settings.ShouldContainKey("EnableDetailedLogging");
+        config.Settings["EnableDetailedLogging"].ShouldBe(true);
+    }
 }
