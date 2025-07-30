@@ -205,6 +205,25 @@ public class ResourceNamer
             NamingConvention.ResourceTypes.ParameterStore, purpose.ToStringValue());
     }
 
+    // Cognito resources
+    public string CognitoUserPool(ResourcePurpose purpose)
+    {
+        return NamingConvention.GenerateResourceName(_context,
+            NamingConvention.ResourceTypes.CognitoUserPool, purpose.ToStringValue());
+    }
+
+    public string CognitoAppClient(ResourcePurpose purpose)
+    {
+        return NamingConvention.GenerateResourceName(_context,
+            NamingConvention.ResourceTypes.CognitoAppClient, purpose.ToStringValue());
+    }
+
+    public string CognitoDomain(ResourcePurpose purpose)
+    {
+        return NamingConvention.GenerateResourceName(_context,
+            NamingConvention.ResourceTypes.CognitoDomain, purpose.ToStringValue());
+    }
+
     // ECR repositories
     public string EcrRepository(string repositoryType)
     {

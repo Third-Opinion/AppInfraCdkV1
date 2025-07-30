@@ -345,6 +345,9 @@ public static class NamingConvention
         public const string SqsQueue = "sqs";
         public const string SecretsManager = "secret";
         public const string ParameterStore = "param";
+        public const string CognitoUserPool = "cognito";
+        public const string CognitoAppClient = "client";
+        public const string CognitoDomain = "domain";
     }
 
     // Security group protected resource types

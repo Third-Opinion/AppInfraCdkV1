@@ -187,8 +187,20 @@ public abstract class Program
                     }, context);
                     return (stack, stackName);
                 }
+            case "COGNITO":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-cognito-{regionCode}";
+                    var stack = new TrialFinderV2CognitoStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 Cognito infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
             default:
-                throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA");
+                throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA, COGNITO");
         }
     }
 

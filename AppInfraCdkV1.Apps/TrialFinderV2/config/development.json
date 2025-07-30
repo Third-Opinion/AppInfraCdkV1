@@ -31,7 +31,11 @@
               "GoogleMaps__ApiKey",
               "MmrfConfigurations__ClientSecret",
               "ZipCodeApi__ApiKey",
-              "MmrfConfigurations__ClientId"
+              "MmrfConfigurations__ClientId",
+              "Cognito__ClientId",
+              "Cognito__ClientSecret",
+              "Cognito__UserPoolId",
+              "Cognito__Domain"
             ],
             "mountPoints": [],
             "volumesFrom": [],
@@ -69,7 +73,11 @@
               "GoogleMaps__ApiKey",
               "MmrfConfigurations__ClientSecret",
               "ZipCodeApi__ApiKey",
-              "MmrfConfigurations__ClientId"
+              "MmrfConfigurations__ClientId",
+              "Cognito__ClientId",
+              "Cognito__ClientSecret",
+              "Cognito__UserPoolId",
+              "Cognito__Domain"
             ],
             "mountPoints": [],
             "volumesFrom": [],
