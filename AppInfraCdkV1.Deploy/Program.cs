@@ -1,5 +1,6 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
+using AppInfraCdkV1.Apps.TrialMatch;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
@@ -80,20 +81,20 @@ public abstract class Program
             // Check if we should deploy a specific stack type
             var stackType = Environment.GetEnvironmentVariable("CDK_STACK_TYPE");
             
-            if (!string.IsNullOrEmpty(stackType) && appName.ToLower() == "trialfinderv2")
+            if (!string.IsNullOrEmpty(stackType) && (appName.ToLower() == "trialfinderv2" || appName.ToLower() == "trialmatch"))
             {
-                // Deploy specific TrialFinderV2 stack type
-                var (stack, stackName) = CreateTrialFinderV2SpecificStack(app, stackType, context, environmentConfig, appName, environmentName);
+                // Deploy specific stack type for supported applications
+                var (stack, stackName) = CreateSpecificStack(app, stackType, context, environmentConfig, appName, environmentName);
                 Console.WriteLine($"✅ {stackType} Stack '{stackName}' configured successfully");
                 app.Synth();
                 return;
             }
 
-            // Require explicit stack type for TrialFinderV2 - no monolithic deployments
-            if (appName.ToLower() == "trialfinderv2")
+            // Require explicit stack type for supported applications - no monolithic deployments
+            if (appName.ToLower() == "trialfinderv2" || appName.ToLower() == "trialmatch")
             {
                 throw new ArgumentException(
-                    "TrialFinderV2 requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: ALB, ECS, DATA");
+                    $"{appName} requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: ALB, ECS, DATA");
             }
 
             // Default behavior for other applications (if any)
@@ -114,7 +115,7 @@ public abstract class Program
         }
     }
 
-    private static (Stack stack, string stackName) CreateTrialFinderV2SpecificStack(
+    private static (Stack stack, string stackName) CreateSpecificStack(
         App app, 
         string stackType, 
         DeploymentContext context, 
@@ -126,6 +127,28 @@ public abstract class Program
         var appCode = NamingConvention.GetApplicationCode(appName);
         var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
         
+        switch (appName.ToLower())
+        {
+            case "trialfinderv2":
+                return CreateTrialFinderV2Stack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode);
+            case "trialmatch":
+                return CreateTrialMatchStack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode);
+            default:
+                throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch");
+        }
+    }
+
+    private static (Stack stack, string stackName) CreateTrialFinderV2Stack(
+        App app, 
+        string stackType, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string appName, 
+        string environmentName,
+        string envPrefix,
+        string appCode,
+        string regionCode)
+    {
         switch (stackType.ToUpper())
         {
             case "ALB":
@@ -166,6 +189,60 @@ public abstract class Program
                 }
             default:
                 throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA");
+        }
+    }
+
+    private static (Stack stack, string stackName) CreateTrialMatchStack(
+        App app, 
+        string stackType, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string appName, 
+        string environmentName,
+        string envPrefix,
+        string appCode,
+        string regionCode)
+    {
+        switch (stackType.ToUpper())
+        {
+            case "ALB":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
+                    var stack = new TrialMatchAlbStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialMatch ALB infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            case "ECS":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
+                    var stack = new TrialMatchEcsStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialMatch ECS infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            case "DATA":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-data-{regionCode}";
+                    var stack = new TrialMatchDataStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialMatch Data infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
+            default:
+                throw new ArgumentException($"Unknown TrialMatch stack type: {stackType}. Supported types: ALB, ECS, DATA");
         }
     }
 
@@ -326,7 +403,7 @@ public abstract class Program
         Console.WriteLine("\n📊 CloudWatch:");
         Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}");
 
-        // Show TrialFinderV2-specific resources if applicable
+        // Show application-specific resources if applicable
         if (context.Application.Name == "TrialFinderV2")
         {
             Console.WriteLine("\n🔍 TrialFinderV2-Specific Resources:");
@@ -338,6 +415,14 @@ public abstract class Program
             //     $"   Trial Updates Topic: {context.Namer.SnsTopics("trial-updates")}");
             // Console.WriteLine(
             //     $"   System Alerts Topic: {context.Namer.SnsTopics("system-alerts")}");
+        }
+        else if (context.Application.Name == "TrialMatch")
+        {
+            Console.WriteLine("\n🔍 TrialMatch-Specific Resources:");
+            Console.WriteLine($"   Documents Bucket: {context.Namer.S3Bucket(StoragePurpose.Documents)}");
+            Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket(StoragePurpose.App)}");
+            Console.WriteLine($"   Uploads Bucket: {context.Namer.S3Bucket(StoragePurpose.Uploads)}");
+            Console.WriteLine($"   Backups Bucket: {context.Namer.S3Bucket(StoragePurpose.Backups)}");
         }
 
         Console.WriteLine();
@@ -401,6 +486,8 @@ public abstract class Program
         Console.WriteLine("Example usage:");
         Console.WriteLine("  dotnet run -- --app=TrialFinderV2 --environment=Staging");
         Console.WriteLine("  dotnet run -- --app=TrialFinderV2 --environment=Production");
+        Console.WriteLine("  dotnet run -- --app=TrialMatch --environment=Staging");
+        Console.WriteLine("  dotnet run -- --app=TrialMatch --environment=Production");
         Console.WriteLine("  dotnet run -- --list-environments");
     }
 
@@ -410,7 +497,7 @@ public abstract class Program
         Console.Error.WriteLine("Available environments:");
         Console.Error.WriteLine("  Non-Production Account: Development, Integration");
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
-        Console.Error.WriteLine("Available applications: TrialFinderV2");
+        Console.Error.WriteLine("Available applications: TrialFinderV2, TrialMatch");
         Console.Error.WriteLine(
             "Available regions: us-east-1, us-east-2, us-west-1, us-west-2");
         Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
@@ -422,6 +509,11 @@ public abstract class Program
             "  dotnet run -- --app=TrialFinderV2 --environment=Staging --validate-only");
         Console.Error.WriteLine(
             "  dotnet run -- --app=TrialFinderV2 --environment=Production --show-names-only");
+        Console.Error.WriteLine("  dotnet run -- --app=TrialMatch --environment=Development");
+        Console.Error.WriteLine(
+            "  dotnet run -- --app=TrialMatch --environment=Staging --validate-only");
+        Console.Error.WriteLine(
+            "  dotnet run -- --app=TrialMatch --environment=Production --show-names-only");
         Console.Error.WriteLine("  dotnet run -- --list-environments");
     }
 
@@ -555,6 +647,7 @@ public abstract class Program
         return appName.ToLower() switch
         {
             "trialfinderv2" => TrialFinderV2Config.GetConfig(environmentName),
+            "trialmatch" => TrialMatchConfig.GetConfig(environmentName),
             _ => throw new ArgumentException($"Unknown application configuration: {appName}")
         };
     }

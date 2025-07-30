@@ -1,0 +1,31 @@
+{
+  "vpcNamePattern": "staging-shared-vpc-ue2-main",
+  "ecsConfiguration": {
+    "taskDefinition": [
+      {
+        "taskDefinitionName": "main",
+        "containerDefinitions": [
+        {
+          "name": "trial-match",
+          "image": "placeholder",
+          "cpu": 0,
+          "portMappings": [
+            {
+              "containerPort": 8080,
+              "hostPort": 8080,
+              "protocol": "tcp",
+              "appProtocol": "http"
+            }
+          ],
+          "essential": true,
+          "secrets": [
+            "OpenAiOptions__ApiKey",
+            "GoogleMaps__ApiKey",
+            "ZipCodeApi__ApiKey"
+          ]
+        }
+      ]
+      }
+    ]
+  }
+} 

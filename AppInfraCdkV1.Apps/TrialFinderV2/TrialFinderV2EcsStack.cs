@@ -8,6 +8,7 @@ using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
+using AppInfraCdkV1.Core.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
@@ -166,13 +167,22 @@ public class TrialFinderV2EcsStack : Stack
             ? context.Namer.EcsTaskDefinition(firstTaskDef.TaskDefinitionName)
             : context.Namer.EcsTaskDefinition("web");
 
+        // Get environment-appropriate compute sizing
+        var (vCpu, memoryMb) = AppInfraCdkV1.Core.Configuration.EnvironmentSizing.GetComputeSize(context.Environment.Name);
+        var cpuUnits = (int)(vCpu * 1024); // Convert vCPU to CPU units (1 vCPU = 1024 CPU units)
+        
+        Console.WriteLine($"📊 Using environment-appropriate sizing:");
+        Console.WriteLine($"   Environment: {context.Environment.Name}");
+        Console.WriteLine($"   CPU: {vCpu} vCPU ({cpuUnits} CPU units)");
+        Console.WriteLine($"   Memory: {memoryMb} MB");
+        
         // Create Fargate task definition
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName,
             new FargateTaskDefinitionProps
             {
                 Family = taskDefinitionName,
-                MemoryLimitMiB = 512,
-                Cpu = 256,
+                MemoryLimitMiB = memoryMb,
+                Cpu = cpuUnits,
                 TaskRole = CreateTaskRole(),
                 ExecutionRole = CreateExecutionRole(logGroup),
                 RuntimePlatform = new RuntimePlatform
