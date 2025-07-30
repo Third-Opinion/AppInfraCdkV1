@@ -33,5 +33,10 @@ public enum ResourcePurpose
     /// <summary>
     /// Administrative access and components
     /// </summary>
-    Admin
+    Admin,
+    
+    /// <summary>
+    /// Authentication and authorization components
+    /// </summary>
+    Auth
 }

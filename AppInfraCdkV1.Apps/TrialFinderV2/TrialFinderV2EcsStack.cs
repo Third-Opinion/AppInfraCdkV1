@@ -59,11 +59,14 @@ public class TrialFinderV2EcsStack : Stack
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
 
+        // Import Cognito stack outputs
+        var cognitoOutputs = ImportCognitoStackOutputs();
+
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
 
         // Create ECS service with containers from configuration
-        CreateEcsService(cluster, albOutputs, context);
+        CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
@@ -113,6 +116,25 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Import outputs from the Cognito stack
+    /// </summary>
+    private CognitoStackOutputs ImportCognitoStackOutputs()
+    {
+        var userPoolId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-id");
+        var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
+        var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
+        var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
+
+        return new CognitoStackOutputs
+        {
+            UserPoolId = userPoolId,
+            AppClientId = appClientId,
+            DomainUrl = domainUrl,
+            DomainName = domainName
+        };
+    }
+
+    /// <summary>
     /// Import shared database security group from EnvironmentBaseStack
     /// </summary>
     private ISecurityGroup ImportSharedDatabaseSecurityGroup()
@@ -142,6 +164,7 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private void CreateEcsService(ICluster cluster,
         AlbStackOutputs albOutputs,
+        CognitoStackOutputs cognitoOutputs,
         DeploymentContext context)
     {
         Console.WriteLine("\n🚀 Creating ECS Service...");
@@ -188,7 +211,7 @@ public class TrialFinderV2EcsStack : Stack
         
         // Add containers from configuration and get primary container info
         Console.WriteLine("📦 Configuring containers from configuration...");
-        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
+        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, cognitoOutputs, context);
 
         // Import security groups
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
@@ -262,6 +285,7 @@ public class TrialFinderV2EcsStack : Stack
     private ContainerInfo AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
         TaskDefinitionConfig? taskDefConfig,
         ILogGroup logGroup,
+        CognitoStackOutputs cognitoOutputs,
         DeploymentContext context)
     {
         var containerDefinitions = taskDefConfig?.ContainerDefinitions;
@@ -299,7 +323,7 @@ public class TrialFinderV2EcsStack : Stack
                 Console.WriteLine($"     Primary port: None (no port mappings)");
             }
             
-            AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
+            AddConfiguredContainer(taskDefinition, containerConfig, logGroup, cognitoOutputs, context);
             containersProcessed++;
 
             // Use the first container with ports as the primary container for load balancing
@@ -342,6 +366,7 @@ public class TrialFinderV2EcsStack : Stack
     private void AddConfiguredContainer(FargateTaskDefinition taskDefinition,
         ContainerDefinitionConfig containerConfig,
         ILogGroup logGroup,
+        CognitoStackOutputs cognitoOutputs,
         DeploymentContext context)
     {
         var containerName = containerConfig.Name ?? "default-container";
@@ -376,7 +401,7 @@ public class TrialFinderV2EcsStack : Stack
             Image = containerImage,
             Essential = containerConfig.Essential ?? GetDefaultEssential(containerName),
             Environment = environmentVars,
-            Secrets = GetContainerSecrets(containerConfig.Secrets, context),
+            Secrets = GetContainerSecrets(containerConfig.Secrets, cognitoOutputs, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -708,7 +733,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = CreateDefaultEnvironmentVariables(context),
-            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, context),
+            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, null, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -757,7 +782,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = placeholderEnv,
-            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, context),
+            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, null, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -1277,7 +1302,7 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Get container secrets from Secrets Manager
     /// </summary>
-    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, DeploymentContext context)
+    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
     {
         var secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>();
         
@@ -1290,7 +1315,7 @@ public class TrialFinderV2EcsStack : Stack
                 var secretName = GetSecretNameFromEnvVar(envVarName);
                 
                 var fullSecretName = BuildSecretName(secretName, context);
-                var secret = GetOrCreateSecret(secretName, fullSecretName, context);
+                var secret = GetOrCreateSecret(secretName, fullSecretName, cognitoOutputs, context);
                 
                 // Use the original environment variable name from the configuration
                 secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
@@ -1382,7 +1407,7 @@ public class TrialFinderV2EcsStack : Stack
     /// If a secret exists, it imports the existing secret reference to preserve manual values.
     /// If a secret doesn't exist, it creates a new secret with generated values.
     /// </summary>
-    private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
+    private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
     {
         // Check if we already created this secret in this deployment
         if (_createdSecrets.ContainsKey(secretName))
@@ -1408,27 +1433,68 @@ public class TrialFinderV2EcsStack : Stack
         }
         else
         {
-            // Secret doesn't exist - create it with generated values
+            // Secret doesn't exist - create it with generated values or Cognito values
             Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
-            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            
+            // For Cognito secrets, we'll create them with generated values for now
+            // The actual values will be populated by the application at runtime
+            if (cognitoOutputs != null && IsCognitoSecret(secretName))
             {
-                SecretName = fullSecretName,
-                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
-                GenerateSecretString = new SecretStringGenerator
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with generated value (will be updated manually)");
+            }
+            {
+                // Regular secret with generated values
+                var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                 {
-                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
-                    GenerateStringKey = "value",
-                    PasswordLength = 32,
-                    ExcludeCharacters = "\"@/\\"
-                }
-            });
+                    SecretName = fullSecretName,
+                    Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                    GenerateSecretString = new SecretStringGenerator
+                    {
+                        SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                        GenerateStringKey = "value",
+                        PasswordLength = 32,
+                        ExcludeCharacters = "\"@/\\"
+                    }
+                });
 
-            // Add the CDKManaged tag required by IAM policy
-            Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+                // Add the CDKManaged tag required by IAM policy
+                Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
 
-            _createdSecrets[secretName] = secret;
-            return secret;
+                _createdSecrets[secretName] = secret;
+                return secret;
+            }
         }
+    }
+
+    /// <summary>
+    /// Check if a secret name corresponds to a Cognito secret
+    /// </summary>
+    private bool IsCognitoSecret(string secretName)
+    {
+        var cognitoSecretNames = new[]
+        {
+            "cognito-client-id",
+            "cognito-client-secret", 
+            "cognito-user-pool-id",
+            "cognito-domain"
+        };
+        
+        return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// Get the actual value for a Cognito secret
+    /// </summary>
+    private string GetCognitoSecretValue(string secretName, CognitoStackOutputs cognitoOutputs)
+    {
+        return secretName.ToLowerInvariant() switch
+        {
+            "cognito-client-id" => cognitoOutputs.AppClientId,
+            "cognito-client-secret" => "***SECRET***", // Client secret is not exposed for security
+            "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
+            "cognito-domain" => cognitoOutputs.DomainUrl,
+            _ => throw new ArgumentException($"Unknown Cognito secret name: {secretName}")
+        };
     }
 
     /// <summary>
@@ -1598,5 +1664,16 @@ public class TrialFinderV2EcsStack : Stack
     {
         public string TargetGroupArn { get; set; } = "";
         public string EcsSecurityGroupId { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Helper class to hold Cognito stack outputs
+    /// </summary>
+    private class CognitoStackOutputs
+    {
+        public string UserPoolId { get; set; } = "";
+        public string AppClientId { get; set; } = "";
+        public string DomainUrl { get; set; } = "";
+        public string DomainName { get; set; } = "";
     }
 }

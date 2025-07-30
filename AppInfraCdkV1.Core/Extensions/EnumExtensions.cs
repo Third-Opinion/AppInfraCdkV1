@@ -18,6 +18,7 @@ public static class EnumExtensions
         ResourcePurpose.Internal => "internal",
         ResourcePurpose.Primary => "primary",
         ResourcePurpose.Admin => "admin",
+        ResourcePurpose.Auth => "auth",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
     };
 
