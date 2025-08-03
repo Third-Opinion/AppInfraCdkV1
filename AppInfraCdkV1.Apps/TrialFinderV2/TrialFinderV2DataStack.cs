@@ -25,9 +25,6 @@ public class TrialFinderV2DataStack : Stack
         // Create data storage resources
         CreateTrialDocumentStorage(context);
         
-        // Future: Add RDS database when needed
-        // CreateDatabase(context);
-        
         // Export outputs for other stacks
         ExportStackOutputs();
     }
@@ -79,20 +76,7 @@ public class TrialFinderV2DataStack : Stack
         _backupsBucket = Bucket.FromBucketName(this, "TrialFinderBackupsBucket", context.Namer.S3Bucket(StoragePurpose.Backups));
     }
 
-    /// <summary>
-    /// Future: Create RDS database when needed
-    /// </summary>
-    private void CreateDatabase(DeploymentContext context)
-    {
-        // TODO: Add RDS database creation when database requirements are defined
-        // This would include:
-        // - RDS instance or Aurora cluster
-        // - Database security groups
-        // - Parameter groups
-        // - Subnet groups
-        // - Backup configuration
-        // - Monitoring and logging
-    }
+
 
     /// <summary>
     /// Export stack outputs for consumption by other stacks

@@ -54,7 +54,8 @@ jobs:
     - name: CDK Bootstrap (if needed)
       run: |
         cd AppInfraCdkV1.Deploy
-        cdk bootstrap --require-approval never
+        cdk bootstrap --app="dotnet run -- --deploy-base --environment=${{ env.CDK_ENVIRONMENT }}" \
+                      --require-approval never
     
     - name: Deploy Base Stack
       run: |
@@ -310,3 +311,83 @@ jobs:
       with:
         name: deployment-outputs-${{ matrix.app }}-DATA-dev
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-DATA-outputs.json
+
+  deploy-cognito:
+    needs: deploy-data
+    runs-on: ubuntu-latest
+    environment: development
+    strategy:
+      matrix:
+        app: [TrialFinderV2]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Validate Naming
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Validating naming for ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📝 Resource names that will be created for COGNITO stack:"
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+    
+    - name: CDK Diff for COGNITO Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking what changes will be made for ${{ matrix.app }} COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Deploy COGNITO Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ matrix.app }} COGNITO stack to ${{ env.CDK_ENVIRONMENT }}..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        echo "✅ COGNITO stack deployment completed successfully!"
+    
+    - name: Display Created COGNITO Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f ${{ matrix.app }}-COGNITO-outputs.json ]; then
+          echo "📋 Resources created for COGNITO stack:"
+          cat ${{ matrix.app }}-COGNITO-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat ${{ matrix.app }}-COGNITO-outputs.json
+        fi
+    
+    - name: Upload COGNITO deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-outputs-${{ matrix.app }}-COGNITO-dev
+        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-COGNITO-outputs.json

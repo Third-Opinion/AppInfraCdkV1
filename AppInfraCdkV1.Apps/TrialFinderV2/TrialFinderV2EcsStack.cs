@@ -11,14 +11,35 @@ using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
+using System.Text.RegularExpressions;
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
+/// <summary>
+/// ECS Stack for TrialFinder V2 application
+/// 
+/// This stack manages ECS Fargate services with the following features:
+/// - Automatic secret management with existence checking
+/// - Container configuration from JSON files
+/// - Integration with Application Load Balancer
+/// - Environment-specific resource sizing
+/// - Comprehensive IAM roles and permissions
+/// 
+/// Secret Management:
+/// The stack checks if secrets already exist in AWS Secrets Manager before creating new ones.
+/// This prevents CDK from attempting to recreate secrets that already exist, which would cause
+/// deployment failures. Existing secrets are imported and referenced, while missing secrets
+/// are created with generated values.
+/// </summary>
 public class TrialFinderV2EcsStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
-    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.Secret> _createdSecrets = new();
+    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
+
+    private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
 
     public TrialFinderV2EcsStack(Construct scope,
         string id,
@@ -38,11 +59,14 @@ public class TrialFinderV2EcsStack : Stack
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
 
+        // Import Cognito stack outputs
+        var cognitoOutputs = ImportCognitoStackOutputs();
+
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
 
         // Create ECS service with containers from configuration
-        CreateEcsService(cluster, albOutputs, context);
+        CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
@@ -92,6 +116,34 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Import outputs from the Cognito stack
+    /// </summary>
+    private CognitoStackOutputs ImportCognitoStackOutputs()
+    {
+        var userPoolId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-id");
+        var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
+        var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
+        var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
+
+        return new CognitoStackOutputs
+        {
+            UserPoolId = userPoolId,
+            AppClientId = appClientId,
+            DomainUrl = domainUrl,
+            DomainName = domainName
+        };
+    }
+
+    /// <summary>
+    /// Import shared database security group from EnvironmentBaseStack
+    /// </summary>
+    private ISecurityGroup ImportSharedDatabaseSecurityGroup()
+    {
+        var rdsSecurityGroupId = Fn.ImportValue($"{_context.Environment.Name}-sg-rds-id");
+        return SecurityGroup.FromSecurityGroupId(this, "ImportedRdsSecurityGroup", rdsSecurityGroupId);
+    }
+
+    /// <summary>
     /// Create ECS cluster
     /// </summary>
     private ICluster CreateEcsCluster(IVpc vpc, DeploymentContext context)
@@ -112,11 +164,16 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private void CreateEcsService(ICluster cluster,
         AlbStackOutputs albOutputs,
+        CognitoStackOutputs cognitoOutputs,
         DeploymentContext context)
     {
+        Console.WriteLine("\n🚀 Creating ECS Service...");
+        
         // Load configuration from JSON
         var ecsConfig = _configLoader.LoadEcsConfig(context.Environment.Name);
         ecsConfig = _configLoader.SubstituteVariables(ecsConfig, context);
+        
+        Console.WriteLine($"📋 Loading ECS configuration for environment: {context.Environment.Name}");
 
         // Create log group for ECS tasks with appropriate retention
         var logGroup = new LogGroup(this, "TrialFinderLogGroup", new LogGroupProps
@@ -144,16 +201,27 @@ public class TrialFinderV2EcsStack : Stack
                 RuntimePlatform = new RuntimePlatform
                 {
                     OperatingSystemFamily = OperatingSystemFamily.LINUX,
-                    CpuArchitecture = CpuArchitecture.ARM64
+                    CpuArchitecture = CpuArchitecture.X86_64
                 }
             });
 
+        // Collect all secret names from all containers first and build mapping once
+        Console.WriteLine("🔐 Collecting all secret names and building mapping...");
+        CollectAllSecretsAndBuildMapping(firstTaskDef, context);
+        
         // Add containers from configuration and get primary container info
-        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
+        Console.WriteLine("📦 Configuring containers from configuration...");
+        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, cognitoOutputs, context);
 
-        // Import security group from ALB stack
+        // Import security groups
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
             albOutputs.EcsSecurityGroupId);
+        var rdsSecurityGroup = ImportSharedDatabaseSecurityGroup();
+
+        // Add outbound rule to ECS security group to allow traffic to RDS
+        Console.WriteLine("🔗 Adding outbound rule to ECS security group for database connectivity...");
+        ecsSecurityGroup.AddEgressRule(rdsSecurityGroup, Port.Tcp(5432), "Allow PostgreSQL traffic to shared database");
+        Console.WriteLine("✅ Added outbound rule: ECS -> RDS (port 5432)");
 
         // Create ECS service with deployment-friendly settings
         var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
@@ -170,21 +238,45 @@ public class TrialFinderV2EcsStack : Stack
             EnableExecuteCommand = true
         });
 
-        // Import target group from ALB stack and attach service
-        var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
-            "ImportedTargetGroup", new TargetGroupAttributes
-            {
-                TargetGroupArn = albOutputs.TargetGroupArn,
-                LoadBalancerArns
-                    = albOutputs
-                        .TargetGroupArn // This will be overridden by the actual target group
-            });
+        // Only attach to target group if primary container has a valid port
+        if (primaryContainer.ContainerPort > 0)
+        {
+            Console.WriteLine($"🔗 Attaching ECS service to ALB target group");
+            Console.WriteLine($"   Container: {primaryContainer.ContainerName}");
+            Console.WriteLine($"   Port: {primaryContainer.ContainerPort}");
+            
+            // Import target group from ALB stack and attach service
+            var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
+                "ImportedTargetGroup", new TargetGroupAttributes
+                {
+                    TargetGroupArn = albOutputs.TargetGroupArn,
+                    LoadBalancerArns
+                        = albOutputs
+                            .TargetGroupArn // This will be overridden by the actual target group
+                });
 
-        // Register ECS service with target group using explicit container and port
-        service.AttachToApplicationTargetGroup(targetGroup);
+            // Register ECS service with target group using explicit container and port
+            service.AttachToApplicationTargetGroup(targetGroup);
+            Console.WriteLine("✅ ECS service attached to target group successfully");
+        }
+        else
+        {
+            Console.WriteLine("⚠️  Skipping ALB target group attachment - no container with valid port found");
+        }
         
         // Export task definition ARN and family name for GitHub Actions
         ExportTaskDefinitionOutputs(taskDefinition, service, context);
+        
+        // Display summary of created secrets
+        if (_createdSecrets.Count > 0)
+        {
+            Console.WriteLine($"\n  🔑 Secrets Manager Summary:");
+            Console.WriteLine($"     Total secrets created/referenced: {_createdSecrets.Count}");
+            foreach (var kvp in _createdSecrets)
+            {
+                Console.WriteLine($"     - {kvp.Key}: {kvp.Value.SecretName}");
+            }
+        }
     }
 
     /// <summary>
@@ -193,6 +285,7 @@ public class TrialFinderV2EcsStack : Stack
     private ContainerInfo AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
         TaskDefinitionConfig? taskDefConfig,
         ILogGroup logGroup,
+        CognitoStackOutputs cognitoOutputs,
         DeploymentContext context)
     {
         var containerDefinitions = taskDefConfig?.ContainerDefinitions;
@@ -204,6 +297,7 @@ public class TrialFinderV2EcsStack : Stack
         }
 
         ContainerInfo? primaryContainer = null;
+        var containersProcessed = 0;
 
         foreach (var containerConfig in containerDefinitions)
         {
@@ -214,21 +308,54 @@ public class TrialFinderV2EcsStack : Stack
             var containerName = containerConfig.Name;
             var containerPort = GetContainerPort(containerConfig, containerName);
             
-            AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
-
-            // Use the first container as the primary container for load balancing
-            if (primaryContainer == null)
+            Console.WriteLine($"  📋 Adding container: {containerName}");
+            Console.WriteLine($"     Image: {containerConfig.Image ?? "placeholder"}");
+            Console.WriteLine($"     Essential: {containerConfig.Essential ?? true}");
+            Console.WriteLine($"     Port mappings: {containerConfig.PortMappings?.Count ?? 0}");
+            Console.WriteLine($"     Secrets: {containerConfig.Secrets?.Count ?? 0}");
+            
+            if (containerPort.HasValue)
             {
-                primaryContainer = new ContainerInfo(containerName, containerPort);
+                Console.WriteLine($"     Primary port: {containerPort.Value}");
+            }
+            else
+            {
+                Console.WriteLine($"     Primary port: None (no port mappings)");
+            }
+            
+            AddConfiguredContainer(taskDefinition, containerConfig, logGroup, cognitoOutputs, context);
+            containersProcessed++;
+
+            // Use the first container with ports as the primary container for load balancing
+            if (primaryContainer == null && containerPort.HasValue)
+            {
+                primaryContainer = new ContainerInfo(containerName, containerPort.Value);
+                Console.WriteLine($"  ✅ Selected '{containerName}' as primary container for load balancing (port: {containerPort.Value})");
             }
         }
 
-        // If no containers were processed, fall back to placeholder
-        if (primaryContainer == null)
+        // If no containers were processed at all, fall back to placeholder
+        if (containersProcessed == 0)
         {
+            Console.WriteLine("  ⚠️  No containers defined in configuration, adding placeholder container");
             AddPlaceholderContainer(taskDefinition, logGroup, context);
             return new ContainerInfo("app", 8080);
         }
+
+        // If containers were processed but none have ports, we can't attach to load balancer
+        // Return null to indicate no primary container available
+        if (primaryContainer == null)
+        {
+            // Use the first container name for reference, even without ports
+            var firstContainerName = containerDefinitions.First().Name ?? "default-container";
+            Console.WriteLine($"  ⚠️  No containers with port mappings found. Load balancer attachment will be skipped.");
+            Console.WriteLine($"     Using '{firstContainerName}' as reference container (no ports)");
+            return new ContainerInfo(firstContainerName, 0); // Port 0 indicates no port mapping
+        }
+
+        Console.WriteLine($"  📊 Container configuration summary:");
+        Console.WriteLine($"     Total containers: {containersProcessed}");
+        Console.WriteLine($"     Primary container: {primaryContainer.ContainerName} (port: {primaryContainer.ContainerPort})");
 
         return primaryContainer;
     }
@@ -239,6 +366,7 @@ public class TrialFinderV2EcsStack : Stack
     private void AddConfiguredContainer(FargateTaskDefinition taskDefinition,
         ContainerDefinitionConfig containerConfig,
         ILogGroup logGroup,
+        CognitoStackOutputs cognitoOutputs,
         DeploymentContext context)
     {
         var containerName = containerConfig.Name ?? "default-container";
@@ -259,7 +387,7 @@ public class TrialFinderV2EcsStack : Stack
             environmentVars["DEPLOYMENT_TYPE"] = "placeholder";
             environmentVars["MANAGED_BY"] = "CDK";
             environmentVars["APP_NAME"] = context.Application.Name;
-            environmentVars["APP_VERSION"] = "placeholder";
+            environmentVars["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
         }
         else
         {
@@ -273,7 +401,7 @@ public class TrialFinderV2EcsStack : Stack
             Image = containerImage,
             Essential = containerConfig.Essential ?? GetDefaultEssential(containerName),
             Environment = environmentVars,
-            Secrets = GetContainerSecrets(containerConfig.Secrets, context),
+            Secrets = GetContainerSecrets(containerConfig.Secrets, cognitoOutputs, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -281,11 +409,29 @@ public class TrialFinderV2EcsStack : Stack
             })
         };
 
-        // Add port mappings with defaults
-        containerOptions.PortMappings = GetPortMappings(containerConfig, containerName);
+        // Add port mappings only if they exist in configuration
+        var portMappings = GetPortMappings(containerConfig, containerName);
+        if (portMappings.Length > 0)
+        {
+            containerOptions.PortMappings = portMappings;
+            Console.WriteLine($"     Added {portMappings.Length} port mapping(s) to container '{containerName}'");
+        }
+        else
+        {
+            Console.WriteLine($"     No port mappings configured for container '{containerName}'");
+        }
 
-        // Add standard health check for all containers
-        containerOptions.HealthCheck = GetStandardHealthCheck();
+        // Apply health check based on container type
+        var healthCheck = GetContainerHealthCheck(containerConfig, containerName);
+        if (healthCheck != null)
+        {
+            containerOptions.HealthCheck = healthCheck;
+            Console.WriteLine($"     Added health check for container '{containerName}'");
+        }
+        else
+        {
+            Console.WriteLine($"     Skipping health check for cron job container '{containerName}'");
+        }
 
         // Add CPU allocation if specified
         if (containerConfig.Cpu.HasValue && containerConfig.Cpu.Value > 0)
@@ -296,7 +442,113 @@ public class TrialFinderV2EcsStack : Stack
         taskDefinition.AddContainer(containerName, containerOptions);
     }
 
+    /// <summary>
+    /// Determine appropriate health check for container based on its type
+    /// </summary>
+    private Amazon.CDK.AWS.ECS.HealthCheck? GetContainerHealthCheck(
+        ContainerDefinitionConfig containerConfig,
+        string containerName)
+    {
+        // Check if health check is explicitly disabled in configuration
+        if (containerConfig.DisableHealthCheck == true)
+        {
+            Console.WriteLine($"     Health check explicitly disabled for container '{containerName}'");
+            return null;
+        }
 
+        // Check if this is a cron job container (automatic detection)
+        if (IsCronJobContainer(containerConfig, containerName))
+        {
+            Console.WriteLine($"     Skipping health check for cron job container '{containerName}'");
+            return null;
+        }
+
+        // Use custom health check from configuration if provided
+        if (containerConfig.HealthCheck != null)
+        {
+            var customHealthCheck = CreateCustomHealthCheck(containerConfig.HealthCheck, containerName);
+            if (customHealthCheck != null)
+            {
+                Console.WriteLine($"     Using custom health check for container '{containerName}'");
+                return customHealthCheck;
+            }
+        }
+
+        // For web applications, use standard health check
+        Console.WriteLine($"     Using standard health check for container '{containerName}'");
+        return GetStandardHealthCheck(containerConfig);
+    }
+
+    /// <summary>
+    /// Create custom health check from configuration
+    /// </summary>
+    private Amazon.CDK.AWS.ECS.HealthCheck? CreateCustomHealthCheck(
+        HealthCheckConfig healthCheckConfig,
+        string containerName)
+    {
+        // If health check is explicitly disabled in config
+        if (healthCheckConfig.Disabled == true)
+        {
+            return null;
+        }
+
+        // Validate required command
+        if (healthCheckConfig.Command == null || healthCheckConfig.Command.Count == 0)
+        {
+            Console.WriteLine($"     Warning: Custom health check for '{containerName}' has no command, using standard health check");
+            return GetStandardHealthCheck(null); // Pass null for containerConfig
+        }
+
+        return new Amazon.CDK.AWS.ECS.HealthCheck
+        {
+            Command = healthCheckConfig.Command.ToArray(),
+            Interval = Duration.Seconds(healthCheckConfig.Interval ?? 30),
+            Timeout = Duration.Seconds(healthCheckConfig.Timeout ?? 5),
+            Retries = healthCheckConfig.Retries ?? 3,
+            StartPeriod = Duration.Seconds(healthCheckConfig.StartPeriod ?? 60)
+        };
+    }
+
+    /// <summary>
+    /// Determine if a container is a cron job based on configuration and naming
+    /// </summary>
+    private bool IsCronJobContainer(ContainerDefinitionConfig containerConfig, string containerName)
+    {
+        // Check container name patterns that indicate cron jobs
+        var nameLower = containerName.ToLowerInvariant();
+        var cronJobPatterns = new[]
+        {
+            "cron", "job", "batch", "scheduler", "task", "worker", "processor", "cleanup", "backup", "sync"
+        };
+
+        if (cronJobPatterns.Any(pattern => nameLower.Contains(pattern)))
+        {
+            return true;
+        }
+
+        // Check if container has no port mappings (typical for cron jobs)
+        if (containerConfig.PortMappings?.Count == 0)
+        {
+            return true;
+        }
+
+        // Check environment variables for cron job indicators
+        if (containerConfig.Environment?.Any(e => 
+            e.Name?.ToLowerInvariant().Contains("cron") == true ||
+            e.Name?.ToLowerInvariant().Contains("schedule") == true ||
+            e.Value?.ToLowerInvariant().Contains("cron") == true) == true)
+        {
+            return true;
+        }
+
+        // Check if container is marked as non-essential (typical for cron jobs)
+        if (containerConfig.Essential == false)
+        {
+            return true;
+        }
+
+        return false;
+    }
 
 
     /// <summary>
@@ -403,22 +655,63 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get standard health check for all containers
+    /// Get standard health check for web application containers
     /// </summary>
-    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck()
+    private Amazon.CDK.AWS.ECS.HealthCheck GetStandardHealthCheck(ContainerDefinitionConfig? containerConfig = null)
     {
+        // Determine health check path from configuration or environment variable
+        var healthCheckPath = GetHealthCheckPath(containerConfig);
+        
         return new Amazon.CDK.AWS.ECS.HealthCheck
         {
             Command = new[]
             {
                 "CMD-SHELL",
-                "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
+                $"wget --no-verbose --tries=1 --spider http://localhost:8080{healthCheckPath} || exit 1"
             },
             Interval = Duration.Seconds(30),
             Timeout = Duration.Seconds(5),
             Retries = 3,
             StartPeriod = Duration.Seconds(60)
         };
+    }
+
+    /// <summary>
+    /// Get health check path from configuration or environment variable
+    /// </summary>
+    private string GetHealthCheckPath(ContainerDefinitionConfig? containerConfig)
+    {
+        // Check if health check path is specified in container configuration
+        if (containerConfig?.HealthCheck?.Command?.Count > 0)
+        {
+            // If custom health check command is provided, extract path from it
+            var command = string.Join(" ", containerConfig.HealthCheck.Command);
+            if (command.Contains("http://localhost:8080"))
+            {
+                // Extract path from custom command
+                var match = Regex.Match(command, @"http://localhost:8080([^\s]+)");
+                if (match.Success)
+                {
+                    return match.Groups[1].Value;
+                }
+            }
+        }
+
+        // Check environment variables in container config for health check path
+        if (containerConfig?.Environment?.Count > 0)
+        {
+            var healthCheckPathEnv = containerConfig.Environment.FirstOrDefault(e => 
+                e.Name?.Equals("HEALTH_CHECK_PATH", StringComparison.OrdinalIgnoreCase) == true);
+            
+            if (!string.IsNullOrWhiteSpace(healthCheckPathEnv?.Value))
+            {
+                // Ensure path starts with /
+                return healthCheckPathEnv.Value.StartsWith("/") ? healthCheckPathEnv.Value : $"/{healthCheckPathEnv.Value}";
+            }
+        }
+
+        // Default health check paths based on common patterns
+        return "/health";
     }
 
 
@@ -440,7 +733,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = CreateDefaultEnvironmentVariables(context),
-            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, context),
+            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, null, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -474,7 +767,7 @@ public class TrialFinderV2EcsStack : Stack
         placeholderEnv["DEPLOYMENT_TYPE"] = "placeholder";
         placeholderEnv["MANAGED_BY"] = "CDK";
         placeholderEnv["APP_NAME"] = context.Application.Name;
-        placeholderEnv["APP_VERSION"] = "placeholder";
+        placeholderEnv["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
 
         taskDefinition.AddContainer("app", new ContainerDefinitionOptions
         {
@@ -489,7 +782,7 @@ public class TrialFinderV2EcsStack : Stack
                 }
             },
             Environment = placeholderEnv,
-            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, context),
+            Secrets = GetContainerSecrets(new List<string> { "test-secret" }, null, context),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
@@ -497,11 +790,7 @@ public class TrialFinderV2EcsStack : Stack
             }),
             HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
             {
-                Command = new[]
-                {
-                    "CMD-SHELL",
-                    "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
-                },
+                Command = new[] { "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1" },
                 Interval = Duration.Seconds(30),
                 Timeout = Duration.Seconds(5),
                 Retries = 3,
@@ -519,9 +808,12 @@ public class TrialFinderV2EcsStack : Stack
         {
             ["ENVIRONMENT"] = context.Environment.Name,
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
-            ["APP_VERSION"] = context.Application.Version,
+            ["APP_VERSION"] = "1.0.0", // Static version to prevent unnecessary redeployments
             ["PORT"] = "8080",
-            ["HEALTH_CHECK_PATH"] = "/"
+            ["HEALTH_CHECK_PATH"] = "/health",
+            ["AWS_REGION"] = context.Environment.Region,
+            ["AWS_ACCOUNT_ID"] = context.Environment.AccountId
+            // Removed QuickSight-related environment variables
         };
     }
 
@@ -579,6 +871,9 @@ public class TrialFinderV2EcsStack : Stack
 
         // Add Secrets Manager permissions for environment-specific secrets
         AddSecretsManagerPermissions(taskRole);
+
+        // Add QuickSight permissions for embedding functionality
+        AddQuickSightPermissions(taskRole);
 
         // Add tag for identification
         Amazon.CDK.Tags.Of(taskRole).Add("ManagedBy", "CDK");
@@ -665,21 +960,33 @@ public class TrialFinderV2EcsStack : Stack
 
     /// <summary>
     /// Get container port for load balancer registration from JSON configuration
+    /// Prefers port 8080 for web applications, falls back to first available port
     /// </summary>
-    private int GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
+    private int? GetContainerPort(ContainerDefinitionConfig containerConfig, string containerName)
     {
-        // Use the first port mapping if available
         if (containerConfig.PortMappings?.Count > 0)
         {
+            // First, try to find port 8080 (preferred for web applications)
+            var preferredPortMapping = containerConfig.PortMappings.FirstOrDefault(pm => 
+                pm.ContainerPort == 8080);
+            
+            if (preferredPortMapping?.ContainerPort.HasValue == true)
+            {
+                Console.WriteLine($"     Selected preferred port 8080 for container '{containerName}'");
+                return preferredPortMapping.ContainerPort.Value;
+            }
+            
+            // Fall back to first available port mapping
             var firstPortMapping = containerConfig.PortMappings[0];
             if (firstPortMapping.ContainerPort.HasValue)
             {
+                Console.WriteLine($"     Selected fallback port {firstPortMapping.ContainerPort.Value} for container '{containerName}'");
                 return firstPortMapping.ContainerPort.Value;
             }
         }
 
-        // If no port mappings defined, this container cannot be used as primary container
-        throw new InvalidOperationException($"Container '{containerName}' must have at least one port mapping defined to be used as primary container");
+        // Return null if no port mappings defined - container cannot be used as primary container
+        return null;
     }
 
     /// <summary>
@@ -760,7 +1067,8 @@ public class TrialFinderV2EcsStack : Stack
         {
             $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{applicationName}/*",
             // Allow access to shared secrets if needed
-            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*"
+            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*",
+            // Allow access to RDS database credentials secret (including version suffixes)
         };
         
         // Add Secrets Manager permissions
@@ -830,26 +1138,228 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Add QuickSight permissions to IAM role for embedding functionality and database access
+    /// </summary>
+    private void AddQuickSightPermissions(IRole role)
+    {
+        // Cast to Role to access AddToPolicy method
+        var concreteRole = role as Role;
+        if (concreteRole == null) return;
+
+        // QuickSight user management permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightUserManagement",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:RegisterUser",
+                "quicksight:UnregisterUser",
+                "quicksight:DescribeUser",
+                "quicksight:ListUsers",
+                "quicksight:UpdateUser"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:user/*"
+            }
+        }));
+
+        // QuickSight embedding permissions (includes Generative Q&A)
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightEmbedding",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:GenerateEmbedUrlForRegisteredUser", // For Generative Q&A and dashboard embedding
+                "quicksight:GetDashboardEmbedUrl",
+                "quicksight:GetSessionEmbedUrl",
+                "quicksight:DescribeDashboard",
+                "quicksight:ListDashboards",
+                "quicksight:DescribeDataSet",
+                "quicksight:ListDataSets"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:user/*",
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:dashboard/*",
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:dataset/*"
+            }
+        }));
+
+        // QuickSight namespace permissions (for multi-tenant scenarios)
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightNamespaceAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeNamespace",
+                "quicksight:ListNamespaces"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:namespace/*"
+            }
+        }));
+
+        // QuickSight data source permissions for database access
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightDataSourceAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeDataSource",
+                "quicksight:ListDataSources",
+                "quicksight:CreateDataSource",
+                "quicksight:UpdateDataSource",
+                "quicksight:DeleteDataSource",
+                "quicksight:DescribeDataSourcePermissions",
+                "quicksight:UpdateDataSourcePermissions"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:datasource/*"
+            }
+        }));
+
+        // QuickSight analysis permissions for creating and managing analyses
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightAnalysisAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeAnalysis",
+                "quicksight:ListAnalyses",
+                "quicksight:CreateAnalysis",
+                "quicksight:UpdateAnalysis",
+                "quicksight:DeleteAnalysis",
+                "quicksight:DescribeAnalysisPermissions",
+                "quicksight:UpdateAnalysisPermissions"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:analysis/*"
+            }
+        }));
+
+        // QuickSight theme permissions for consistent styling
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowQuickSightThemeAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "quicksight:DescribeTheme",
+                "quicksight:ListThemes",
+                "quicksight:CreateTheme",
+                "quicksight:UpdateTheme",
+                "quicksight:DeleteTheme",
+                "quicksight:DescribeThemePermissions",
+                "quicksight:UpdateThemePermissions"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:theme/*"
+            }
+        }));
+    }
+
+    /// <summary>
+    /// Collect all secret names from all containers and build mapping once
+    /// </summary>
+    private void CollectAllSecretsAndBuildMapping(TaskDefinitionConfig? taskDefConfig, DeploymentContext context)
+    {
+        var allSecretNames = new HashSet<string>();
+        
+        // Collect secrets from container definitions
+        var containerDefinitions = taskDefConfig?.ContainerDefinitions;
+        if (containerDefinitions != null)
+        {
+            foreach (var containerConfig in containerDefinitions)
+            {
+                if (containerConfig.Secrets != null)
+                {
+                    foreach (var secretName in containerConfig.Secrets)
+                    {
+                        allSecretNames.Add(secretName);
+                    }
+                }
+            }
+        }
+        
+        // Add any hardcoded secrets (like test-secret)
+        allSecretNames.Add("test-secret");
+        
+        // Build mapping for all collected secrets
+        Console.WriteLine($"   Found {allSecretNames.Count} unique secret(s) across all containers");
+        BuildSecretNameMapping(allSecretNames.ToList());
+    }
+
+    /// <summary>
     /// Get container secrets from Secrets Manager
     /// </summary>
-    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, DeploymentContext context)
+    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
     {
         var secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>();
         
         if (secretNames?.Count > 0)
         {
-            foreach (var secretName in secretNames)
+            Console.WriteLine($"     🔐 Processing {secretNames.Count} secret(s):");
+            foreach (var envVarName in secretNames)
             {
-                var fullSecretName = BuildSecretName(secretName, context);
-                var secret = GetOrCreateSecret(secretName, fullSecretName, context);
+                // Use the mapping to get the secret name, or fall back to the original name
+                var secretName = GetSecretNameFromEnvVar(envVarName);
                 
-                // Use the secret name as the environment variable name (converted to uppercase)
-                var envVarName = secretName.ToUpperInvariant().Replace("-", "_");
+                var fullSecretName = BuildSecretName(secretName, context);
+                var secret = GetOrCreateSecret(secretName, fullSecretName, cognitoOutputs, context);
+                
+                // Use the original environment variable name from the configuration
                 secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
+                
+                Console.WriteLine($"        - Environment variable '{envVarName}' -> Secret '{secretName}'");
+                Console.WriteLine($"          Full secret path: {fullSecretName}");
             }
         }
         
         return secrets;
+    }
+
+    /// <summary>
+    /// Build the mapping dictionary from secret names in configuration
+    /// </summary>
+    private void BuildSecretNameMapping(List<string> secretNames)
+    {
+        foreach (var secretName in secretNames)
+        {
+            // Only add if not already present to avoid overwriting
+            if (!_envVarToSecretNameMapping.ContainsKey(secretName))
+            {
+                // Convert the secret name to a valid AWS Secrets Manager name
+                // Replace __ with - and convert to lowercase
+                var mappedSecretName = secretName.Replace("__", "-").ToLowerInvariant();
+                _envVarToSecretNameMapping[secretName] = mappedSecretName;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get secret name from environment variable name using mapping
+    /// </summary>
+    private string GetSecretNameFromEnvVar(string envVarName)
+    {
+        // Use the dynamically built mapping
+        if (_envVarToSecretNameMapping.TryGetValue(envVarName, out var mappedSecretName))
+        {
+            return mappedSecretName;
+        }
+        
+        // Fallback: convert the environment variable name to a valid secret name
+        // Replace __ with - and convert to lowercase
+        return envVarName.ToLowerInvariant().Replace("__", "-");
     }
 
     /// <summary>
@@ -863,34 +1373,128 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get or create a secret in Secrets Manager
+    /// Check if a secret exists in AWS Secrets Manager using AWS SDK
     /// </summary>
-    private Amazon.CDK.AWS.SecretsManager.Secret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
+    private bool SecretExists(string secretName)
     {
-        // Check if we already created this secret
+        try
+        {
+            using var secretsManagerClient = new AmazonSecretsManagerClient();
+            var describeSecretRequest = new DescribeSecretRequest
+            {
+                SecretId = secretName
+            };
+            
+            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
+            return response != null;
+        }
+        catch (ResourceNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the deployment
+            Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Get or create a secret in Secrets Manager
+    /// This method uses AWS SDK to check if secrets exist before creating them.
+    /// If a secret exists, it imports the existing secret reference to preserve manual values.
+    /// If a secret doesn't exist, it creates a new secret with generated values.
+    /// </summary>
+    private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
+    {
+        // Check if we already created this secret in this deployment
         if (_createdSecrets.ContainsKey(secretName))
         {
+            Console.WriteLine($"          ℹ️  Using existing secret reference for '{secretName}'");
             return _createdSecrets[secretName];
         }
 
-        // Create the secret with a placeholder value
-        var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+        // Use AWS SDK to check if secret exists
+        Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
+        
+        if (SecretExists(fullSecretName))
         {
-            SecretName = fullSecretName,
-            Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
+            // Secret exists - import it to preserve manual values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
+            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+            Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
+            
+            _createdSecrets[secretName] = existingSecret;
+            return existingSecret;
+        }
+        else
+        {
+            // Secret doesn't exist - create it with generated values or Cognito values
+            Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
+            
+            // For Cognito secrets, we'll create them with generated values for now
+            // The actual values will be populated by the application at runtime
+            if (cognitoOutputs != null && IsCognitoSecret(secretName))
             {
-                SecretStringTemplate = $"{{\"secretName\":\"{secretName}\"}}",
-                GenerateStringKey = "value",
-                PasswordLength = 32,
-                ExcludeCharacters = "\"@/\\"
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with generated value (will be updated manually)");
             }
-        });
+            {
+                // Regular secret with generated values
+                var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+                {
+                    SecretName = fullSecretName,
+                    Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                    GenerateSecretString = new SecretStringGenerator
+                    {
+                        SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                        GenerateStringKey = "value",
+                        PasswordLength = 32,
+                        ExcludeCharacters = "\"@/\\"
+                    }
+                });
 
-        // Store the secret reference for exporting ARN later
-        _createdSecrets[secretName] = secret;
+                // Add the CDKManaged tag required by IAM policy
+                Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
 
-        return secret;
+                _createdSecrets[secretName] = secret;
+                return secret;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Check if a secret name corresponds to a Cognito secret
+    /// </summary>
+    private bool IsCognitoSecret(string secretName)
+    {
+        var cognitoSecretNames = new[]
+        {
+            "cognito-client-id",
+            "cognito-client-secret", 
+            "cognito-user-pool-id",
+            "cognito-domain"
+        };
+        
+        return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// Get the actual value for a Cognito secret
+    /// </summary>
+    private string GetCognitoSecretValue(string secretName, CognitoStackOutputs cognitoOutputs)
+    {
+        return secretName.ToLowerInvariant() switch
+        {
+            "cognito-client-id" => cognitoOutputs.AppClientId,
+            "cognito-client-secret" => "***SECRET***", // Client secret is not exposed for security
+            "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
+            "cognito-domain" => cognitoOutputs.DomainUrl,
+            _ => throw new ArgumentException($"Unknown Cognito secret name: {secretName}")
+        };
     }
 
     /// <summary>
@@ -1052,6 +1656,7 @@ public class TrialFinderV2EcsStack : Stack
         });
     }
 
+
     /// <summary>
     /// Helper class to hold ALB stack outputs
     /// </summary>
@@ -1059,5 +1664,16 @@ public class TrialFinderV2EcsStack : Stack
     {
         public string TargetGroupArn { get; set; } = "";
         public string EcsSecurityGroupId { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Helper class to hold Cognito stack outputs
+    /// </summary>
+    private class CognitoStackOutputs
+    {
+        public string UserPoolId { get; set; } = "";
+        public string AppClientId { get; set; } = "";
+        public string DomainUrl { get; set; } = "";
+        public string DomainName { get; set; } = "";
     }
 }

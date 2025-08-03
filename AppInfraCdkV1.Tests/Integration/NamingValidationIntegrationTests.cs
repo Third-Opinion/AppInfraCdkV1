@@ -257,4 +257,220 @@ public class NamingValidationIntegrationTests
         var regionCode = NamingConvention.GetRegionCode(context.Environment.Region);
         return $"{envPrefix}-{appCode}-stack-{regionCode}";
     }
+
+    [Theory]
+    [InlineData("Development", "TrialFinderV2")]
+    [InlineData("Production", "TrialFinderV2")]
+    public void GenerateCognitoResourceNames_WithValidEnvironmentAndApp_ShouldFollowConventions(string environment, string application)
+    {
+        // Arrange
+        var context = CreateDeploymentContext(environment, application);
+        var expectedPrefix = environment == "Development" ? "dev" : "prod";
+
+        // Act
+        var userPoolName = context.Namer.CognitoUserPool(ResourcePurpose.Auth);
+        var appClientName = context.Namer.CognitoAppClient(ResourcePurpose.Auth);
+        var domainName = context.Namer.CognitoDomain(ResourcePurpose.Auth);
+
+        // Assert
+        userPoolName.ShouldStartWith($"{expectedPrefix}-tfv2-cognito-");
+        appClientName.ShouldStartWith($"{expectedPrefix}-tfv2-client-");
+        domainName.ShouldStartWith($"{expectedPrefix}-tfv2-domain-");
+
+        // Verify all contain the region code and auth purpose
+        userPoolName.ShouldContain("ue2"); // us-east-2 region code
+        appClientName.ShouldContain("ue2");
+        domainName.ShouldContain("ue2");
+
+        userPoolName.ShouldEndWith("-auth");
+        appClientName.ShouldEndWith("-auth");
+        domainName.ShouldEndWith("-auth");
+    }
+
+    [Theory]
+    [InlineData("Development", "TrialFinderV2")]
+    [InlineData("Production", "TrialFinderV2")]
+    public void ValidateCognitoResourceLimits_WithValidEnvironmentAndApp_ShouldRespectAwsLimits(string environment, string application)
+    {
+        // Arrange
+        var context = CreateDeploymentContext(environment, application);
+
+        // Act
+        var userPoolName = context.Namer.CognitoUserPool(ResourcePurpose.Auth);
+        var appClientName = context.Namer.CognitoAppClient(ResourcePurpose.Auth);
+        var domainName = context.Namer.CognitoDomain(ResourcePurpose.Auth);
+
+        // Assert - Check AWS resource name limits
+        userPoolName.Length.ShouldBeLessThanOrEqualTo(128, "Cognito User Pool names must be 128 characters or less");
+        appClientName.Length.ShouldBeLessThanOrEqualTo(128, "Cognito App Client names must be 128 characters or less");
+        domainName.Length.ShouldBeLessThanOrEqualTo(63, "Cognito Domain names must be 63 characters or less");
+    }
+
+    [Theory]
+    [InlineData("Development", "TrialFinderV2")]
+    [InlineData("Production", "TrialFinderV2")]
+    public void ValidateCognitoResourceUniqueness_WithValidEnvironmentAndApp_ShouldBeUnique(string environment, string application)
+    {
+        // Arrange
+        var context = CreateDeploymentContext(environment, application);
+
+        // Act
+        var userPoolName = context.Namer.CognitoUserPool(ResourcePurpose.Auth);
+        var appClientName = context.Namer.CognitoAppClient(ResourcePurpose.Auth);
+        var domainName = context.Namer.CognitoDomain(ResourcePurpose.Auth);
+
+        // Assert - All resource names should be unique
+        userPoolName.ShouldNotBe(appClientName);
+        userPoolName.ShouldNotBe(domainName);
+        appClientName.ShouldNotBe(domainName);
+    }
+
+    [Theory]
+    [InlineData("Development", "TrialFinderV2")]
+    [InlineData("Production", "TrialFinderV2")]
+    public void ValidateCognitoResourcePurpose_WithValidEnvironmentAndApp_ShouldHaveCorrectPurpose(string environment, string application)
+    {
+        // Arrange
+        var context = CreateDeploymentContext(environment, application);
+
+        // Act
+        var authPurpose = ResourcePurpose.Auth;
+
+        // Assert
+        authPurpose.ShouldBe(ResourcePurpose.Auth);
+        authPurpose.ToString().ShouldBe("Auth");
+    }
+
+    [Fact]
+    public void ValidateCognitoResourceTypes_ShouldIncludeAllTypes()
+    {
+        // Arrange & Act
+        var userPoolType = NamingConvention.ResourceTypes.CognitoUserPool;
+        var appClientType = NamingConvention.ResourceTypes.CognitoAppClient;
+        var domainType = NamingConvention.ResourceTypes.CognitoDomain;
+
+        // Assert
+        userPoolType.ShouldBe("cognito");
+        appClientType.ShouldBe("client");
+        domainType.ShouldBe("domain");
+    }
+
+    [Theory]
+    [InlineData("Development", "TrialFinderV2")]
+    [InlineData("Production", "TrialFinderV2")]
+    public void ValidateCognitoUrlGeneration_WithValidEnvironmentAndApp_ShouldGenerateCorrectUrls(string environment, string application)
+    {
+        // Arrange
+        var context = CreateDeploymentContext(environment, application);
+
+        // Act
+        var callbackUrls = GetCallbackUrls(context);
+        var logoutUrls = GetLogoutUrls(context);
+
+        // Assert
+        callbackUrls.ShouldNotBeEmpty();
+        logoutUrls.ShouldNotBeEmpty();
+
+        // All URLs should be valid HTTPS URLs
+        foreach (var url in callbackUrls.Concat(logoutUrls))
+        {
+            url.ShouldStartWith("https://");
+            url.ShouldNotBeNullOrWhiteSpace();
+        }
+
+        // Environment-specific URL validation
+        if (environment == "Development")
+        {
+            callbackUrls.ShouldContain("https://dev-tf.thirdopinion.io/signin-oidc");
+            callbackUrls.ShouldContain("https://localhost:7015/signin-oidc");
+            callbackUrls.ShouldContain("https://localhost:7243/signin-oidc");
+            
+            logoutUrls.ShouldContain("https://dev-tf.thirdopinion.io");
+            logoutUrls.ShouldContain("https://dev-tf.thirdopinion.io/logout");
+            logoutUrls.ShouldContain("https://localhost:7015");
+            logoutUrls.ShouldContain("https://localhost:7015/logout");
+            logoutUrls.ShouldContain("https://localhost:7243");
+            logoutUrls.ShouldContain("https://localhost:7243/logout");
+        }
+        else if (environment == "Production")
+        {
+            callbackUrls.ShouldContain("https://tf.thirdopinion.io/signin-oidc");
+            logoutUrls.ShouldContain("https://tf.thirdopinion.io");
+            logoutUrls.ShouldContain("https://tf.thirdopinion.io/logout");
+        }
+    }
+
+    private static string[] GetCallbackUrls(DeploymentContext context)
+    {
+        return context.Environment.Name.ToLowerInvariant() switch
+        {
+            "production" => new[]
+            {
+                "https://tf.thirdopinion.io/signin-oidc"
+            },
+            "staging" => new[]
+            {
+                "https://stg-tf.thirdopinion.io/signin-oidc"
+            },
+            "development" => new[]
+            {
+                "https://dev-tf.thirdopinion.io/signin-oidc",
+                "https://localhost:7015/signin-oidc",
+                "https://localhost:7243/signin-oidc"
+            },
+            "integration" => new[]
+            {
+                "https://int-tf.thirdopinion.io/signin-oidc",
+                "https://localhost:7015/signin-oidc",
+                "https://localhost:7243/signin-oidc"
+            },
+            _ => new[]
+            {
+                "https://localhost:7015/signin-oidc",
+                "https://localhost:7243/signin-oidc"
+            }
+        };
+    }
+
+    private static string[] GetLogoutUrls(DeploymentContext context)
+    {
+        return context.Environment.Name.ToLowerInvariant() switch
+        {
+            "production" => new[]
+            {
+                "https://tf.thirdopinion.io",
+                "https://tf.thirdopinion.io/logout"
+            },
+            "staging" => new[]
+            {
+                "https://stg-tf.thirdopinion.io",
+                "https://stg-tf.thirdopinion.io/logout"
+            },
+            "development" => new[]
+            {
+                "https://dev-tf.thirdopinion.io",
+                "https://dev-tf.thirdopinion.io/logout",
+                "https://localhost:7015",
+                "https://localhost:7015/logout",
+                "https://localhost:7243",
+                "https://localhost:7243/logout"
+            },
+            "integration" => new[]
+            {
+                "https://int-tf.thirdopinion.io",
+                "https://int-tf.thirdopinion.io/logout",
+                "https://localhost:7015",
+                "https://localhost:7015/logout",
+                "https://localhost:7243",
+                "https://localhost:7243/logout"
+            },
+            _ => new[]
+            {
+                "https://localhost:7015",
+                "https://localhost:7015/logout",
+                "https://localhost:7243",
+                "https://localhost:7243/logout"
+            }
+        };
+    }
 }

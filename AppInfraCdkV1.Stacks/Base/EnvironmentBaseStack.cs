@@ -1,9 +1,12 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.Logs;
+using Amazon.CDK.AWS.RDS;
+using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
+using Duration = Amazon.CDK.Duration;
 
 namespace AppInfraCdkV1.Stacks.Base;
 
@@ -17,6 +20,10 @@ public class EnvironmentBaseStack : Stack
     public IVpc Vpc { get; private set; } = null!;
     public Dictionary<string, ISecurityGroup> SharedSecurityGroups { get; private set; } = new();
     public ILogGroup SharedLogGroup { get; private set; } = null!;
+    public DatabaseCluster? SharedDatabaseCluster { get; private set; }
+    public InterfaceVpcEndpoint QuickSightApiEndpoint { get; private set; } = null!;
+    public InterfaceVpcEndpoint QuickSightEmbeddingEndpoint { get; private set; } = null!;
+    public SecurityGroup QuickSightSecurityGroup { get; private set; } = null!;
 
     public EnvironmentBaseStack(Construct scope, string id, IStackProps props, DeploymentContext context)
         : base(scope, id, props)
@@ -34,6 +41,12 @@ public class EnvironmentBaseStack : Stack
         
         // Create shared logging infrastructure
         CreateSharedLogging();
+        
+        // Create shared database infrastructure
+        CreateSharedDatabase();
+        
+        // Create dedicated QuickSight security group (after RDS security group is created)
+        CreateQuickSightSecurityGroup();
         
         // Create VPC endpoints if needed
         CreateVpcEndpoints();
@@ -158,6 +171,9 @@ public class EnvironmentBaseStack : Stack
         // Allow PostgreSQL from ECS
         rdsSg.AddIngressRule(ecsSg, Port.Tcp(5432), "Allow PostgreSQL from ECS");
         
+        // Allow PostgreSQL from QuickSight (will be added after QuickSight security group is created)
+        // This will be handled in CreateQuickSightSecurityGroup method
+        
         SharedSecurityGroups["rds"] = rdsSg;
         
         // ECS to RDS Security Group - matches sg-0e1f1808e2e77aea1 (ecs-to-rds-security-group)
@@ -203,6 +219,71 @@ public class EnvironmentBaseStack : Stack
         Console.WriteLine($"   Created {SharedSecurityGroups.Count} shared security groups matching existing ones");
     }
 
+    private void CreateQuickSightSecurityGroup()
+    {
+        Console.WriteLine("🔒 Creating dedicated QuickSight security group...");
+        
+        // Create dedicated QuickSight security group
+        QuickSightSecurityGroup = new SecurityGroup(this, "QuickSightSecurityGroup", new SecurityGroupProps
+        {
+            Vpc = Vpc,
+            SecurityGroupName = _context.Namer.SharedSecurityGroup("quicksight"),
+            Description = "Dedicated security group for QuickSight VPC endpoints and database access",
+            AllowAllOutbound = false
+        });
+        
+        // Inbound Rule: Allow all TCP from RDS security group (return traffic from database)
+        if (SharedSecurityGroups.ContainsKey("rds"))
+        {
+            QuickSightSecurityGroup.AddIngressRule(
+                SharedSecurityGroups["rds"], 
+                Port.AllTcp(), 
+                "Allow return traffic from RDS database"
+            );
+        }
+        
+        // Outbound Rule: Allow PostgreSQL (port 5432) to RDS security group
+        if (SharedSecurityGroups.ContainsKey("rds"))
+        {
+            QuickSightSecurityGroup.AddEgressRule(
+                SharedSecurityGroups["rds"], 
+                Port.Tcp(5432), 
+                "Allow PostgreSQL connections to RDS database"
+            );
+        }
+        
+        // Allow HTTPS outbound for AWS service access (Secrets Manager, etc.)
+        QuickSightSecurityGroup.AddEgressRule(
+            Peer.AnyIpv4(), 
+            Port.Tcp(443), 
+            "Allow HTTPS for AWS service access"
+        );
+        
+        // Allow HTTP outbound for package downloads and health checks
+        QuickSightSecurityGroup.AddEgressRule(
+            Peer.AnyIpv4(), 
+            Port.Tcp(80), 
+            "Allow HTTP for package downloads and health checks"
+        );
+        
+        // Update RDS security group to allow connections from QuickSight
+        if (SharedSecurityGroups.ContainsKey("rds"))
+        {
+            var rdsSg = SharedSecurityGroups["rds"] as SecurityGroup;
+            if (rdsSg != null)
+            {
+                rdsSg.AddIngressRule(
+                    QuickSightSecurityGroup, 
+                    Port.Tcp(5432), 
+                    "Allow PostgreSQL connections from QuickSight"
+                );
+                Console.WriteLine("   Updated RDS security group to allow connections from QuickSight");
+            }
+        }
+        
+        Console.WriteLine($"   QuickSight security group created with ID: {QuickSightSecurityGroup.SecurityGroupId}");
+    }
+
     private void CreateSharedLogging()
     {
         Console.WriteLine("📊 Creating shared logging infrastructure...");
@@ -217,6 +298,90 @@ public class EnvironmentBaseStack : Stack
         });
         
         Console.WriteLine($"   Shared log group created: {SharedLogGroup.LogGroupName}");
+    }
+
+    private void CreateSharedDatabase()
+    {
+        Console.WriteLine("🗄️  Creating shared database infrastructure...");
+        
+        // Create custom database credentials secret following naming convention
+        var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
+        var databaseSecretName = $"/{environmentPrefix}/shared/database-credentials";
+        
+        var databaseSecret = new Secret(this, "SharedDatabaseSecret", new SecretProps
+        {
+            SecretName = databaseSecretName,
+            Description = $"Database credentials for shared PostgreSQL cluster in {_context.Environment.Name}",
+            GenerateSecretString = new SecretStringGenerator
+            {
+                SecretStringTemplate = "{\"username\":\"postgres\"}",
+                GenerateStringKey = "password",
+                PasswordLength = 32,
+                ExcludeCharacters = "\"@/\\"
+            }
+        });
+        
+        // Create database subnet group for isolated subnets
+        var subnetGroup = new CfnDBSubnetGroup(this, "SharedDatabaseSubnetGroup", new CfnDBSubnetGroupProps
+        {
+            DbSubnetGroupName = $"{_context.Environment.Name}-shared-db-subnet-group",
+            DbSubnetGroupDescription = $"Shared database subnet group for {_context.Environment.Name} environment",
+            SubnetIds = Vpc.IsolatedSubnets.Select(s => s.SubnetId).ToArray()
+        });
+
+        // Create shared PostgreSQL Aurora Serverless v2 database cluster with Data API enabled
+        SharedDatabaseCluster = new DatabaseCluster(this, "SharedDatabase", new DatabaseClusterProps
+        {
+            ClusterIdentifier = $"{_context.Environment.Name}-shared-database",
+            Engine = DatabaseClusterEngine.AuroraPostgres(new AuroraPostgresClusterEngineProps
+            {
+                Version = AuroraPostgresEngineVersion.VER_17_4
+            }),
+            Writer = ClusterInstance.ServerlessV2("writer"),
+            ServerlessV2MinCapacity = 0.5,
+            ServerlessV2MaxCapacity = 128.0,
+            Vpc = Vpc,
+            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_ISOLATED },
+            Credentials = Credentials.FromSecret(databaseSecret),
+            EnableDataApi = true, // Enable Data API for serverless access
+            Backup = new BackupProps
+            {
+                Retention = Duration.Days(7),
+                PreferredWindow = "06:00-06:30"
+            },
+            StorageEncrypted = true,
+            DeletionProtection = false,
+            RemovalPolicy = RemovalPolicy.DESTROY,
+            MonitoringInterval = Duration.Minutes(1),
+            EnablePerformanceInsights = true,
+            CloudwatchLogsExports = new[] { "postgresql" },
+            IamAuthentication = true,
+            PreferredMaintenanceWindow = "fri:05:00-fri:05:30",
+            SecurityGroups = new[] { SharedSecurityGroups["rds"] }
+        });
+
+        // Add tags to database cluster
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Purpose", "SharedDatabase");
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Environment", _context.Environment.Name);
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("Shared", "true");
+        Amazon.CDK.Tags.Of(SharedDatabaseCluster).Add("DataApiEnabled", "true");
+
+        // Add automatic rotation for database credentials
+        SharedDatabaseCluster.AddRotationSingleUser(new RotationSingleUserOptions
+        {
+            AutomaticallyAfter = Duration.Days(30), // Rotate every 30 days
+            ExcludeCharacters = "\"@/\\", // Same as secret generation
+            RotateImmediatelyOnUpdate = false, // Don't rotate immediately on stack updates
+            SecurityGroup = SharedSecurityGroups["rds"] as SecurityGroup // Use existing RDS security group
+        });
+
+        Console.WriteLine($"   Shared database cluster created: {SharedDatabaseCluster.ClusterIdentifier}");
+        Console.WriteLine($"   Database endpoint: {SharedDatabaseCluster.ClusterEndpoint.Hostname}");
+        Console.WriteLine($"   Database subnet group: {subnetGroup.DbSubnetGroupName}");
+        Console.WriteLine($"   Database credentials secret: {databaseSecretName}");
+        Console.WriteLine($"   Data API enabled: true");
+        Console.WriteLine($"   Automatic credential rotation: every 30 days");
     }
 
     private void CreateVpcEndpoints()
@@ -282,7 +447,20 @@ public class EnvironmentBaseStack : Stack
             Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
         
-        Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, CloudWatch Logs, and Secrets Manager");
+        // QuickSight Website Interface Endpoint for secure access
+        QuickSightApiEndpoint = new InterfaceVpcEndpoint(this, "QuickSightWebsiteVpcEndpoint", new InterfaceVpcEndpointProps
+        {
+            Vpc = Vpc,
+            Service = InterfaceVpcEndpointAwsService.QUICKSIGHT_WEBSITE,
+            SecurityGroups = new[] { QuickSightSecurityGroup },
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        
+        // Note: QuickSight API and embedding functionality are accessed through the website endpoint
+        // No separate embedding endpoint is needed as it's handled through the main QuickSight service
+        QuickSightEmbeddingEndpoint = QuickSightApiEndpoint; // Use the same endpoint for both
+        
+        Console.WriteLine("   Created VPC endpoints for S3, DynamoDB, ECR, CloudWatch Logs, Secrets Manager, and QuickSight");
     }
 
     private void ExportSharedResources()
@@ -346,6 +524,37 @@ public class EnvironmentBaseStack : Stack
             });
         }
         
+        // Export QuickSight security group ID
+        new CfnOutput(this, "QuickSightSecurityGroupId", new CfnOutputProps
+        {
+            Value = QuickSightSecurityGroup.SecurityGroupId,
+            ExportName = $"{_context.Environment.Name}-sg-quicksight-id",
+            Description = "Security group ID for QuickSight"
+        });
+        
+        // Export QuickSight VPC endpoint ID (single endpoint for website access)
+        new CfnOutput(this, "QuickSightWebsiteVpcEndpointId", new CfnOutputProps
+        {
+            Value = QuickSightApiEndpoint.VpcEndpointId,
+            ExportName = $"{_context.Environment.Name}-quicksight-website-vpc-endpoint-id",
+            Description = "QuickSight Website VPC Endpoint ID"
+        });
+        
+        // Export the same endpoint ID for backward compatibility with existing code
+        new CfnOutput(this, "QuickSightApiVpcEndpointId", new CfnOutputProps
+        {
+            Value = QuickSightApiEndpoint.VpcEndpointId,
+            ExportName = $"{_context.Environment.Name}-quicksight-api-vpc-endpoint-id",
+            Description = "QuickSight API VPC Endpoint ID (same as website endpoint)"
+        });
+        
+        new CfnOutput(this, "QuickSightEmbeddingVpcEndpointId", new CfnOutputProps
+        {
+            Value = QuickSightEmbeddingEndpoint.VpcEndpointId,
+            ExportName = $"{_context.Environment.Name}-quicksight-embedding-vpc-endpoint-id",
+            Description = "QuickSight Embedding VPC Endpoint ID (same as website endpoint)"
+        });
+        
         // Export shared log group name
         new CfnOutput(this, "SharedLogGroupName", new CfnOutputProps
         {
@@ -353,6 +562,42 @@ public class EnvironmentBaseStack : Stack
             ExportName = $"{_context.Environment.Name}-shared-log-group-name",
             Description = "Shared log group name"
         });
+
+        // Export database outputs if database cluster exists
+        if (SharedDatabaseCluster != null)
+        {
+            // Export cluster ARN
+            new CfnOutput(this, "SharedDatabaseClusterArn", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.ClusterArn,
+                ExportName = $"{_context.Environment.Name}-shared-db-cluster-arn",
+                Description = "Shared database cluster ARN"
+            });
+
+            // Export cluster endpoint
+            new CfnOutput(this, "SharedDatabaseEndpoint", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.ClusterEndpoint.Hostname,
+                ExportName = $"{_context.Environment.Name}-shared-db-endpoint",
+                Description = "Shared database cluster endpoint"
+            });
+
+            // Export cluster port
+            new CfnOutput(this, "SharedDatabasePort", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.ClusterEndpoint.Port.ToString(),
+                ExportName = $"{_context.Environment.Name}-shared-db-port",
+                Description = "Shared database cluster port"
+            });
+
+            // Export cluster secret ARN
+            new CfnOutput(this, "SharedDatabaseSecretArn", new CfnOutputProps
+            {
+                Value = SharedDatabaseCluster.Secret!.SecretArn,
+                ExportName = $"{_context.Environment.Name}-shared-db-secret-arn",
+                Description = "Shared database credentials secret ARN"
+            });
+        }
         
         Console.WriteLine($"   Exported resources with prefix: {_context.Environment.Name}-*");
     }

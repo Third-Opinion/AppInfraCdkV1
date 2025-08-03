@@ -93,7 +93,7 @@ public abstract class Program
             if (appName.ToLower() == "trialfinderv2")
             {
                 throw new ArgumentException(
-                    "TrialFinderV2 requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: ALB, ECS, DATA");
+                    "TrialFinderV2 requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: ALB, ECS, DATA, COGNITO");
             }
 
             // Default behavior for other applications (if any)
@@ -164,8 +164,20 @@ public abstract class Program
                     }, context);
                     return (stack, stackName);
                 }
+            case "COGNITO":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-cognito-{regionCode}";
+                    var stack = new TrialFinderV2CognitoStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialFinderV2 Cognito infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
             default:
-                throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA");
+                throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA, COGNITO");
         }
     }
 
