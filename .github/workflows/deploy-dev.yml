@@ -3,8 +3,6 @@ name: Deploy to Development
 on:
   push:
     branches: [develop]
-  pull_request:
-    branches: [main]
 
 env:
   CDK_ENVIRONMENT: Development
