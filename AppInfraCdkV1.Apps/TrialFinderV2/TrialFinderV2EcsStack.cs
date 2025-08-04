@@ -38,7 +38,6 @@ public class TrialFinderV2EcsStack : Stack
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
-
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
 
     public TrialFinderV2EcsStack(Construct scope,
@@ -1459,6 +1458,9 @@ public class TrialFinderV2EcsStack : Stack
 
                 // Add the CDKManaged tag required by IAM policy
                 Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+
+                // Store the full ARN with version suffix for later use
+                // _secretFullArns[secretName] = secret.SecretArn; // This line is removed
 
                 _createdSecrets[secretName] = secret;
                 return secret;
