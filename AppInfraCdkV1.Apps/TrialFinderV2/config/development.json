@@ -27,8 +27,6 @@
             ],
             "essential": true,
             "secrets": [
-              "AwsSecretsManager__DbSecretsArn",
-              "ConnectionStrings__DefaultConnection",
               "OpenAiOptions__ApiKey",
               "GoogleMaps__ApiKey",
               "MmrfConfigurations__ClientSecret",
@@ -96,16 +94,7 @@
               "secretOptions": []
             },
             "systemControls": [],
-            "healthCheck": {
-              "command": [
-                "CMD-SHELL",
-                "ps || exit 1"
-              ],
-              "interval": 30,
-              "timeout": 5,
-              "retries": 3,
-              "startPeriod": 60
-            }
+            "disableHealthCheck": true
           }
         ]
       }

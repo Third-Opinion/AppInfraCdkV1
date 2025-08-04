@@ -37,7 +37,7 @@ public class TrialFinderV2EcsStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
-    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.Secret> _createdSecrets = new();
+    private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
 
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
 
@@ -211,7 +211,7 @@ public class TrialFinderV2EcsStack : Stack
         
         // Add containers from configuration and get primary container info
         Console.WriteLine("📦 Configuring containers from configuration...");
-        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, context);
+        var primaryContainer = AddContainersFromConfiguration(taskDefinition, firstTaskDef, logGroup, cognitoOutputs, context);
 
         // Import security groups
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
@@ -1135,7 +1135,6 @@ public class TrialFinderV2EcsStack : Stack
                 }
             }));
         }
-<<<<<<< HEAD
     }
 
     /// <summary>
@@ -1417,26 +1416,54 @@ public class TrialFinderV2EcsStack : Stack
             return _createdSecrets[secretName];
         }
 
-        // Create the secret with a placeholder value
-        Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}'");
-        var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+        // Use AWS SDK to check if secret exists
+        Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
+        
+        if (SecretExists(fullSecretName))
         {
-            SecretName = fullSecretName,
-            Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
+            // Secret exists - import it to preserve manual values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
+            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+            Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
+            
+            _createdSecrets[secretName] = existingSecret;
+            return existingSecret;
+        }
+        else
+        {
+            // Secret doesn't exist - create it with generated values or Cognito values
+            Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
+            
+            // For Cognito secrets, we'll create them with generated values for now
+            // The actual values will be populated by the application at runtime
+            if (cognitoOutputs != null && IsCognitoSecret(secretName))
             {
-                SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
-                GenerateStringKey = "value",
-                PasswordLength = 32,
-                ExcludeCharacters = "\"@/\\"
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with generated value (will be updated manually)");
             }
-        });
+            {
+                // Regular secret with generated values
+                var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+                {
+                    SecretName = fullSecretName,
+                    Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                    GenerateSecretString = new SecretStringGenerator
+                    {
+                        SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                        GenerateStringKey = "value",
+                        PasswordLength = 32,
+                        ExcludeCharacters = "\"@/\\"
+                    }
+                });
 
-        // Add the CDKManaged tag required by IAM policy
-        Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+                // Add the CDKManaged tag required by IAM policy
+                Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
 
-        _createdSecrets[secretName] = secret;
-        return secret;
+                _createdSecrets[secretName] = secret;
+                return secret;
+            }
+        }
     }
 
     /// <summary>
