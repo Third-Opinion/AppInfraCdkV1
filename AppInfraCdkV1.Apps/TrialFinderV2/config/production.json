@@ -1,5 +1,5 @@
 {
-  "vpcNamePattern": "prod-shared-vpc-ue2-main",
+  "vpcNamePattern": "dev-shared-vpc-ue2-main",
   "ecsConfiguration": {
     "taskDefinition": [
       {
@@ -27,6 +27,8 @@
             ],
             "essential": true,
             "secrets": [
+              "AwsSecretsManager__DbSecretsArn",
+              "ConnectionStrings__DefaultConnection",
               "OpenAiOptions__ApiKey",
               "GoogleMaps__ApiKey",
               "MmrfConfigurations__ClientSecret",
@@ -52,13 +54,13 @@
               "secretOptions": []
             },
             "healthCheck": {
-              "command": [
-                "CMD-SHELL",
-                "/bin/sh -c 'wget -q -O - http://localhost:8080/health || exit 1'"
-              ],
-              "interval": 30,
-              "timeout": 5,
-              "retries": 3
+                "command": [
+                    "CMD-SHELL",
+                    "/bin/sh -c 'wget -q -O - http://localhost:8080/health || exit 1'"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3
             },
             "systemControls": []
           },
@@ -94,7 +96,16 @@
               "secretOptions": []
             },
             "systemControls": [],
-            "disableHealthCheck": true
+            "healthCheck": {
+              "command": [
+                "CMD-SHELL",
+                "ps || exit 1"
+              ],
+              "interval": 30,
+              "timeout": 5,
+              "retries": 3,
+              "startPeriod": 60
+            }
           }
         ]
       }
