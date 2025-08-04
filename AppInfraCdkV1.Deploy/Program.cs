@@ -93,8 +93,9 @@ public abstract class Program
             // Require explicit stack type for supported applications - no monolithic deployments
             if (appName.ToLower() == "trialfinderv2" || appName.ToLower() == "trialmatch")
             {
+                var supportedTypes = appName.ToLower() == "trialfinderv2" ? "ALB, ECS, DATA, COGNITO" : "ALB, ECS, DATA, COGNITO";
                 throw new ArgumentException(
-                    $"{appName} requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: ALB, ECS, DATA");
+                    $"{appName} requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: {supportedTypes}");
             }
 
             // Default behavior for other applications (if any)
@@ -253,8 +254,20 @@ public abstract class Program
                     }, context);
                     return (stack, stackName);
                 }
+            case "COGNITO":
+                {
+                    var stackName = $"{envPrefix}-{appCode}-cognito-{regionCode}";
+                    var stack = new TrialMatchCognitoStack(app, stackName, new StackProps
+                    {
+                        Env = environmentConfig.ToAwsEnvironment(),
+                        Description = $"TrialMatch Cognito infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                        Tags = context.GetCommonTags(),
+                        StackName = stackName
+                    }, context);
+                    return (stack, stackName);
+                }
             default:
-                throw new ArgumentException($"Unknown TrialMatch stack type: {stackType}. Supported types: ALB, ECS, DATA");
+                throw new ArgumentException($"Unknown TrialMatch stack type: {stackType}. Supported types: ALB, ECS, DATA, COGNITO");
         }
     }
 
@@ -398,8 +411,21 @@ public abstract class Program
         Console.WriteLine($"   Stack: {GenerateStackName(context)}");
         Console.WriteLine($"   VPC: {context.Namer.Vpc()}");
         Console.WriteLine($"   ECS Cluster: {context.Namer.EcsCluster()}");
-        Console.WriteLine($"   Web Service: {context.Namer.EcsService(ResourcePurpose.Web)}");
-        Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}");
+        
+        // Show multi-service names for TrialMatch, single service for others
+        if (context.Application.Name == "TrialMatch")
+        {
+            Console.WriteLine($"   API Service: {context.Namer.EcsService(ResourcePurpose.Web)}-api");
+            Console.WriteLine($"   Frontend Service: {context.Namer.EcsService(ResourcePurpose.Web)}-frontend");
+            Console.WriteLine($"   API Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}-api");
+            Console.WriteLine($"   Frontend Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}-frontend");
+        }
+        else
+        {
+            Console.WriteLine($"   Web Service: {context.Namer.EcsService(ResourcePurpose.Web)}");
+            Console.WriteLine($"   Web Task: {context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}");
+        }
+        
         Console.WriteLine($"   Web ALB: {context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web)}");
         Console.WriteLine($"   Database: {context.Namer.RdsInstance(ResourcePurpose.Main)}");
         Console.WriteLine($"   App Bucket: {context.Namer.S3Bucket(StoragePurpose.App)}");
@@ -410,10 +436,33 @@ public abstract class Program
         Console.WriteLine($"   ECS Security Group: {context.Namer.SecurityGroupForEcs(ResourcePurpose.Web)}");
         Console.WriteLine($"   RDS Security Group: {context.Namer.SecurityGroupForRds(ResourcePurpose.Main)}");
         Console.WriteLine("\n🔐 IAM Roles:");
-        Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}");
-        Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}");
+        
+        // Show multi-service roles for TrialMatch
+        if (context.Application.Name == "TrialMatch")
+        {
+            Console.WriteLine($"   API Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}-api");
+            Console.WriteLine($"   Frontend Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}-frontend");
+            Console.WriteLine($"   API Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}-api");
+            Console.WriteLine($"   Frontend Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}-frontend");
+        }
+        else
+        {
+            Console.WriteLine($"   ECS Task Role: {context.Namer.IamRole(IamPurpose.EcsTask)}");
+            Console.WriteLine($"   ECS Execution Role: {context.Namer.IamRole(IamPurpose.EcsExecution)}");
+        }
+        
         Console.WriteLine("\n📊 CloudWatch:");
-        Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}");
+        
+        // Show multi-service log groups for TrialMatch
+        if (context.Application.Name == "TrialMatch")
+        {
+            Console.WriteLine($"   API Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}-api");
+            Console.WriteLine($"   Frontend Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}-frontend");
+        }
+        else
+        {
+            Console.WriteLine($"   Log Group: {context.Namer.LogGroup("ecs", ResourcePurpose.Web)}");
+        }
 
         // Show application-specific resources if applicable
         if (context.Application.Name == "TrialFinderV2")

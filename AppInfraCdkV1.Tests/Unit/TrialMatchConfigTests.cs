@@ -239,16 +239,6 @@ public class TrialMatchConfigTests
         }
     }
 
-    [Fact]
-    public void GetContainerConfigurationWithValidEnvironmentReturnsConfiguration()
-    {
-        // Act
-        var config = TrialMatchConfig.GetContainerConfiguration("Development");
-
-        // Assert
-        config.ShouldNotBeNull();
-        config.ContainerDefinitions.ShouldNotBeNull();
-    }
 
     [Fact]
     public void GetContainerConfigurationWithInvalidEnvironmentThrowsFileNotFoundException()
@@ -268,19 +258,26 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            Secrets = new List<string> { "test-secret", "api-key" }
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
+                            {
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    Secrets = new List<string> { "test-secret", "api-key" }
+                                }
+                            }
                         }
                     }
                 }
@@ -292,25 +289,110 @@ public class TrialMatchConfigurationLoaderTests
     }
 
     [Fact]
-    public void ValidateConfiguration_WithMissingTaskDefinitionName_ShouldThrow()
+    public void ValidateConfiguration_WithMissingServiceName_ShouldThrow()
     {
         // Arrange
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>()
+                    ServiceName = "",
+                    TaskDefinition = new List<TaskDefinitionConfig>()
                 }
             }
         };
 
         // Act & Assert
         var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
-        exception.Message.ShouldBe("TaskDefinitionName is required in the configuration");
+        exception.Message.ShouldBe("ServiceName is required in the configuration");
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithEmptyServicesList_ShouldThrow()
+    {
+        // Arrange
+        var loader = new ConfigurationLoader();
+        var config = new EcsTaskConfiguration
+        {
+            Services = new List<ServiceConfig>()
+        };
+
+        // Act & Assert
+        var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
+        exception.Message.ShouldBe("At least one Service configuration is required");
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithDuplicateServiceNames_ShouldThrow()
+    {
+        // Arrange
+        var loader = new ConfigurationLoader();
+        var config = new EcsTaskConfiguration
+        {
+            Services = new List<ServiceConfig>
+            {
+                new ServiceConfig
+                {
+                    ServiceName = "duplicate-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
+                    {
+                        new TaskDefinitionConfig
+                        {
+                            TaskDefinitionName = "TestTaskDefinition1",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>()
+                        }
+                    }
+                },
+                new ServiceConfig
+                {
+                    ServiceName = "duplicate-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
+                    {
+                        new TaskDefinitionConfig
+                        {
+                            TaskDefinitionName = "TestTaskDefinition2",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>()
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act & Assert
+        var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
+        exception.Message.ShouldContain("Duplicate service names found: duplicate-service");
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithMissingTaskDefinitionName_ShouldThrow()
+    {
+        // Arrange
+        var loader = new ConfigurationLoader();
+        var config = new EcsTaskConfiguration
+        {
+            Services = new List<ServiceConfig>
+            {
+                new ServiceConfig
+                {
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
+                    {
+                        new TaskDefinitionConfig
+                        {
+                            TaskDefinitionName = "",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>()
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act & Assert
+        var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
+        exception.Message.ShouldBe("TaskDefinitionName is required in the configuration for service 'test-service'");
     }
 
     [Fact]
@@ -320,12 +402,19 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>()
+            Services = new List<ServiceConfig>
+            {
+                new ServiceConfig
+                {
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>()
+                }
+            }
         };
 
         // Act & Assert
         var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
-        exception.Message.ShouldBe("At least one TaskDefinition configuration is required");
+        exception.Message.ShouldBe("At least one TaskDefinition configuration is required for service 'test-service'");
     }
 
     [Fact]
@@ -335,24 +424,31 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "duplicate-name",
-                            Image = "nginx:latest",
-                            Essential = true
-                        },
-                        new ContainerDefinitionConfig
-                        {
-                            Name = "duplicate-name",
-                            Image = "nginx:latest",
-                            Essential = true
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
+                            {
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "duplicate-name",
+                                    Image = "nginx:latest",
+                                    Essential = true
+                                },
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "duplicate-name",
+                                    Image = "nginx:latest",
+                                    Essential = true
+                                }
+                            }
                         }
                     }
                 }
@@ -361,7 +457,7 @@ public class TrialMatchConfigurationLoaderTests
 
         // Act & Assert
         var exception = Should.Throw<InvalidOperationException>(() => loader.ValidateConfiguration(config));
-        exception.Message.ShouldContain("Duplicate container names found in task 'TestTaskDefinition': duplicate-name");
+        exception.Message.ShouldContain("Duplicate container names found in task 'TestTaskDefinition' for service 'test-service': duplicate-name");
     }
 
     [Fact]
@@ -371,18 +467,25 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "",
-                            Image = "nginx:latest",
-                            Essential = true
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
+                            {
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "",
+                                    Image = "nginx:latest",
+                                    Essential = true
+                                }
+                            }
                         }
                     }
                 }
@@ -401,24 +504,31 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            PortMappings = new List<PortMapping>
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
                             {
-                                new PortMapping
+                                new ContainerDefinitionConfig
                                 {
-                                    ContainerPort = 0,
-                                    Protocol = "tcp"
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    PortMappings = new List<PortMapping>
+                                    {
+                                        new PortMapping
+                                        {
+                                            ContainerPort = -1,
+                                            Protocol = "tcp"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -439,24 +549,31 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            PortMappings = new List<PortMapping>
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
                             {
-                                new PortMapping
+                                new ContainerDefinitionConfig
                                 {
-                                    ContainerPort = 8080,
-                                    Protocol = null
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    PortMappings = new List<PortMapping>
+                                    {
+                                        new PortMapping
+                                        {
+                                            ContainerPort = 8080,
+                                            Protocol = null
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -477,24 +594,31 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "${TASK_DEFINITION_FAMILY}",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            Environment = new List<EnvironmentVariable>
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
                             {
-                                new EnvironmentVariable
+                                new ContainerDefinitionConfig
                                 {
-                                    Name = "ENVIRONMENT",
-                                    Value = "${ENVIRONMENT}"
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    Environment = new List<EnvironmentVariable>
+                                    {
+                                        new EnvironmentVariable
+                                        {
+                                            Name = "API_URL",
+                                            Value = "http://${SERVICE_NAME}-api.example.com"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -524,12 +648,7 @@ public class TrialMatchConfigurationLoaderTests
         var result = loader.SubstituteVariables(config, context);
 
         // Assert
-        result.TaskDefinition.ShouldNotBeNull();
-        result.TaskDefinition.First().TaskDefinitionName.ShouldNotBeNull();
-        result.TaskDefinition.First().TaskDefinitionName.ShouldNotContain("${");
-        result.TaskDefinition.First().ContainerDefinitions.ShouldNotBeNull();
-        result.TaskDefinition.First().ContainerDefinitions.First().Environment.ShouldNotBeNull();
-        result.TaskDefinition.First().ContainerDefinitions.First().Environment.First().Value.ShouldBe("Development");
+        result.Services[0].TaskDefinition[0].ContainerDefinitions[0].Environment[0].Value.ShouldBe("http://dev-tm-svc-ue2-web-api.example.com");
     }
 
     [Fact]
@@ -539,19 +658,26 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            Secrets = new List<string> { "test-secret", "api-key", "db-password" }
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
+                            {
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    Secrets = new List<string> { "test-secret", "api-key", "db-password" }
+                                }
+                            }
                         }
                     }
                 }
@@ -569,19 +695,26 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            Secrets = new List<string>()
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
+                            {
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    Secrets = new List<string>()
+                                }
+                            }
                         }
                     }
                 }
@@ -599,19 +732,26 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            Secrets = null
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
+                            {
+                                new ContainerDefinitionConfig
+                                {
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    Secrets = null
+                                }
+                            }
                         }
                     }
                 }
@@ -629,24 +769,31 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            PortMappings = new List<PortMapping>
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
                             {
-                                new PortMapping
+                                new ContainerDefinitionConfig
                                 {
-                                    ContainerPort = 8080,
-                                    Protocol = "invalid-protocol"
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    PortMappings = new List<PortMapping>
+                                    {
+                                        new PortMapping
+                                        {
+                                            ContainerPort = 8080,
+                                            Protocol = "invalid-protocol"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -667,24 +814,31 @@ public class TrialMatchConfigurationLoaderTests
         var loader = new ConfigurationLoader();
         var config = new EcsTaskConfiguration
         {
-            TaskDefinition = new List<TaskDefinitionConfig>
+            Services = new List<ServiceConfig>
             {
-                new TaskDefinitionConfig
+                new ServiceConfig
                 {
-                    TaskDefinitionName = "TestTaskDefinition",
-                    ContainerDefinitions = new List<ContainerDefinitionConfig>
+                    ServiceName = "test-service",
+                    TaskDefinition = new List<TaskDefinitionConfig>
                     {
-                        new ContainerDefinitionConfig
+                        new TaskDefinitionConfig
                         {
-                            Name = "test-container",
-                            Image = "nginx:latest",
-                            Essential = true,
-                            PortMappings = new List<PortMapping>
+                            TaskDefinitionName = "TestTaskDefinition",
+                            ContainerDefinitions = new List<ContainerDefinitionConfig>
                             {
-                                new PortMapping
+                                new ContainerDefinitionConfig
                                 {
-                                    ContainerPort = 70000,
-                                    Protocol = "tcp"
+                                    Name = "test-container",
+                                    Image = "nginx:latest",
+                                    Essential = true,
+                                    PortMappings = new List<PortMapping>
+                                    {
+                                        new PortMapping
+                                        {
+                                            ContainerPort = 70000,
+                                            Protocol = "tcp"
+                                        }
+                                    }
                                 }
                             }
                         }

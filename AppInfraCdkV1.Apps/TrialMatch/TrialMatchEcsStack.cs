@@ -8,6 +8,7 @@ using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Apps.TrialMatch.Configuration;
+using AppInfraCdkV1.Apps.TrialMatch.Configuration;
 using AppInfraCdkV1.Core.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
@@ -39,8 +40,9 @@ public class TrialMatchEcsStack : Stack
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
-
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
+    private ICluster? _cluster;
+    private readonly Dictionary<string, IRepository> _ecrRepositories = new();
 
     public TrialMatchEcsStack(Construct scope,
         string id,
@@ -60,14 +62,26 @@ public class TrialMatchEcsStack : Stack
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
 
-        // Create ECS cluster
-        var cluster = CreateEcsCluster(vpc, context);
+        // Create ECR repositories for API and frontend
+        CreateEcrRepositories(context);
 
-        // Create ECS service with containers from configuration
-        CreateEcsService(cluster, albOutputs, context);
+        // Create ECS cluster
+        _cluster = CreateEcsCluster(vpc, context);
+
+        // Create ECS services with containers from configuration
+        CreateEcsServices(_cluster, albOutputs, context);
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
+
+        // Export cluster information
+        ExportClusterOutputs();
+
+        // Export ECR repository information
+        ExportEcrRepositoryOutputs();
+
+        // Create GitHub Actions ECS deployment role
+        CreateGitHubActionsEcsDeployRole(context);
     }
 
     /// <summary>
@@ -102,7 +116,8 @@ public class TrialMatchEcsStack : Stack
     {
         return new AlbStackOutputs
         {
-            TargetGroupArn = Fn.ImportValue($"{_context.Environment.Name}-trial-match-target-group-arn"),
+            ApiTargetGroupArn = Fn.ImportValue($"{_context.Environment.Name}-trial-match-api-target-group-arn"),
+            FrontendTargetGroupArn = Fn.ImportValue($"{_context.Environment.Name}-trial-match-frontend-target-group-arn"),
             EcsSecurityGroupId = Fn.ImportValue($"{_context.Environment.Name}-trial-match-ecs-security-group-id")
         };
     }
@@ -129,44 +144,63 @@ public class TrialMatchEcsStack : Stack
     }
 
     /// <summary>
-    /// Create ECS service with containers from configuration
+    /// Create ECS services with containers from configuration
     /// </summary>
-    private void CreateEcsService(ICluster cluster,
+    private void CreateEcsServices(ICluster cluster,
         AlbStackOutputs albOutputs,
         DeploymentContext context)
     {
         // Load ECS configuration
         var ecsConfig = _configLoader.LoadEcsConfig(context.Environment.Name);
         
-        // Create log group for the service
-        var logGroup = new LogGroup(this, "TrialMatchLogGroup", new LogGroupProps
+        if (ecsConfig.Services == null || ecsConfig.Services.Count == 0)
         {
-            LogGroupName = context.Namer.LogGroup("trial-match", ResourcePurpose.Web),
+            throw new InvalidOperationException("No services configured in ECS configuration");
+        }
+
+        foreach (var serviceConfig in ecsConfig.Services)
+        {
+            CreateEcsService(cluster, albOutputs, context, serviceConfig);
+        }
+    }
+
+    /// <summary>
+    /// Create a single ECS service with containers from configuration
+    /// </summary>
+    private void CreateEcsService(ICluster cluster,
+        AlbStackOutputs albOutputs,
+        DeploymentContext context,
+        ServiceConfig serviceConfig)
+    {
+        // Create log group for the service
+        var logGroup = new LogGroup(this, $"TrialMatchLogGroup-{serviceConfig.ServiceName}", new LogGroupProps
+        {
+            LogGroupName = context.Namer.LogGroup(serviceConfig.ServiceName, ResourcePurpose.Web),
             Retention = GetLogRetention(context.Environment.AccountType),
             RemovalPolicy = RemovalPolicy.DESTROY
         });
 
         // Create task definition
-        var taskDefinition = new FargateTaskDefinition(this, "TrialMatchTaskDefinition", new FargateTaskDefinitionProps
+        var taskDefinition = new FargateTaskDefinition(this, $"TrialMatchTaskDefinition-{serviceConfig.ServiceName}", new FargateTaskDefinitionProps
         {
-            Family = context.Namer.EcsTaskDefinition(ResourcePurpose.Web),
+            Family = $"{context.Namer.EcsTaskDefinition(ResourcePurpose.Web)}-{serviceConfig.ServiceName.Replace("trial-match-", "")}",
             Cpu = 256,
             MemoryLimitMiB = 512,
-            ExecutionRole = CreateExecutionRole(logGroup),
-            TaskRole = CreateTaskRole()
+            ExecutionRole = CreateExecutionRole(logGroup, serviceConfig.ServiceName),
+            TaskRole = CreateTaskRole(serviceConfig.ServiceName)
         });
 
         // Add containers from configuration
-        var containerInfo = AddContainersFromConfiguration(taskDefinition, ecsConfig.TaskDefinition.FirstOrDefault(), logGroup, context);
+        var containerInfo = AddContainersFromConfiguration(taskDefinition, serviceConfig.TaskDefinition.FirstOrDefault(), logGroup, context);
 
         // Create security group for ECS tasks
-        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "EcsSecurityGroup", albOutputs.EcsSecurityGroupId);
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, $"EcsSecurityGroup-{serviceConfig.ServiceName}", albOutputs.EcsSecurityGroupId);
 
         // Create ECS service with deployment-friendly settings
-        var service = new FargateService(this, "TrialMatchService", new FargateServiceProps
+        var service = new FargateService(this, $"TrialMatchService-{serviceConfig.ServiceName}", new FargateServiceProps
         {
             Cluster = cluster,
-            ServiceName = context.Namer.EcsService(ResourcePurpose.Web),
+            ServiceName = $"{context.Namer.EcsService(ResourcePurpose.Web)}-{serviceConfig.ServiceName.Replace("trial-match-", "")}",
             TaskDefinition = taskDefinition,
             DesiredCount = context.Environment.AccountType == AccountType.Production ? 2 : 1,
             MinHealthyPercent = 0, // Allow all tasks to be replaced during deployment
@@ -180,29 +214,30 @@ public class TrialMatchEcsStack : Stack
         // Only attach to target group if primary container has a valid port
         if (containerInfo.ContainerPort > 0)
         {
-            Console.WriteLine($"🔗 Attaching ECS service to ALB target group");
+            Console.WriteLine($"🔗 Attaching ECS service '{serviceConfig.ServiceName}' to ALB target group");
             Console.WriteLine($"   Container: {containerInfo.ContainerName}");
             Console.WriteLine($"   Port: {containerInfo.ContainerPort}");
             
             // Import target group from ALB stack and attach service
+            var targetGroupArn = serviceConfig.ServiceName.Contains("api") ? albOutputs.ApiTargetGroupArn : albOutputs.FrontendTargetGroupArn;
             var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
-                "ImportedTargetGroup", new TargetGroupAttributes
+                $"ImportedTargetGroup-{serviceConfig.ServiceName}", new TargetGroupAttributes
                 {
-                    TargetGroupArn = albOutputs.TargetGroupArn,
-                    LoadBalancerArns = albOutputs.TargetGroupArn // This will be overridden by the actual target group
+                    TargetGroupArn = targetGroupArn,
+                    LoadBalancerArns = targetGroupArn // This will be overridden by the actual target group
                 });
 
             // Register ECS service with target group using explicit container and port
             service.AttachToApplicationTargetGroup(targetGroup);
-            Console.WriteLine("✅ ECS service attached to target group successfully");
+            Console.WriteLine($"✅ ECS service '{serviceConfig.ServiceName}' attached to target group successfully");
         }
         else
         {
-            Console.WriteLine("⚠️  Skipping ALB target group attachment - no container with valid port found");
+            Console.WriteLine($"⚠️  Skipping ALB target group attachment for service '{serviceConfig.ServiceName}' - no container with valid port found");
         }
 
         // Export task definition outputs
-        ExportTaskDefinitionOutputs(taskDefinition, service, context);
+        ExportTaskDefinitionOutputs(taskDefinition, service, context, serviceConfig.ServiceName, containerInfo);
     }
 
     /// <summary>
@@ -248,6 +283,14 @@ public class TrialMatchEcsStack : Stack
             mainContainerInfo = new ContainerInfo("trial-match", 8080);
         }
 
+        // Log summary of secrets created/referenced
+        Console.WriteLine($"\n  🔑 Secrets Manager Summary:");
+        Console.WriteLine($"     Total secrets created/referenced: {_createdSecrets.Count}");
+        foreach (var kvp in _createdSecrets)
+        {
+            Console.WriteLine($"     - {kvp.Key}: {kvp.Value.SecretName}");
+        }
+
         return mainContainerInfo;
     }
 
@@ -261,9 +304,30 @@ public class TrialMatchEcsStack : Stack
     {
         if (containerConfig.Name == null) return;
 
+        Console.WriteLine($"\n  📦 Adding container '{containerConfig.Name}':");
+        Console.WriteLine($"     Image: {containerConfig.Image ?? "placeholder"}");
+        Console.WriteLine($"     CPU: {containerConfig.Cpu ?? 0}");
+        Console.WriteLine($"     Essential: {containerConfig.Essential ?? GetDefaultEssential(containerConfig.Name)}");
+        Console.WriteLine($"     Port Mappings: {containerConfig.PortMappings?.Count ?? 0}");
+        Console.WriteLine($"     Environment Variables: {containerConfig.Environment?.Count ?? 0}");
+        Console.WriteLine($"     Secrets: {containerConfig.Secrets?.Count ?? 0}");
+
+        // Handle placeholder image by using ECR repository
+        ContainerImage containerImage;
+        if (containerConfig.Image == "placeholder")
+        {
+            var placeholderRepository = Repository.FromRepositoryName(this, $"PlaceholderRepository-{containerConfig.Name}",
+                "thirdopinion/infra/deploy-placeholder");
+            containerImage = ContainerImage.FromEcrRepository(placeholderRepository, "latest");
+        }
+        else
+        {
+            containerImage = ContainerImage.FromRegistry(containerConfig.Image ?? "placeholder");
+        }
+
         var container = taskDefinition.AddContainer(containerConfig.Name, new ContainerDefinitionOptions
         {
-            Image = ContainerImage.FromRegistry(containerConfig.Image ?? "placeholder"),
+            Image = containerImage,
             ContainerName = containerConfig.Name,
             Cpu = containerConfig.Cpu ?? 0,
             Essential = containerConfig.Essential ?? GetDefaultEssential(containerConfig.Name),
@@ -412,6 +476,9 @@ public class TrialMatchEcsStack : Stack
     private Dictionary<string, string> GetContainerSpecificEnvironmentDefaults(string containerName,
         DeploymentContext context)
     {
+        // Determine port based on container name
+        var port = containerName.ToLower().Contains("frontend") ? "80" : "8080";
+        
         return new Dictionary<string, string>
         {
             ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name),
@@ -419,7 +486,7 @@ public class TrialMatchEcsStack : Stack
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
             ["APP_VERSION"] = context.Application.Version,
             ["AWS_REGION"] = context.Environment.Region,
-            ["PORT"] = "8080",
+            ["PORT"] = port,
             ["HEALTH_CHECK_PATH"] = "/health"
         };
     }
@@ -484,9 +551,20 @@ public class TrialMatchEcsStack : Stack
         ILogGroup logGroup,
         DeploymentContext context)
     {
+        // Import the ECR repository for the placeholder image
+        var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository",
+            "thirdopinion/infra/deploy-placeholder");
+
+        // Add environment variables that GitHub Actions will override
+        var placeholderEnv = CreateDefaultEnvironmentVariables(context, "trial-match");
+        placeholderEnv["DEPLOYMENT_TYPE"] = "placeholder";
+        placeholderEnv["MANAGED_BY"] = "CDK";
+        placeholderEnv["APP_NAME"] = context.Application.Name;
+        placeholderEnv["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
+
         var container = taskDefinition.AddContainer("trial-match", new ContainerDefinitionOptions
         {
-            Image = ContainerImage.FromRegistry("placeholder"),
+            Image = ContainerImage.FromEcrRepository(placeholderRepository, "latest"),
             ContainerName = "trial-match",
             Essential = true,
             PortMappings = new[]
@@ -504,13 +582,20 @@ public class TrialMatchEcsStack : Stack
                     Name = "trial-match-80-tcp"
                 }
             },
-            Environment = CreateDefaultEnvironmentVariables(context),
+            Environment = placeholderEnv,
             Logging = LogDrivers.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
                 StreamPrefix = "ecs"
             }),
-            HealthCheck = GetStandardHealthCheck()
+            HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
+            {
+                Command = new[] { "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1" },
+                Interval = Duration.Seconds(30),
+                Timeout = Duration.Seconds(5),
+                Retries = 3,
+                StartPeriod = Duration.Seconds(60)
+            }
         });
     }
 
@@ -551,8 +636,11 @@ public class TrialMatchEcsStack : Stack
     /// <summary>
     /// Create default environment variables
     /// </summary>
-    private Dictionary<string, string> CreateDefaultEnvironmentVariables(DeploymentContext context)
+    private Dictionary<string, string> CreateDefaultEnvironmentVariables(DeploymentContext context, string? containerName = null)
     {
+        // Determine port based on container name
+        var port = containerName?.ToLower().Contains("frontend") == true ? "80" : "8080";
+        
         return new Dictionary<string, string>
         {
             ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name),
@@ -560,7 +648,7 @@ public class TrialMatchEcsStack : Stack
             ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
             ["APP_VERSION"] = context.Application.Version,
             ["AWS_REGION"] = context.Environment.Region,
-            ["PORT"] = "8080",
+            ["PORT"] = port,
             ["HEALTH_CHECK_PATH"] = "/health"
         };
     }
@@ -568,13 +656,13 @@ public class TrialMatchEcsStack : Stack
     /// <summary>
     /// Create task role with necessary permissions
     /// </summary>
-    private IRole CreateTaskRole()
+    private IRole CreateTaskRole(string serviceName)
     {
-        var role = new Role(this, "TrialMatchTaskRole", new RoleProps
+        var role = new Role(this, $"TrialMatchTaskRole-{serviceName}", new RoleProps
         {
-            RoleName = "TrialMatchTaskRole",
+            RoleName = $"TrialMatchTaskRole-{serviceName}",
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
-            Description = "IAM role for TrialMatch ECS task execution"
+            Description = $"IAM role for TrialMatch {serviceName} ECS task execution"
         });
 
         // Add Secrets Manager permissions
@@ -591,13 +679,13 @@ public class TrialMatchEcsStack : Stack
     /// <summary>
     /// Create execution role with necessary permissions
     /// </summary>
-    private IRole CreateExecutionRole(ILogGroup logGroup)
+    private IRole CreateExecutionRole(ILogGroup logGroup, string serviceName)
     {
-        var role = new Role(this, "TrialMatchExecutionRole", new RoleProps
+        var role = new Role(this, $"TrialMatchExecutionRole-{serviceName}", new RoleProps
         {
-            RoleName = "TrialMatchExecutionRole",
+            RoleName = $"TrialMatchExecutionRole-{serviceName}",
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
-            Description = "IAM role for TrialMatch ECS task execution"
+            Description = $"IAM role for TrialMatch {serviceName} ECS task execution"
         });
 
         // Add ECS task execution policy
@@ -751,7 +839,9 @@ public class TrialMatchEcsStack : Stack
     /// </summary>
     private void CollectAllSecretsAndBuildMapping(TaskDefinitionConfig? taskDefConfig, DeploymentContext context)
     {
-        var allSecrets = new List<string>();
+        Console.WriteLine("🔐 Collecting all secret names and building mapping...");
+        
+        var allSecretNames = new List<string>();
 
         if (taskDefConfig?.ContainerDefinitions?.Count > 0)
         {
@@ -759,13 +849,88 @@ public class TrialMatchEcsStack : Stack
             {
                 if (container.Secrets?.Count > 0)
                 {
-                    allSecrets.AddRange(container.Secrets);
+                    allSecretNames.AddRange(container.Secrets);
                 }
             }
         }
 
+        Console.WriteLine($"   Found {allSecretNames.Count} unique secret(s) across all containers");
+
         // Build secret name mapping
-        BuildSecretNameMapping(allSecrets);
+        BuildSecretNameMapping(allSecretNames);
+    }
+
+    /// <summary>
+    /// Build secret name mapping
+    /// </summary>
+    private void BuildSecretNameMapping(List<string> secretNames)
+    {
+        foreach (var secretName in secretNames)
+        {
+            // Only add if not already present to avoid overwriting
+            if (!_envVarToSecretNameMapping.ContainsKey(secretName))
+            {
+                // Convert the secret name to a valid AWS Secrets Manager name
+                // Replace __ with - and convert to lowercase
+                var mappedSecretName = secretName.Replace("__", "-").ToLowerInvariant();
+                _envVarToSecretNameMapping[secretName] = mappedSecretName;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get secret name from environment variable
+    /// </summary>
+    private string GetSecretNameFromEnvVar(string secretName)
+    {
+        // Use the dynamically built mapping
+        if (_envVarToSecretNameMapping.TryGetValue(secretName, out var mappedSecretName))
+        {
+            return mappedSecretName;
+        }
+        
+        // Fallback: convert the environment variable name to a valid secret name
+        // Replace __ with - and convert to lowercase
+        return secretName.ToLowerInvariant().Replace("__", "-");
+    }
+
+    /// <summary>
+    /// Build full secret name
+    /// </summary>
+    private string BuildSecretName(string secretName, DeploymentContext context)
+    {
+        var environmentPrefix = context.Environment.Name.ToLowerInvariant();
+        var applicationName = context.Application.Name.ToLowerInvariant();
+        return $"/{environmentPrefix}/{applicationName}/{secretName}";
+    }
+
+    /// <summary>
+    /// Check if secret exists using AWS SDK
+    /// </summary>
+    private bool SecretExists(string secretName)
+    {
+        try
+        {
+            using var secretsManagerClient = new AmazonSecretsManagerClient();
+            var describeSecretRequest = new DescribeSecretRequest
+            {
+                SecretId = secretName
+            };
+            
+            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
+            return response != null;
+        }
+        catch (ResourceNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the deployment
+            Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
+            return false;
+        }
     }
 
     /// <summary>
@@ -777,12 +942,50 @@ public class TrialMatchEcsStack : Stack
 
         if (secretNames?.Count > 0)
         {
-            foreach (var secretName in secretNames)
+            Console.WriteLine($"     🔐 Processing {secretNames.Count} secret(s):");
+            
+            foreach (var envVarName in secretNames)
             {
-                var fullSecretName = BuildSecretName(secretName, context);
-                var secret = GetOrCreateSecret(secretName, fullSecretName, context);
-                
-                secrets[secretName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
+                // Special handling for tm-frontend-env-vars secret
+                if (envVarName == "tm-frontend-env-vars")
+                {
+                    var secretName = GetSecretNameFromEnvVar(envVarName);
+                    var fullSecretName = BuildSecretName(secretName, context);
+                    
+                    Console.WriteLine($"        - Multi-value secret '{envVarName}' -> Secret '{secretName}'");
+                    Console.WriteLine($"          Full secret path: {fullSecretName}");
+                    
+                    var secret = GetOrCreateMultiValueSecret(secretName, fullSecretName, context);
+                    
+                    // Create individual secret references for each environment variable
+                    var frontendEnvVars = new[]
+                    {
+                        "NEXT_PUBLIC_COGNITO_USER_POOL_ID",
+                        "NEXT_PUBLIC_COGNITO_CLIENT_ID", 
+                        "NEXT_PUBLIC_COGNITO_CLIENT_SECRET",
+                        "NEXT_PUBLIC_COGNITO_DOMAIN",
+                        "NEXT_PUBLIC_API_URL",
+                        "NEXT_PUBLIC_API_MODE"
+                    };
+                    
+                    foreach (var envVar in frontendEnvVars)
+                    {
+                        secrets[envVar] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret, envVar);
+                    }
+                }
+                else
+                {
+                    // Handle individual secrets as before
+                    var secretName = GetSecretNameFromEnvVar(envVarName);
+                    var fullSecretName = BuildSecretName(secretName, context);
+                    
+                    Console.WriteLine($"        - Environment variable '{envVarName}' -> Secret '{secretName}'");
+                    Console.WriteLine($"          Full secret path: {fullSecretName}");
+                    
+                    var secret = GetOrCreateSecret(secretName, fullSecretName, context);
+                    
+                    secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
+                }
             }
         }
 
@@ -790,84 +993,123 @@ public class TrialMatchEcsStack : Stack
     }
 
     /// <summary>
-    /// Build secret name mapping
-    /// </summary>
-    private void BuildSecretNameMapping(List<string> secretNames)
-    {
-        foreach (var secretName in secretNames)
-        {
-            var envVarName = GetSecretNameFromEnvVar(secretName);
-            _envVarToSecretNameMapping[envVarName] = secretName;
-        }
-    }
-
-    /// <summary>
-    /// Get secret name from environment variable
-    /// </summary>
-    private string GetSecretNameFromEnvVar(string secretName)
-    {
-        // Convert secret name to environment variable format
-        // e.g., "OpenAiOptions__ApiKey" -> "OpenAiOptions__ApiKey"
-        return secretName;
-    }
-
-    /// <summary>
-    /// Build full secret name
-    /// </summary>
-    private string BuildSecretName(string secretName, DeploymentContext context)
-    {
-        return $"{context.Environment.Name}-trial-match-{secretName}";
-    }
-
-    /// <summary>
-    /// Check if secret exists
-    /// </summary>
-    private bool SecretExists(string secretName)
-    {
-        try
-        {
-            // This is a simplified check - in a real implementation, you might want to use AWS SDK
-            // to check if the secret actually exists
-            return false; // Assume it doesn't exist for now
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Get or create secret
+    /// Get or create a secret in Secrets Manager
+    /// This method uses AWS SDK to check if secrets exist before creating them.
+    /// If a secret exists, it imports the existing secret reference to preserve manual values.
+    /// If a secret doesn't exist, it creates a new secret with generated values.
     /// </summary>
     private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, DeploymentContext context)
     {
-        if (_createdSecrets.ContainsKey(fullSecretName))
+        // Check if we already created this secret in this deployment
+        if (_createdSecrets.ContainsKey(secretName))
         {
-            return _createdSecrets[fullSecretName];
+            Console.WriteLine($"          ℹ️  Using existing secret reference for '{secretName}'");
+            return _createdSecrets[secretName];
         }
 
-        // Check if secret already exists
+        // Use AWS SDK to check if secret exists
+        Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
+        
         if (SecretExists(fullSecretName))
         {
-            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ExistingSecret-{secretName}", fullSecretName);
-            _createdSecrets[fullSecretName] = existingSecret;
+            // Secret exists - import it to preserve manual values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
+            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+            Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
+            
+            _createdSecrets[secretName] = existingSecret;
             return existingSecret;
         }
-
-        // Create new secret
-        var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+        else
         {
-            SecretName = fullSecretName,
-            Description = $"Secret for TrialMatch {secretName}",
-            GenerateSecretString = new SecretStringGenerator
+            // Secret doesn't exist - create it with generated values
+            Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
+            
+            // Regular secret with generated values
+            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
             {
-                SecretStringTemplate = "{\"value\":\"placeholder\"}",
-                GenerateStringKey = "value"
-            }
-        });
+                SecretName = fullSecretName,
+                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                GenerateSecretString = new SecretStringGenerator
+                {
+                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                    GenerateStringKey = "value",
+                    PasswordLength = 32,
+                    ExcludeCharacters = "\"@/\\"
+                }
+            });
 
-        _createdSecrets[fullSecretName] = secret;
-        return secret;
+            // Add the CDKManaged tag required by IAM policy
+            Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+
+            _createdSecrets[secretName] = secret;
+            return secret;
+        }
+    }
+
+    /// <summary>
+    /// Get or create a multi-value secret in Secrets Manager
+    /// This method is specifically for handling secrets that contain multiple key-value pairs,
+    /// like the tm-frontend-env-vars secret.
+    /// </summary>
+    private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateMultiValueSecret(string secretName, string fullSecretName, DeploymentContext context)
+    {
+        // Check if we already created this secret in this deployment
+        if (_createdSecrets.ContainsKey(secretName))
+        {
+            Console.WriteLine($"          ℹ️  Using existing secret reference for '{secretName}'");
+            return _createdSecrets[secretName];
+        }
+
+        // Use AWS SDK to check if secret exists
+        Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
+        
+        if (SecretExists(fullSecretName))
+        {
+            // Secret exists - import it to preserve manual values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
+            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+            Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
+            
+            _createdSecrets[secretName] = existingSecret;
+            return existingSecret;
+        }
+        else
+        {
+            // Secret doesn't exist - create it with the proper structure for frontend environment variables
+            Console.WriteLine($"          ✨ Creating new multi-value secret '{fullSecretName}' with frontend environment variables");
+            
+            // Create the JSON structure for frontend environment variables
+            var frontendEnvVarsJson = $@"{{
+  ""NEXT_PUBLIC_COGNITO_USER_POOL_ID"": ""your_value"",
+  ""NEXT_PUBLIC_COGNITO_CLIENT_ID"": ""your_value"", 
+  ""NEXT_PUBLIC_COGNITO_CLIENT_SECRET"": ""your_value"",
+  ""NEXT_PUBLIC_COGNITO_DOMAIN"": ""your_value"",
+  ""NEXT_PUBLIC_API_URL"": ""your_value"",
+  ""NEXT_PUBLIC_API_MODE"": ""your_value""
+}}";
+            
+            // Multi-value secret with the proper JSON structure
+            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            {
+                SecretName = fullSecretName,
+                Description = $"Multi-value secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                GenerateSecretString = new SecretStringGenerator
+                {
+                    SecretStringTemplate = frontendEnvVarsJson
+                }
+            });
+
+            // Add the CDKManaged tag required by IAM policy
+            Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+
+            _createdSecrets[secretName] = secret;
+            return secret;
+        }
     }
 
     /// <summary>
@@ -880,11 +1122,66 @@ public class TrialMatchEcsStack : Stack
             var secretName = kvp.Key;
             var secret = kvp.Value;
 
-            new CfnOutput(this, $"SecretArn-{secretName}", new CfnOutputProps
+            // Convert secret name to valid export name (replace all underscores with hyphens and convert to lowercase)
+            var validExportName = secretName.Replace("_", "-").Replace("__", "-").ToLowerInvariant();
+
+            new CfnOutput(this, $"SecretArn-{validExportName}", new CfnOutputProps
             {
                 Value = secret.SecretArn,
                 Description = $"TrialMatch Secret ARN for {secretName}",
-                ExportName = $"{_context.Environment.Name}-trial-match-secret-{secretName}-arn"
+                ExportName = $"{_context.Environment.Name}-trial-match-secret-{validExportName}-arn"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Export cluster information
+    /// </summary>
+    private void ExportClusterOutputs()
+    {
+        if (_cluster == null)
+        {
+            Console.WriteLine("Cluster not created, skipping export.");
+            return;
+        }
+
+        new CfnOutput(this, $"ClusterArn", new CfnOutputProps
+        {
+            Value = _cluster.ClusterArn,
+            Description = "TrialMatch ECS Cluster ARN",
+            ExportName = $"{_context.Environment.Name}-trial-match-cluster-arn"
+        });
+
+        new CfnOutput(this, $"ClusterName", new CfnOutputProps
+        {
+            Value = _cluster.ClusterName,
+            Description = "TrialMatch ECS Cluster Name",
+            ExportName = $"{_context.Environment.Name}-trial-match-cluster-name"
+        });
+    }
+
+    /// <summary>
+    /// Export ECR repository information
+    /// </summary>
+    private void ExportEcrRepositoryOutputs()
+    {
+        foreach (var kvp in _ecrRepositories)
+        {
+            var repositoryName = kvp.Key;
+            var repository = kvp.Value;
+
+            new CfnOutput(this, $"EcrRepositoryArn-{repositoryName}", new CfnOutputProps
+            {
+                Value = repository.RepositoryArn,
+                Description = $"TrialMatch ECR Repository ARN for {repositoryName}",
+                ExportName = $"{_context.Environment.Name}-trial-match-{repositoryName}-ecr-repository-arn"
+            });
+
+            new CfnOutput(this, $"EcrRepositoryName-{repositoryName}", new CfnOutputProps
+            {
+                Value = repository.RepositoryName,
+                Description = $"TrialMatch ECR Repository Name for {repositoryName}",
+                ExportName = $"{_context.Environment.Name}-trial-match-{repositoryName}-ecr-repository-name"
             });
         }
     }
@@ -907,27 +1204,285 @@ public class TrialMatchEcsStack : Stack
     /// </summary>
     private void ExportTaskDefinitionOutputs(FargateTaskDefinition taskDefinition,
         FargateService service,
-        DeploymentContext context)
+        DeploymentContext context,
+        string serviceName,
+        ContainerInfo containerInfo)
     {
-        new CfnOutput(this, "TaskDefinitionArn", new CfnOutputProps
+        new CfnOutput(this, $"TaskDefinitionArn-{serviceName}", new CfnOutputProps
         {
             Value = taskDefinition.TaskDefinitionArn,
-            Description = "TrialMatch Task Definition ARN",
-            ExportName = $"{context.Environment.Name}-trial-match-task-definition-arn"
+            Description = $"TrialMatch {serviceName} Task Definition ARN",
+            ExportName = $"{context.Environment.Name}-trial-match-{serviceName}-task-definition-arn"
         });
 
-        new CfnOutput(this, "ServiceArn", new CfnOutputProps
+        new CfnOutput(this, $"ServiceArn-{serviceName}", new CfnOutputProps
         {
             Value = service.ServiceArn,
-            Description = "TrialMatch ECS Service ARN",
-            ExportName = $"{context.Environment.Name}-trial-match-service-arn"
+            Description = $"TrialMatch {serviceName} ECS Service ARN",
+            ExportName = $"{context.Environment.Name}-trial-match-{serviceName}-service-arn"
         });
 
-        new CfnOutput(this, "ServiceName", new CfnOutputProps
+        new CfnOutput(this, $"ServiceName-{serviceName}", new CfnOutputProps
         {
             Value = service.ServiceName,
-            Description = "TrialMatch ECS Service Name",
-            ExportName = $"{context.Environment.Name}-trial-match-service-name"
+            Description = $"TrialMatch {serviceName} ECS Service Name",
+            ExportName = $"{context.Environment.Name}-trial-match-{serviceName}-service-name"
+        });
+
+        new CfnOutput(this, $"ContainerName-{serviceName}", new CfnOutputProps
+        {
+            Value = containerInfo.ContainerName,
+            Description = $"TrialMatch {serviceName} Container Name",
+            ExportName = $"{context.Environment.Name}-trial-match-{serviceName}-container-name"
+        });
+
+        new CfnOutput(this, $"ContainerPort-{serviceName}", new CfnOutputProps
+        {
+            Value = containerInfo.ContainerPort.ToString(),
+            Description = $"TrialMatch {serviceName} Container Port",
+            ExportName = $"{context.Environment.Name}-trial-match-{serviceName}-container-port"
+        });
+    }
+
+    /// <summary>
+    /// Create ECR repositories for API and frontend
+    /// </summary>
+    private void CreateEcrRepositories(DeploymentContext context)
+    {
+        var apiRepositoryName = context.Namer.EcrRepository("api");
+        var frontendRepositoryName = context.Namer.EcrRepository("frontend");
+
+        // Create or import API repository
+        if (!_ecrRepositories.ContainsKey("api"))
+        {
+            _ecrRepositories["api"] = GetOrCreateEcrRepository("api", apiRepositoryName, "TrialMatchApiEcrRepository");
+        }
+
+        // Create or import frontend repository
+        if (!_ecrRepositories.ContainsKey("frontend"))
+        {
+            _ecrRepositories["frontend"] = GetOrCreateEcrRepository("frontend", frontendRepositoryName, "TrialMatchFrontendEcrRepository");
+        }
+    }
+
+    /// <summary>
+    /// Get existing ECR repository or create new one
+    /// </summary>
+    private IRepository GetOrCreateEcrRepository(string serviceType, string repositoryName, string constructId)
+    {
+        try
+        {
+            // Try to import existing repository first
+            var existingRepository = Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
+            Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
+            return existingRepository;
+        }
+        catch (Exception)
+        {
+            // If import fails, create new repository
+            var repository = new Repository(this, constructId, new RepositoryProps
+            {
+                RepositoryName = repositoryName,
+                ImageScanOnPush = true,
+                RemovalPolicy = RemovalPolicy.RETAIN
+            });
+            Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+            return repository;
+        }
+    }
+
+    /// <summary>
+    /// Create GitHub Actions ECS deployment role
+    /// </summary>
+    private void CreateGitHubActionsEcsDeployRole(DeploymentContext context)
+    {
+        var role = new Role(this, "GitHubActionsEcsDeployRole", new RoleProps
+        {
+            RoleName = $"dev-tm-role-g-ecsdeploy-github-actions",
+            AssumedBy = new CompositePrincipal(
+                new ServicePrincipal("ecs.amazonaws.com"),
+                new WebIdentityPrincipal(
+                    $"arn:aws:iam::{context.Environment.AccountId}:oidc-provider/token.actions.githubusercontent.com",
+                    new Dictionary<string, object>
+                    {
+                        ["StringEquals"] = new Dictionary<string, object>
+                        {
+                            ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
+                        },
+                        ["StringLike"] = new Dictionary<string, object>
+                        {
+                            ["token.actions.githubusercontent.com:sub"] = new object[]
+                            {
+                                // AppInfraCdkV1 repository conditions
+                                $"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop",
+                                $"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/development",
+                                $"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/feature/*",
+                                $"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/master",
+                                $"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main",
+                                $"repo:Third-Opinion/AppInfraCdkV1:pull_request",
+                                $"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/*",
+                                $"repo:Third-Opinion/AppInfraCdkV1:environment:development",
+                                // TrialMatch Frontend repository conditions
+                                $"repo:Third-Opinion/TrialMatch-FE:ref:refs/heads/develop",
+                                $"repo:Third-Opinion/TrialMatch-FE:ref:refs/heads/development",
+                                $"repo:Third-Opinion/TrialMatch-FE:ref:refs/heads/feature/*",
+                                $"repo:Third-Opinion/TrialMatch-FE:ref:refs/heads/master",
+                                $"repo:Third-Opinion/TrialMatch-FE:ref:refs/heads/main",
+                                $"repo:Third-Opinion/TrialMatch-FE:pull_request",
+                                $"repo:Third-Opinion/TrialMatch-FE:ref:refs/heads/*",
+                                $"repo:Third-Opinion/TrialMatch-FE:environment:development",
+                                // TrialMatch Backend repository conditions
+                                $"repo:Third-Opinion/TrialMatch-BE:ref:refs/heads/develop",
+                                $"repo:Third-Opinion/TrialMatch-BE:ref:refs/heads/development",
+                                $"repo:Third-Opinion/TrialMatch-BE:ref:refs/heads/feature/*",
+                                $"repo:Third-Opinion/TrialMatch-BE:ref:refs/heads/master",
+                                $"repo:Third-Opinion/TrialMatch-BE:ref:refs/heads/main",
+                                $"repo:Third-Opinion/TrialMatch-BE:pull_request",
+                                $"repo:Third-Opinion/TrialMatch-BE:ref:refs/heads/*",
+                                $"repo:Third-Opinion/TrialMatch-BE:environment:development"
+                            }
+                        }
+                    }
+                )
+            ),
+            Description = $"Allows ECS to create and manage AWS resources on your behalf for TrialMatch in {context.Environment.Name} environment",
+            MaxSessionDuration = Duration.Hours(1)
+        });
+
+        // Add ECS permissions
+        role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeServices",
+                "ecs:DescribeTaskDefinition",
+                "ecs:DescribeTasks",
+                "ecs:ListTasks",
+                "ecs:UpdateService",
+                "ecs:RegisterTaskDefinition",
+                "ecs:CreateService",
+                "ecs:DeleteService",
+                "ecs:StopTask",
+                "ecs:RunTask",
+                "ecs:StartTask",
+                "ecs:DescribeClusters",
+                "ecs:ListServices",
+                "ecs:ListTaskDefinitions"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add IAM PassRole permissions for ECS task roles
+        role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "iam:PassRole"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:iam::{context.Environment.AccountId}:role/TrialMatchTaskRole-*",
+                $"arn:aws:iam::{context.Environment.AccountId}:role/TrialMatchExecutionRole-*"
+            }
+        }));
+
+        // Add ECR permissions
+        role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add Secrets Manager permissions for tagged secrets
+        role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret"
+            },
+            Resources = new[] { "*" },
+            Conditions = new Dictionary<string, object>
+            {
+                ["StringEquals"] = new Dictionary<string, object>
+                {
+                    ["secretsmanager:ResourceTag/CDKManaged"] = "true"
+                }
+            }
+        }));
+
+        // Add CloudWatch Logs permissions
+        role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add IAM permissions for ECS task roles
+        role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "iam:PassRole",
+                "iam:GetRole"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:iam::{context.Environment.AccountId}:role/dev-tm-role-ue2-ecs-task-*",
+                $"arn:aws:iam::{context.Environment.AccountId}:role/dev-tm-role-ue2-ecs-exec-*"
+            }
+        }));
+
+        // Attach the same managed policies as TrialFinderV2 role
+        role.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("service-role/AmazonEC2ContainerServiceRole"));
+        
+        // Try to attach the custom ECS deploy policy if it exists
+        try
+        {
+            role.AddManagedPolicy(ManagedPolicy.FromManagedPolicyArn(this, "DevGPolicyGhEcsDeploy", 
+                $"arn:aws:iam::{context.Environment.AccountId}:policy/dev-g-policy-g-gh-ecs-deploy"));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Warning: Could not attach dev-g-policy-g-gh-ecs-deploy policy: {ex.Message}");
+            Console.WriteLine("The role will still work with the inline policies defined above.");
+        }
+
+        // Add tags
+        Amazon.CDK.Tags.Of(role).Add("Purpose", "GitHubActionsECSDeploy");
+        Amazon.CDK.Tags.Of(role).Add("Environment", context.Environment.Name);
+        Amazon.CDK.Tags.Of(role).Add("Application", context.Application.Name);
+        Amazon.CDK.Tags.Of(role).Add("ManagedBy", "CDK");
+
+        // Export the role ARN
+        new CfnOutput(this, "GitHubActionsEcsDeployRoleArn", new CfnOutputProps
+        {
+            Value = role.RoleArn,
+            Description = $"ARN of the GitHub Actions ECS deployment role for TrialMatch in {context.Environment.Name}",
+            ExportName = $"{context.Environment.Name}-trial-match-github-actions-ecs-deploy-role-arn"
         });
     }
 
@@ -936,7 +1491,8 @@ public class TrialMatchEcsStack : Stack
     /// </summary>
     private class AlbStackOutputs
     {
-        public string TargetGroupArn { get; set; } = "";
+        public string ApiTargetGroupArn { get; set; } = "";
+        public string FrontendTargetGroupArn { get; set; } = "";
         public string EcsSecurityGroupId { get; set; } = "";
     }
 } 

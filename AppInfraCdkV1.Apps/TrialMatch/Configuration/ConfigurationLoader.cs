@@ -54,48 +54,77 @@ public class ConfigurationLoader
     /// </summary>
     public void ValidateConfiguration(EcsTaskConfiguration config)
     {
-        if (config.TaskDefinition == null || config.TaskDefinition.Count == 0)
+        if (config.Services == null || config.Services.Count == 0)
         {
-            throw new InvalidOperationException("At least one TaskDefinition configuration is required");
+            throw new InvalidOperationException("At least one Service configuration is required");
         }
         
-        
-        foreach (var taskDef in config.TaskDefinition)
+        // Check for duplicate service names
+        var serviceNames = config.Services
+            .Where(s => !string.IsNullOrWhiteSpace(s.ServiceName))
+            .Select(s => s.ServiceName)
+            .ToList();
+            
+        var duplicateServiceNames = serviceNames
+            .GroupBy(name => name)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+            
+        if (duplicateServiceNames.Count > 0)
         {
-            if (string.IsNullOrWhiteSpace(taskDef.TaskDefinitionName))
+            throw new InvalidOperationException($"Duplicate service names found: {string.Join(", ", duplicateServiceNames)}");
+        }
+        
+        foreach (var service in config.Services)
+        {
+            if (string.IsNullOrWhiteSpace(service.ServiceName))
             {
-                throw new InvalidOperationException("TaskDefinitionName is required in the configuration");
+                throw new InvalidOperationException("ServiceName is required in the configuration");
             }
             
-            var containerDefinitions = taskDef.ContainerDefinitions;
-            
-            if (containerDefinitions == null || containerDefinitions.Count == 0)
+            if (service.TaskDefinition == null || service.TaskDefinition.Count == 0)
             {
-                // This is allowed - will fallback to default container
-                continue;
+                throw new InvalidOperationException($"At least one TaskDefinition configuration is required for service '{service.ServiceName}'");
             }
             
-            // Validate each container
-            foreach (var container in containerDefinitions)
+            foreach (var taskDef in service.TaskDefinition)
             {
-                ValidateContainerDefinition(container);
-            }
-            
-            // Check for duplicate container names within this task definition
-            var containerNames = containerDefinitions
-                .Where(c => !string.IsNullOrWhiteSpace(c.Name))
-                .Select(c => c.Name!)
-                .ToList();
+                if (string.IsNullOrWhiteSpace(taskDef.TaskDefinitionName))
+                {
+                    throw new InvalidOperationException($"TaskDefinitionName is required in the configuration for service '{service.ServiceName}'");
+                }
                 
-            var duplicateNames = containerNames
-                .GroupBy(name => name)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
+                var containerDefinitions = taskDef.ContainerDefinitions;
                 
-            if (duplicateNames.Count > 0)
-            {
-                throw new InvalidOperationException($"Duplicate container names found in task '{taskDef.TaskDefinitionName}': {string.Join(", ", duplicateNames)}");
+                if (containerDefinitions == null || containerDefinitions.Count == 0)
+                {
+                    // This is allowed - will fallback to default container
+                    continue;
+                }
+                
+                // Validate each container
+                foreach (var container in containerDefinitions)
+                {
+                    ValidateContainerDefinition(container);
+                }
+                
+                // Check for duplicate container names within this task definition
+                var containerNames = containerDefinitions
+                    .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+                    .Select(c => c.Name!)
+                    .ToList();
+                    
+                var duplicateNames = containerNames
+                    .GroupBy(name => name)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+                    
+                if (duplicateNames.Count > 0)
+                {
+                    throw new InvalidOperationException($"Duplicate container names found in task '{taskDef.TaskDefinitionName}' for service '{service.ServiceName}': {string.Join(", ", duplicateNames)}");
+                }
             }
         }
     }
@@ -215,6 +244,12 @@ public class EcsTaskConfigurationWrapper
 }
 
 public class EcsTaskConfiguration
+{
+    public string ServiceName { get; set; } = string.Empty;
+    public List<ServiceConfig> Services { get; set; } = new();
+}
+
+public class ServiceConfig
 {
     public string ServiceName { get; set; } = string.Empty;
     public List<TaskDefinitionConfig> TaskDefinition { get; set; } = new();

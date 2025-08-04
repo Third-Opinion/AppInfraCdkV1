@@ -1,60 +1,110 @@
 {
   "vpcNamePattern": "dev-shared-vpc-ue2-main",
   "ecsConfiguration": {
-    "taskDefinition": [
+    "services": [
       {
-        "taskDefinitionName": "main",
-        "containerDefinitions": [
+        "serviceName": "trial-match-api",
+        "taskDefinition": [
           {
-            "name": "trial-match",
-            "image": "placeholder",
-            "cpu": 0,
-            "portMappings": [
+            "taskDefinitionName": "api",
+            "containerDefinitions": [
               {
-                "name": "trial-match-8080-tcp",
-                "containerPort": 8080,
-                "hostPort": 8080,
-                "protocol": "tcp",
-                "appProtocol": "http"
-              },
-              {
-                "name": "trial-match-80-tcp",
-                "containerPort": 80,
-                "hostPort": 80,
-                "protocol": "tcp",
-                "appProtocol": "http"
-              }
-            ],
-            "essential": true,
-            "secrets": [
-              "OpenAiOptions__ApiKey",
-              "GoogleMaps__ApiKey",
-              "ZipCodeApi__ApiKey"
-            ],
-            "mountPoints": [],
-            "volumesFrom": [],
-            "logConfiguration": {
-              "logDriver": "awslogs",
-              "options": {
-                "awslogs-group": "/ecs/trial-match",
-                "mode": "non-blocking",
-                "awslogs-create-group": "true",
-                "max-buffer-size": "25m",
-                "awslogs-region": "us-east-2",
-                "awslogs-stream-prefix": "ecs"
-              },
-              "secretOptions": []
-            },
-            "healthCheck": {
-                "command": [
-                    "CMD-SHELL",
-                    "/bin/sh -c 'wget -q -O - http://localhost:8080/health || exit 1'"
+                "name": "trial-match-api",
+                "image": "placeholder",
+                "cpu": 0,
+                "portMappings": [
+                  {
+                    "name": "trial-match-api-8080-tcp",
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                  }
                 ],
-                "interval": 30,
-                "timeout": 5,
-                "retries": 3
-            },
-            "systemControls": []
+                "essential": true,
+                "secrets": [
+                  "OpenAiOptions__ApiKey",
+                  "GoogleMaps__ApiKey",
+                  "ZipCodeApi__ApiKey"
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/trial-match-api",
+                    "mode": "non-blocking",
+                    "awslogs-create-group": "true",
+                    "max-buffer-size": "25m",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                  },
+                  "secretOptions": []
+                },
+                "healthCheck": {
+                    "command": [
+                        "CMD-SHELL",
+                        "/bin/sh -c 'wget -q -O - http://localhost:8080/health || exit 1'"
+                    ],
+                    "interval": 30,
+                    "timeout": 5,
+                    "retries": 3
+                },
+                "systemControls": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "serviceName": "trial-match-frontend",
+        "taskDefinition": [
+          {
+            "taskDefinitionName": "frontend",
+            "containerDefinitions": [
+              {
+                "name": "trial-match-frontend",
+                "image": "placeholder",
+                "cpu": 0,
+                "portMappings": [
+                  {
+                    "name": "trial-match-frontend-80-tcp",
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                  }
+                ],
+                "essential": true,
+                "secrets": [
+                  "tm-frontend-env-vars"
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/trial-match-frontend",
+                    "mode": "non-blocking",
+                    "awslogs-create-group": "true",
+                    "max-buffer-size": "25m",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                  },
+                  "secretOptions": []
+                },
+                "healthCheck": {
+                    "command": [
+                        "CMD-SHELL",
+                        "/bin/sh -c 'wget -q -O - http://localhost:80/ || exit 1'"
+                    ],
+                    "interval": 30,
+                    "timeout": 5,
+                    "retries": 3
+                },
+                "systemControls": []
+              }
+            ]
           }
         ]
       }

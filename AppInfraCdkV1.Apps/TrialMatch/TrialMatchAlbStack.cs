@@ -37,14 +37,14 @@ public class TrialMatchAlbStack : Stack
         // Create ALB with S3 logging
         var alb = CreateApplicationLoadBalancer(vpc, securityGroups.AlbSecurityGroup, context);
         
-        // Create target group for ECS service
-        var targetGroup = CreateTargetGroup(vpc, context);
+        // Create target groups for ECS services
+        var targetGroups = CreateTargetGroups(vpc, context);
         
         // Create ALB listeners (HTTP and HTTPS)
-        CreateListeners(alb, targetGroup);
+        CreateListeners(alb, targetGroups);
         
         // Export outputs for ECS stack consumption
-        ExportStackOutputs(alb, targetGroup, securityGroups);
+        ExportStackOutputs(alb, targetGroups, securityGroups);
     }
 
     /// <summary>
@@ -102,21 +102,24 @@ public class TrialMatchAlbStack : Stack
     }
 
     /// <summary>
-    /// Create target group for ECS service
+    /// Create target groups for ECS services
     /// </summary>
-    private IApplicationTargetGroup CreateTargetGroup(IVpc vpc, DeploymentContext context)
+    private Dictionary<string, IApplicationTargetGroup> CreateTargetGroups(IVpc vpc, DeploymentContext context)
     {
-        var targetGroup = new ApplicationTargetGroup(this, "TrialMatchTargetGroup", new ApplicationTargetGroupProps
+        var targetGroups = new Dictionary<string, IApplicationTargetGroup>();
+
+        // Create API target group
+        var apiTargetGroup = new ApplicationTargetGroup(this, "TrialMatchApiTargetGroup", new ApplicationTargetGroupProps
         {
             Port = 8080,
             Protocol = ApplicationProtocol.HTTP,
             Vpc = vpc,
-            TargetGroupName = context.Namer.Custom("tg", ResourcePurpose.Web),
+            TargetGroupName = context.Namer.Custom("tg-api", ResourcePurpose.Web),
             TargetType = TargetType.IP
         });
         
-        // Configure health check
-        targetGroup.ConfigureHealthCheck(new Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck
+        // Configure health check for API
+        apiTargetGroup.ConfigureHealthCheck(new Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck
         {
             Path = "/health",
             Protocol = Amazon.CDK.AWS.ElasticLoadBalancingV2.Protocol.HTTP,
@@ -126,13 +129,37 @@ public class TrialMatchAlbStack : Stack
             Port = "traffic-port"
         });
 
-        return targetGroup;
+        // Create Frontend target group
+        var frontendTargetGroup = new ApplicationTargetGroup(this, "TrialMatchFrontendTargetGroup", new ApplicationTargetGroupProps
+        {
+            Port = 80,
+            Protocol = ApplicationProtocol.HTTP,
+            Vpc = vpc,
+            TargetGroupName = context.Namer.Custom("tg-frontend", ResourcePurpose.Web),
+            TargetType = TargetType.IP
+        });
+        
+        // Configure health check for Frontend
+        frontendTargetGroup.ConfigureHealthCheck(new Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck
+        {
+            Path = "/health",
+            Protocol = Amazon.CDK.AWS.ElasticLoadBalancingV2.Protocol.HTTP,
+            Interval = Duration.Seconds(30),
+            HealthyThresholdCount = 2,
+            UnhealthyThresholdCount = 3,
+            Port = "traffic-port"
+        });
+
+        targetGroups["api"] = apiTargetGroup;
+        targetGroups["frontend"] = frontendTargetGroup;
+
+        return targetGroups;
     }
 
     /// <summary>
     /// Create ALB listeners for HTTP and HTTPS with routing rules
     /// </summary>
-    private void CreateListeners(IApplicationLoadBalancer alb, IApplicationTargetGroup targetGroup)
+    private void CreateListeners(IApplicationLoadBalancer alb, Dictionary<string, IApplicationTargetGroup> targetGroups)
     {
         // Get certificate ARNs based on environment
         var (defaultCertArn, sniCertArn) = GetCertificateArns(_context);
@@ -153,18 +180,26 @@ public class TrialMatchAlbStack : Stack
         // Add SNI certificate
         httpsListener.AddCertificates("SniCertificates", new[] { ListenerCertificate.FromArn(sniCert.CertificateArn) });
 
-        // Add routing rules for HTTPS listener
-        httpsListener.AddTargetGroups("HttpsAppRule", new AddApplicationTargetGroupsProps
+        // Add routing rules for HTTPS listener - API routes
+        httpsListener.AddTargetGroups("HttpsApiRule", new AddApplicationTargetGroupsProps
         {
-            TargetGroups = new[] { targetGroup },
-            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/app/*" }) },
+            TargetGroups = new[] { targetGroups["api"] },
+            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/api/*" }) },
             Priority = 100
         });
 
-        // Default action for HTTPS
+        // Add routing rules for HTTPS listener - Frontend routes
+        httpsListener.AddTargetGroups("HttpsFrontendRule", new AddApplicationTargetGroupsProps
+        {
+            TargetGroups = new[] { targetGroups["frontend"] },
+            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/*" }) },
+            Priority = 200
+        });
+
+        // Default action for HTTPS - route to frontend
         httpsListener.AddAction("HttpsDefaultAction", new Amazon.CDK.AWS.ElasticLoadBalancingV2.AddApplicationActionProps
         {
-            Action = ListenerAction.Forward(new[] { targetGroup })
+            Action = ListenerAction.Forward(new[] { targetGroups["frontend"] })
         });
 
         // Create HTTP listener on port 80
@@ -174,25 +209,33 @@ public class TrialMatchAlbStack : Stack
             Protocol = ApplicationProtocol.HTTP
         });
 
-        // Add routing rules for HTTP listener (matching HTTPS)
-        httpListener.AddTargetGroups("HttpAppRule", new AddApplicationTargetGroupsProps
+        // Add routing rules for HTTP listener - API routes (matching HTTPS)
+        httpListener.AddTargetGroups("HttpApiRule", new AddApplicationTargetGroupsProps
         {
-            TargetGroups = new[] { targetGroup },
-            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/app/*" }) },
+            TargetGroups = new[] { targetGroups["api"] },
+            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/api/*" }) },
             Priority = 100
         });
 
-        // Default action for HTTP
+        // Add routing rules for HTTP listener - Frontend routes (matching HTTPS)
+        httpListener.AddTargetGroups("HttpFrontendRule", new AddApplicationTargetGroupsProps
+        {
+            TargetGroups = new[] { targetGroups["frontend"] },
+            Conditions = new[] { ListenerCondition.PathPatterns(new[] { "/*" }) },
+            Priority = 200
+        });
+
+        // Default action for HTTP - route to frontend
         httpListener.AddAction("HttpDefaultAction", new Amazon.CDK.AWS.ElasticLoadBalancingV2.AddApplicationActionProps
         {
-            Action = ListenerAction.Forward(new[] { targetGroup })
+            Action = ListenerAction.Forward(new[] { targetGroups["frontend"] })
         });
     }
 
     /// <summary>
     /// Export stack outputs for ECS stack consumption
     /// </summary>
-    private void ExportStackOutputs(IApplicationLoadBalancer alb, IApplicationTargetGroup targetGroup, 
+    private void ExportStackOutputs(IApplicationLoadBalancer alb, Dictionary<string, IApplicationTargetGroup> targetGroups, 
         (ISecurityGroup AlbSecurityGroup, ISecurityGroup EcsSecurityGroup) securityGroups)
     {
         // Export ALB outputs
@@ -211,18 +254,32 @@ public class TrialMatchAlbStack : Stack
         });
 
         // Export target group outputs
-        new CfnOutput(this, "TargetGroupArn", new CfnOutputProps
+        new CfnOutput(this, "ApiTargetGroupArn", new CfnOutputProps
         {
-            Value = targetGroup.TargetGroupArn,
-            Description = "TrialMatch Target Group ARN",
-            ExportName = $"{_context.Environment.Name}-trial-match-target-group-arn"
+            Value = targetGroups["api"].TargetGroupArn,
+            Description = "TrialMatch API Target Group ARN",
+            ExportName = $"{_context.Environment.Name}-trial-match-api-target-group-arn"
         });
 
-        new CfnOutput(this, "TargetGroupName", new CfnOutputProps
+        new CfnOutput(this, "ApiTargetGroupName", new CfnOutputProps
         {
-            Value = targetGroup.TargetGroupName,
-            Description = "TrialMatch Target Group Name",
-            ExportName = $"{_context.Environment.Name}-trial-match-target-group-name"
+            Value = targetGroups["api"].TargetGroupName,
+            Description = "TrialMatch API Target Group Name",
+            ExportName = $"{_context.Environment.Name}-trial-match-api-target-group-name"
+        });
+
+        new CfnOutput(this, "FrontendTargetGroupArn", new CfnOutputProps
+        {
+            Value = targetGroups["frontend"].TargetGroupArn,
+            Description = "TrialMatch Frontend Target Group ARN",
+            ExportName = $"{_context.Environment.Name}-trial-match-frontend-target-group-arn"
+        });
+
+        new CfnOutput(this, "FrontendTargetGroupName", new CfnOutputProps
+        {
+            Value = targetGroups["frontend"].TargetGroupName,
+            Description = "TrialMatch Frontend Target Group Name",
+            ExportName = $"{_context.Environment.Name}-trial-match-frontend-target-group-name"
         });
 
         // Export security group outputs
@@ -271,10 +328,19 @@ public class TrialMatchAlbStack : Stack
     /// </summary>
     private (string defaultCertArn, string sniCertArn) GetCertificateArns(DeploymentContext context)
     {
-        // Import certificate ARNs from shared stack
-        var defaultCertArn = Fn.ImportValue($"{context.Environment.Name}-default-cert-arn");
-        var sniCertArn = Fn.ImportValue($"{context.Environment.Name}-sni-cert-arn");
-
-        return (defaultCertArn, sniCertArn);
+        // Production certificates
+        if (context.Environment.Name.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                "arn:aws:acm:us-east-2:442042533707:certificate/cb2cde98-92db-4e3c-84db-7b869aa7627a", // tm.thirdopinion.io
+                "arn:aws:acm:us-east-2:442042533707:certificate/9666bc78-d52e-499f-a6e8-ebc00d3e1cc3"  // *.thirdopinion.io
+            );
+        }
+        
+        // Development/Staging certificates - using same certificates as TrialFinderV2 for now
+        return (
+            "arn:aws:acm:us-east-2:615299752206:certificate/087ea311-2df9-4f71-afc1-b995a8576533",
+            "arn:aws:acm:us-east-2:615299752206:certificate/e9d39d56-c08c-4880-9c1a-da8361ee4f3e"
+        );
     }
 } 
