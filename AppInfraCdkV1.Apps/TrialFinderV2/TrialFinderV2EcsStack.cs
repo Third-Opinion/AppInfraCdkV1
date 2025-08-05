@@ -1824,8 +1824,9 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private IPrincipal CreateGitHubActionsTrustPolicy()
     {
-        var githubOrg = "Third-Opinion"; // Replace with your actual GitHub org
-        var githubRepo = "TrialFinderV2"; // Replace with your actual repo name
+        // GitHub configuration - update these constants for different applications
+        const string GITHUB_ORG = "Third-Opinion";
+        const string GITHUB_REPO = "TrialFinderV2";
         
         return new WebIdentityPrincipal(
             $"arn:aws:iam::{_context.Environment.AccountId}:oidc-provider/token.actions.githubusercontent.com",
@@ -1836,9 +1837,9 @@ public class TrialFinderV2EcsStack : Stack
                     ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com",
                     ["token.actions.githubusercontent.com:sub"] = new object[]
                     {
-                        $"repo:{githubOrg}/{githubRepo}:ref:refs/heads/develop",
-                        $"repo:{githubOrg}/{githubRepo}:ref:refs/heads/main",
-                        $"repo:{githubOrg}/{githubRepo}:pull_request"
+                        $"repo:{GITHUB_ORG}/{GITHUB_REPO}:ref:refs/heads/develop",
+                        $"repo:{GITHUB_ORG}/{GITHUB_REPO}:ref:refs/heads/main",
+                        $"repo:{GITHUB_ORG}/{GITHUB_REPO}:pull_request"
                     }
                 }
             }

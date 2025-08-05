@@ -30,20 +30,73 @@ The bootstrap role cannot be created by CDK itself because:
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "CloudFormationCDKOperations",
       "Effect": "Allow",
       "Action": [
-        "cloudformation:*",
-        "s3:*",
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStacks",
+        "cloudformation:GetTemplate",
+        "cloudformation:ValidateTemplate",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:ListStackResources"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3CDKBootstrapOperations",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::cdk-*",
+        "arn:aws:s3:::cdk-*/*"
+      ]
+    },
+    {
+      "Sid": "IAMRoleManagement",
+      "Effect": "Allow",
+      "Action": [
         "iam:CreateRole",
         "iam:DeleteRole",
         "iam:GetRole",
-        "iam:PassRole",
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy",
         "iam:PutRolePolicy",
         "iam:DeleteRolePolicy",
         "iam:TagRole",
         "iam:UntagRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMPassRoleRestricted",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/ecsTaskExecutionRole",
+        "arn:aws:iam::*:role/*-service-role",
+        "arn:aws:iam::*:role/*task-role",
+        "arn:aws:iam::*:role/*execution-role"
+      ]
+    },
+    {
+      "Sid": "EC2ReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeAvailabilityZones"
       ],
       "Resource": "*"
     }
@@ -125,7 +178,7 @@ Create a temporary file for the access policy:
 Set-Content -Path "access-policy.json" -Value '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["cloudformation:*","s3:*","iam:CreateRole","iam:DeleteRole","iam:GetRole","iam:PassRole","iam:AttachRolePolicy","iam:DetachRolePolicy","iam:PutRolePolicy","iam:DeleteRolePolicy","iam:TagRole","iam:UntagRole"],"Resource":"*"}]}'
 
 # For Linux/macOS
-echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["cloudformation:*","s3:*","iam:CreateRole","iam:DeleteRole","iam:GetRole","iam:PassRole","iam:AttachRolePolicy","iam:DetachRolePolicy","iam:PutRolePolicy","iam:DeleteRolePolicy","iam:TagRole","iam:UntagRole"],"Resource":"*"}]}' > access-policy.json
+echo '{"Version":"2012-10-17","Statement":[{"Sid":"CloudFormationCDKOperations","Effect":"Allow","Action":["cloudformation:CreateStack","cloudformation:UpdateStack","cloudformation:DeleteStack","cloudformation:DescribeStacks","cloudformation:DescribeStackEvents","cloudformation:ListStacks","cloudformation:GetTemplate","cloudformation:ValidateTemplate","cloudformation:DescribeStackResources","cloudformation:ListStackResources"],"Resource":"*"},{"Sid":"S3CDKBootstrapOperations","Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:ListBucket"],"Resource":["arn:aws:s3:::cdk-*","arn:aws:s3:::cdk-*/*"]},{"Sid":"IAMRoleManagement","Effect":"Allow","Action":["iam:CreateRole","iam:DeleteRole","iam:GetRole","iam:AttachRolePolicy","iam:DetachRolePolicy","iam:PutRolePolicy","iam:DeleteRolePolicy","iam:TagRole","iam:UntagRole"],"Resource":"*"},{"Sid":"IAMPassRoleRestricted","Effect":"Allow","Action":["iam:PassRole"],"Resource":["arn:aws:iam::*:role/ecsTaskExecutionRole","arn:aws:iam::*:role/*-service-role","arn:aws:iam::*:role/*task-role","arn:aws:iam::*:role/*execution-role"]},{"Sid":"EC2ReadOnly","Effect":"Allow","Action":["ec2:DescribeVpcs","ec2:DescribeSubnets","ec2:DescribeSecurityGroups","ec2:DescribeAvailabilityZones"],"Resource":"*"}]}' > access-policy.json
 ```
 
 ### Step 4: Create Bootstrap Role
@@ -232,6 +285,20 @@ The bootstrap role ARN should be stored as a GitHub secret and used in CDK deplo
 2. **OIDC authentication**: Uses GitHub Actions OIDC for secure authentication
 3. **Session duration**: Limited to 1 hour maximum
 4. **Audit trail**: All role assumptions are logged in CloudTrail
+5. **Scoped S3 access**: Limited to CDK bootstrap buckets (`cdk-*`) only
+6. **Specific CloudFormation operations**: Only necessary CDK operations allowed
+7. **Read-only EC2 access**: Only descriptive operations for VPC/subnet discovery
+
+### Security Improvements Over Previous Version
+
+The current policy includes several security improvements over the previous overly broad permissions:
+
+- **CloudFormation**: Changed from `cloudformation:*` to specific operations only
+- **S3**: Changed from `s3:*` to only `cdk-*` buckets
+- **IAM**: Kept necessary role management permissions but scoped to CDK operations
+- **IAM PassRole**: Restricted to specific role patterns using resource ARNs instead of service conditions for better security
+- **EC2**: Added read-only access for VPC/subnet discovery (required by CDK)
+- **Resource scoping**: S3 access is limited to CDK bootstrap buckets only
 
 ## Troubleshooting
 
@@ -272,7 +339,7 @@ REGION_CODE="ue2"
 Set-Content -Path "trust-policy.json" -Value "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::$ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\",\"token.actions.githubusercontent.com:sub\":[\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main\",\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop\",\"repo:Third-Opinion/AppInfraCdkV1:pull_request\"]}}}]}"
 
 # Create access policy
-Set-Content -Path "access-policy.json" -Value "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"cloudformation:*\",\"s3:*\",\"iam:CreateRole\",\"iam:DeleteRole\",\"iam:GetRole\",\"iam:PassRole\",\"iam:AttachRolePolicy\",\"iam:DetachRolePolicy\",\"iam:PutRolePolicy\",\"iam:DeleteRolePolicy\",\"iam:TagRole\",\"iam:UntagRole\"],\"Resource\":\"*\"}]}"
+Set-Content -Path "access-policy.json" -Value "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"CloudFormationCDKOperations\",\"Effect\":\"Allow\",\"Action\":[\"cloudformation:CreateStack\",\"cloudformation:UpdateStack\",\"cloudformation:DeleteStack\",\"cloudformation:DescribeStacks\",\"cloudformation:DescribeStackEvents\",\"cloudformation:ListStacks\",\"cloudformation:GetTemplate\",\"cloudformation:ValidateTemplate\",\"cloudformation:DescribeStackResources\",\"cloudformation:ListStackResources\"],\"Resource\":\"*\"},{\"Sid\":\"S3CDKBootstrapOperations\",\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::cdk-*\",\"arn:aws:s3:::cdk-*/*\"]},{\"Sid\":\"IAMRoleManagement\",\"Effect\":\"Allow\",\"Action\":[\"iam:CreateRole\",\"iam:DeleteRole\",\"iam:GetRole\",\"iam:AttachRolePolicy\",\"iam:DetachRolePolicy\",\"iam:PutRolePolicy\",\"iam:DeleteRolePolicy\",\"iam:TagRole\",\"iam:UntagRole\"],\"Resource\":\"*\"},{\"Sid\":\"IAMPassRoleRestricted\",\"Effect\":\"Allow\",\"Action\":[\"iam:PassRole\"],\"Resource\":[\"arn:aws:iam::*:role/ecsTaskExecutionRole\",\"arn:aws:iam::*:role/*-service-role\",\"arn:aws:iam::*:role/*task-role\",\"arn:aws:iam::*:role/*execution-role\"]},{\"Sid\":\"EC2ReadOnly\",\"Effect\":\"Allow\",\"Action\":[\"ec2:DescribeVpcs\",\"ec2:DescribeSubnets\",\"ec2:DescribeSecurityGroups\",\"ec2:DescribeAvailabilityZones\"],\"Resource\":\"*\"}]}"
 
 # Create role
 aws iam create-role --role-name $ENVIRONMENT-cdk-role-$REGION_CODE-bootstrap --assume-role-policy-document file://trust-policy.json --description "Bootstrap role for CDK deployments in $ENVIRONMENT environment" --max-session-duration 3600
