@@ -23,5 +23,20 @@ public enum IamPurpose
     /// <summary>
     /// General service account
     /// </summary>
-    Service
+    Service,
+    
+    /// <summary>
+    /// GitHub Actions role for CDK infrastructure deployments
+    /// </summary>
+    GitHubActionsCdk,
+    
+    /// <summary>
+    /// GitHub Actions role for ECS application deployments
+    /// </summary>
+    GitHubActionsEcs,
+    
+    /// <summary>
+    /// GitHub Actions OIDC provider for authentication
+    /// </summary>
+    GitHubActionsOidc
 }

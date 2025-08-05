@@ -67,6 +67,12 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
 
+        // Create GitHub Actions OIDC provider for authentication
+        CreateGitHubActionsOidcProvider();
+
+        // Create GitHub Actions role for ECS deployments
+        CreateGitHubActionsEcsRole();
+
         // Export secret ARNs for all created secrets
         ExportSecretArns();
     }
@@ -1657,6 +1663,186 @@ public class TrialFinderV2EcsStack : Stack
             Description = "ECS Execution IAM Role ARN",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-execution-role-arn"
         });
+    }
+
+    /// <summary>
+    /// Create GitHub Actions role for ECS deployments with proper permissions
+    /// </summary>
+    private void CreateGitHubActionsEcsRole()
+    {
+        Console.WriteLine("\n🔧 Creating GitHub Actions ECS deployment role...");
+        
+        // Use naming convention for role name
+        var roleName = _context.Namer.IamRole(IamPurpose.GitHubActionsEcs);
+        
+        var githubActionsRole = new Role(this, "GitHubActionsEcsRole", new RoleProps
+        {
+            RoleName = roleName,
+            Description = $"GitHub Actions role for ECS deployments of {_context.Application.Name} in {_context.Environment.Name}",
+            AssumedBy = CreateGitHubActionsTrustPolicy(),
+            MaxSessionDuration = Duration.Hours(1)
+        });
+
+        // Add ECR permissions for image access
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECRAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:DescribeRepositories",
+                "ecr:ListImages"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add ECS permissions for task definition and service management
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECSAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition",
+                "ecs:UpdateService",
+                "ecs:DescribeServices",
+                "ecs:DescribeTasks",
+                "ecs:ListTasks",
+                "ecs:StopTask",
+                "ecs:RunTask"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add CloudFormation permissions for stack output retrieval
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowCloudFormationAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "cloudformation:DescribeStacks",
+                "cloudformation:ListStacks",
+                "cloudformation:DescribeStackEvents"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add IAM PassRole permissions for ECS task execution
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowIAMPassRole",
+            Effect = Effect.ALLOW,
+            Actions = new[] { "iam:PassRole" },
+            Resources = new[]
+            {
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role",
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role"
+            }
+        }));
+
+        // Add CloudWatch Logs permissions for deployment monitoring
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowCloudWatchLogs",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:GetLogEvents"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Add Secrets Manager permissions for environment-specific secrets
+        githubActionsRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowSecretsManagerAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{_context.Environment.Name.ToLowerInvariant()}/{_context.Application.Name.ToLowerInvariant()}/*"
+            }
+        }));
+
+        // Add proper tags for identification
+        Amazon.CDK.Tags.Of(githubActionsRole).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(githubActionsRole).Add("Purpose", "GitHub-Actions-ECS");
+        Amazon.CDK.Tags.Of(githubActionsRole).Add("Service", _context.Application.Name);
+        Amazon.CDK.Tags.Of(githubActionsRole).Add("Environment", _context.Environment.Name);
+
+        // Export role ARN for GitHub Actions workflows
+        new CfnOutput(this, "GitHubActionsEcsRoleArn", new CfnOutputProps
+        {
+            Value = githubActionsRole.RoleArn,
+            Description = "GitHub Actions ECS deployment role ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-github-actions-ecs-role-arn"
+        });
+
+        Console.WriteLine($"✅ Created GitHub Actions ECS role: {roleName}");
+    }
+
+    /// <summary>
+    /// Create GitHub Actions OIDC provider for authentication
+    /// </summary>
+    private void CreateGitHubActionsOidcProvider()
+    {
+        Console.WriteLine("\n🔐 Creating GitHub Actions OIDC provider...");
+        
+        // Create OIDC provider for GitHub Actions
+        var oidcProvider = new OpenIdConnectProvider(this, "GitHubActionsOidcProvider", new OpenIdConnectProviderProps
+        {
+            Url = "https://token.actions.githubusercontent.com",
+            ClientIds = new[] { "sts.amazonaws.com" },
+            Thumbprints = new[] { "6938fd4d98bab03faadb97b34396831e3780aea1" }
+        });
+
+        // Export OIDC provider ARN
+        new CfnOutput(this, "GitHubActionsOidcProviderArn", new CfnOutputProps
+        {
+            Value = oidcProvider.OpenIdConnectProviderArn,
+            Description = "GitHub Actions OIDC provider ARN",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-github-actions-oidc-provider-arn"
+        });
+
+        Console.WriteLine("✅ Created GitHub Actions OIDC provider");
+    }
+
+    /// <summary>
+    /// Create trust policy for GitHub Actions OIDC authentication
+    /// </summary>
+    private IPrincipal CreateGitHubActionsTrustPolicy()
+    {
+        var githubOrg = "Third-Opinion"; // Replace with your actual GitHub org
+        var githubRepo = "TrialFinderV2"; // Replace with your actual repo name
+        
+        return new WebIdentityPrincipal(
+            $"arn:aws:iam::{_context.Environment.AccountId}:oidc-provider/token.actions.githubusercontent.com",
+            new Dictionary<string, object>
+            {
+                ["StringEquals"] = new Dictionary<string, object>
+                {
+                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com",
+                    ["token.actions.githubusercontent.com:sub"] = new object[]
+                    {
+                        $"repo:{githubOrg}/{githubRepo}:ref:refs/heads/develop",
+                        $"repo:{githubOrg}/{githubRepo}:ref:refs/heads/main",
+                        $"repo:{githubOrg}/{githubRepo}:pull_request"
+                    }
+                }
+            }
+        );
     }
 
 
