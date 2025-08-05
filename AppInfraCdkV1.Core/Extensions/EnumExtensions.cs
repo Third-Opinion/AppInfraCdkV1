@@ -45,6 +45,9 @@ public static class EnumExtensions
         IamPurpose.EcsExecution => "ecs-exec",
         IamPurpose.S3Access => "s3-access",
         IamPurpose.Service => "service",
+        IamPurpose.GitHubActionsCdk => "github-actions-cdk",
+        IamPurpose.GitHubActionsEcs => "github-actions-ecs",
+        IamPurpose.GitHubActionsOidc => "github-actions-oidc",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
     };
 
