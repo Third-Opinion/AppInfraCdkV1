@@ -104,13 +104,22 @@ The bootstrap role cannot be created by CDK itself because:
 }
 ```
 
-### Trust Policy (GitHub Actions OIDC)
+### Trust Policy (Complete)
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    },
+    {
+      "Sid": "AllowGitHubActionsOIDC",
       "Effect": "Allow",
       "Principal": {
         "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
@@ -118,10 +127,13 @@ The bootstrap role cannot be created by CDK itself because:
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
           "token.actions.githubusercontent.com:sub": [
             "repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main",
             "repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop",
+            "repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/*",
             "repo:Third-Opinion/AppInfraCdkV1:pull_request"
           ]
         }
@@ -130,6 +142,11 @@ The bootstrap role cannot be created by CDK itself because:
   ]
 }
 ```
+
+**Important**: 
+- The trust policy includes both ECS service principal and GitHub Actions OIDC
+- The GitHub Actions condition includes `"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/*"` to allow the infrastructure PR workflow to run on all branches
+- This is necessary because the `infrastructure-pr.yml` workflow runs on all branches (`branches: ['**']`) for validation purposes
 
 ## Manual Setup Process
 
@@ -161,10 +178,10 @@ Create a temporary file for the trust policy:
 
 ```bash
 # For Windows PowerShell
-Set-Content -Path "trust-policy.json" -Value '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com","token.actions.githubusercontent.com:sub":["repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main","repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop","repo:Third-Opinion/AppInfraCdkV1:pull_request"]}}}]}'
+Set-Content -Path "trust-policy.json" -Value '{"Version":"2012-10-17","Statement":[{"Sid":"","Effect":"Allow","Principal":{"Service":"ecs.amazonaws.com"},"Action":"sts:AssumeRole"},{"Sid":"AllowGitHubActionsOIDC","Effect":"Allow","Principal":{"Federated":"arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com"},"StringLike":{"token.actions.githubusercontent.com:sub":["repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main","repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop","repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/*","repo:Third-Opinion/AppInfraCdkV1:pull_request"]}}}]}'
 
 # For Linux/macOS
-echo '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com","token.actions.githubusercontent.com:sub":["repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main","repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop","repo:Third-Opinion/AppInfraCdkV1:pull_request"]}}}]}' > trust-policy.json
+echo '{"Version":"2012-10-17","Statement":[{"Sid":"","Effect":"Allow","Principal":{"Service":"ecs.amazonaws.com"},"Action":"sts:AssumeRole"},{"Sid":"AllowGitHubActionsOIDC","Effect":"Allow","Principal":{"Federated":"arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com"},"StringLike":{"token.actions.githubusercontent.com:sub":["repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main","repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop","repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/*","repo:Third-Opinion/AppInfraCdkV1:pull_request"]}}}]}' > trust-policy.json
 ```
 
 **Important**: Replace `ACCOUNT_ID` with your actual AWS account ID.
@@ -336,7 +353,7 @@ ENVIRONMENT="dev"
 REGION_CODE="ue2"
 
 # Create trust policy
-Set-Content -Path "trust-policy.json" -Value "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::$ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\",\"token.actions.githubusercontent.com:sub\":[\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main\",\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop\",\"repo:Third-Opinion/AppInfraCdkV1:pull_request\"]}}}]}"
+Set-Content -Path "trust-policy.json" -Value "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ecs.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"},{\"Sid\":\"AllowGitHubActionsOIDC\",\"Effect\":\"Allow\",\"Principal\":{\"Federated\":\"arn:aws:iam::$ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com\"},\"Action\":\"sts:AssumeRoleWithWebIdentity\",\"Condition\":{\"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\"},\"StringLike\":{\"token.actions.githubusercontent.com:sub\":[\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/main\",\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/develop\",\"repo:Third-Opinion/AppInfraCdkV1:ref:refs/heads/*\",\"repo:Third-Opinion/AppInfraCdkV1:pull_request\"]}}}]}"
 
 # Create access policy
 Set-Content -Path "access-policy.json" -Value "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"CloudFormationCDKOperations\",\"Effect\":\"Allow\",\"Action\":[\"cloudformation:CreateStack\",\"cloudformation:UpdateStack\",\"cloudformation:DeleteStack\",\"cloudformation:DescribeStacks\",\"cloudformation:DescribeStackEvents\",\"cloudformation:ListStacks\",\"cloudformation:GetTemplate\",\"cloudformation:ValidateTemplate\",\"cloudformation:DescribeStackResources\",\"cloudformation:ListStackResources\"],\"Resource\":\"*\"},{\"Sid\":\"S3CDKBootstrapOperations\",\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::cdk-*\",\"arn:aws:s3:::cdk-*/*\"]},{\"Sid\":\"IAMRoleManagement\",\"Effect\":\"Allow\",\"Action\":[\"iam:CreateRole\",\"iam:DeleteRole\",\"iam:GetRole\",\"iam:AttachRolePolicy\",\"iam:DetachRolePolicy\",\"iam:PutRolePolicy\",\"iam:DeleteRolePolicy\",\"iam:TagRole\",\"iam:UntagRole\"],\"Resource\":\"*\"},{\"Sid\":\"IAMPassRoleRestricted\",\"Effect\":\"Allow\",\"Action\":[\"iam:PassRole\"],\"Resource\":[\"arn:aws:iam::*:role/ecsTaskExecutionRole\",\"arn:aws:iam::*:role/*-service-role\",\"arn:aws:iam::*:role/*task-role\",\"arn:aws:iam::*:role/*execution-role\"]},{\"Sid\":\"EC2ReadOnly\",\"Effect\":\"Allow\",\"Action\":[\"ec2:DescribeVpcs\",\"ec2:DescribeSubnets\",\"ec2:DescribeSecurityGroups\",\"ec2:DescribeAvailabilityZones\"],\"Resource\":\"*\"}]}"
