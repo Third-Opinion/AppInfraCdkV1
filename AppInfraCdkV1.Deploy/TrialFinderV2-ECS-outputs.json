@@ -1,0 +1,19 @@
+{
+  "dev-tfv2-ecs-ue2": {
+    "TaskRoleArn": "arn:aws:iam::615299752206:role/Development-trialfinderv2-task-role",
+    "SecretArnopenaioptionsapikey": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/openaioptions-apikey-EIZjNU",
+    "SecretArncognitoclientid": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/cognito-clientid-45FOgy",
+    "SecretArncognitoclientsecret": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/cognito-clientsecret-2XHt2v",
+    "SecretArnzipcodeapiapikey": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/zipcodeapi-apikey-OAXc7O",
+    "SecretArncognitodomain": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/cognito-domain-7wxPWM",
+    "SecretArnmmrfconfigurationsclientsecret": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/mmrfconfigurations-clientsecret-byQGdO",
+    "SecretArngooglemapsapikey": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/googlemaps-apikey-ZqW7sK",
+    "ExecutionRoleArn": "arn:aws:iam::615299752206:role/Development-trialfinderv2-execution-role",
+    "SecretArncognitouserpoolid": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/cognito-userpoolid-dkdR1G",
+    "ServiceName": "dev-tfv2-svc-ue2-web",
+    "SecretArnmmrfconfigurationsclientid": "arn:aws:secretsmanager:us-east-2:615299752206:secret:/development/trialfinderv2/mmrfconfigurations-clientid-bVQBXw",
+    "TaskDefinitionFamily": "dev-tfv2-task-ue2-main",
+    "ClusterName": "dev-tfv2-ecs-ue2-main",
+    "TaskDefinitionArn": "arn:aws:ecs:us-east-2:615299752206:task-definition/dev-tfv2-task-ue2-main:58"
+  }
+}

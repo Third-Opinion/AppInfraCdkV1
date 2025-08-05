@@ -39,7 +39,6 @@ public class TrialFinderV2EcsStack : Stack
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
-
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
 
     public TrialFinderV2EcsStack(Construct scope,
@@ -226,13 +225,7 @@ public class TrialFinderV2EcsStack : Stack
         // Import security groups
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
             albOutputs.EcsSecurityGroupId);
-        var rdsSecurityGroup = ImportSharedDatabaseSecurityGroup();
-
-        // Add outbound rule to ECS security group to allow traffic to RDS
-        Console.WriteLine("🔗 Adding outbound rule to ECS security group for database connectivity...");
-        ecsSecurityGroup.AddEgressRule(rdsSecurityGroup, Port.Tcp(5432), "Allow PostgreSQL traffic to shared database");
-        Console.WriteLine("✅ Added outbound rule: ECS -> RDS (port 5432)");
-
+        
         // Create ECS service with deployment-friendly settings
         var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
         {
@@ -1331,7 +1324,7 @@ public class TrialFinderV2EcsStack : Stack
                 secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
                 
                 Console.WriteLine($"        - Environment variable '{envVarName}' -> Secret '{secretName}'");
-                Console.WriteLine($"          Full secret path: {fullSecretName}");
+                Console.WriteLine($"          Full secret path: {secret.SecretArn}");
             }
         }
         
@@ -1385,7 +1378,11 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Check if a secret exists in AWS Secrets Manager using AWS SDK
     /// </summary>
-    private bool SecretExists(string secretName)
+    /// <summary>
+    /// Get secret information from AWS Secrets Manager using AWS SDK
+    /// Returns a tuple with (exists, arn) where arn is null if secret doesn't exist
+    /// </summary>
+    private (bool exists, string? arn) GetSecret(string secretName)
     {
         try
         {
@@ -1396,18 +1393,18 @@ public class TrialFinderV2EcsStack : Stack
             };
             
             var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
-            return response != null;
+            return (true, response.ARN);
         }
         catch (ResourceNotFoundException)
         {
-            return false;
+            return (false, null);
         }
         catch (Exception ex)
         {
             // Log the error but don't fail the deployment
             Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
             Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
-            return false;
+            return (false, null);
         }
     }
 
@@ -1426,14 +1423,17 @@ public class TrialFinderV2EcsStack : Stack
             return _createdSecrets[secretName];
         }
 
-        // Use AWS SDK to check if secret exists
+        // Use AWS SDK to check if secret exists and get its ARN
         Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
         
-        if (SecretExists(fullSecretName))
+        var (secretExists, secretArn) = GetSecret(fullSecretName);
+        
+        if (secretExists)
         {
             // Secret exists - import it to preserve manual values
             Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
-            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+            
+            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretCompleteArn(this, $"ImportedSecret-{secretName}", secretArn!);
             
             // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
             Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
@@ -1469,6 +1469,9 @@ public class TrialFinderV2EcsStack : Stack
 
                 // Add the CDKManaged tag required by IAM policy
                 Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+
+                // Store the full ARN with version suffix for later use
+                // _secretFullArns[secretName] = secret.SecretArn; // This line is removed
 
                 _createdSecrets[secretName] = secret;
                 return secret;
