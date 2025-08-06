@@ -967,11 +967,12 @@ public class TrialFinderV2EcsStack : Stack
         {
             RoleName = roleName,
             Description = $"Role for GitHub Actions to deploy to ECS in {context.Environment.Name}",
-            AssumedBy = new FederatedPrincipal("token.actions.githubusercontent.com", new Dictionary<string, object>
+            AssumedBy = new FederatedPrincipal($"arn:aws:iam::{context.Environment.AccountId}:oidc-provider/token.actions.githubusercontent.com", new Dictionary<string, object>
             {
                 ["StringEquals"] = new Dictionary<string, string>
                 {
-                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
+                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com",
+                    ["token.actions.githubusercontent.com:iss"] = "https://token.actions.githubusercontent.com"
                 },
                 ["StringLike"] = new Dictionary<string, string>
                 {
