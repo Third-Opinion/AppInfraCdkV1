@@ -65,11 +65,11 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
 
-        // Create ECS service with containers from configuration
-        CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
-
         // Create GitHub Actions deployment role
         _githubActionsRole = CreateGithubActionsDeploymentRole(context);
+
+        // Create ECS service with containers from configuration
+        CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
@@ -1068,6 +1068,23 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[]
             {
                 $"arn:aws:iam::{context.Environment.AccountId}:role/{context.Environment.Name}-{context.Application.Name.ToLowerInvariant()}-*"
+            }
+        }));
+
+        // Add Secrets Manager permissions for secret existence checking
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowSecretsManagerRead",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:ListSecrets"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:secretsmanager:{context.Environment.Region}:{context.Environment.AccountId}:secret:/{context.Environment.Name.ToLowerInvariant()}/{context.Application.Name.ToLowerInvariant()}/*"
             }
         }));
 
