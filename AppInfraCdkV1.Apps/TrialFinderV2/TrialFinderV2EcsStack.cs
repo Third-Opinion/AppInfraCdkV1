@@ -1528,8 +1528,15 @@ public class TrialFinderV2EcsStack : Stack
     /// Get secret information from AWS Secrets Manager using AWS SDK
     /// Returns a tuple with (exists, arn) where arn is null if secret doesn't exist
     /// </summary>
-    private (bool exists, string? arn) GetSecret(string secretName)
+    private async Task<(bool exists, string? arn)> GetSecretAsync(string secretName)
     {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(secretName))
+        {
+            Console.WriteLine($"          ⚠️  Secret name is null or empty");
+            return (false, null);
+        }
+
         try
         {
             using var secretsManagerClient = new AmazonSecretsManagerClient();
@@ -1538,7 +1545,7 @@ public class TrialFinderV2EcsStack : Stack
                 SecretId = secretName
             };
             
-            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
+            var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
             return (true, response.ARN);
         }
         catch (ResourceNotFoundException)
@@ -1552,6 +1559,15 @@ public class TrialFinderV2EcsStack : Stack
             Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
             return (false, null);
         }
+    }
+
+    /// <summary>
+    /// Check if a secret exists in Secrets Manager using AWS SDK (synchronous wrapper)
+    /// </summary>
+    private (bool exists, string? arn) GetSecret(string secretName)
+    {
+        // Use Task.Run to avoid blocking the main thread
+        return Task.Run(() => GetSecretAsync(secretName)).Result;
     }
 
     /// <summary>
@@ -1942,10 +1958,17 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Check if ECR repository has a latest image and return its URI
+    /// Check if ECR repository has a latest image and return its URI (async version)
     /// </summary>
-    private string? GetLatestEcrImageUri(string containerName, DeploymentContext context)
+    private async Task<string?> GetLatestEcrImageUriAsync(string containerName, DeploymentContext context)
     {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(containerName))
+        {
+            Console.WriteLine($"     ⚠️  Container name is null or empty");
+            return null;
+        }
+
         try
         {
             // Get the ECR repository for the container
@@ -1973,7 +1996,7 @@ public class TrialFinderV2EcsStack : Stack
                 RepositoryName = repositoryName
             };
 
-            var listImagesResponse = ecrClient.ListImagesAsync(listImagesRequest).Result;
+            var listImagesResponse = await ecrClient.ListImagesAsync(listImagesRequest);
             
             if (listImagesResponse.ImageIds == null || listImagesResponse.ImageIds.Count == 0)
             {
@@ -2007,5 +2030,14 @@ public class TrialFinderV2EcsStack : Stack
             Console.WriteLine($"     ⚠️  Error checking ECR repository for container '{containerName}': {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Check if ECR repository has a latest image and return its URI (synchronous wrapper)
+    /// </summary>
+    private string? GetLatestEcrImageUri(string containerName, DeploymentContext context)
+    {
+        // Use Task.Run to avoid blocking the main thread
+        return Task.Run(() => GetLatestEcrImageUriAsync(containerName, context)).Result;
     }
 }

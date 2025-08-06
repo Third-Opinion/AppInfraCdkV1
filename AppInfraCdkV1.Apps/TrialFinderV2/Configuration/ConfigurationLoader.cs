@@ -115,6 +115,12 @@ public class ConfigurationLoader
             throw new InvalidOperationException($"Container '{container.Name}' requires an image");
         }
         
+        // Allow "placeholder" as a valid image value for development/testing
+        if (container.Image.Equals("placeholder", StringComparison.OrdinalIgnoreCase))
+        {
+            // This is valid - placeholder images are used for development/testing
+        }
+        
         // Validate repository configuration if present
         if (container.Repository != null)
         {
