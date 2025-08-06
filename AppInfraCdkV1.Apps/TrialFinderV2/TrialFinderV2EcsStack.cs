@@ -1910,16 +1910,60 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private IRepository GetOrCreateEcrRepository(string serviceType, string repositoryName, string constructId)
     {
+        // Use AWS SDK to check if repository actually exists
+        var region = _context.Environment.Region;
+        using var ecrClient = new AmazonECRClient(new AmazonECRConfig
+        {
+            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region)
+        });
+
         try
         {
-            // Try to import existing repository first
-            var existingRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
-            Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
-            return existingRepository;
+            // Check if repository exists using AWS SDK
+            var describeRequest = new DescribeRepositoriesRequest
+            {
+                RepositoryNames = new List<string> { repositoryName }
+            };
+            var describeResponse = Task.Run(() => ecrClient.DescribeRepositoriesAsync(describeRequest)).Result;
+            
+            if (describeResponse.Repositories != null && describeResponse.Repositories.Count > 0)
+            {
+                // Repository exists, import it
+                var existingRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
+                Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
+                return existingRepository;
+            }
+            else
+            {
+                // Repository doesn't exist, create it
+                var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
+                {
+                    RepositoryName = repositoryName,
+                    ImageScanOnPush = true,
+                    RemovalPolicy = RemovalPolicy.RETAIN
+                });
+                Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+                return repository;
+            }
         }
-        catch (Exception)
+        catch (RepositoryNotFoundException)
         {
-            // If import fails, create new repository
+            // Repository doesn't exist, create it
+            var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
+            {
+                RepositoryName = repositoryName,
+                ImageScanOnPush = true,
+                RemovalPolicy = RemovalPolicy.RETAIN
+            });
+            Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+            return repository;
+        }
+        catch (Exception ex)
+        {
+            // For any other error, assume repository doesn't exist and create it
+            Console.WriteLine($"⚠️  Error checking ECR repository '{repositoryName}': {ex.Message}");
+            Console.WriteLine($"   Creating new ECR repository: {repositoryName}");
+            
             var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
             {
                 RepositoryName = repositoryName,
