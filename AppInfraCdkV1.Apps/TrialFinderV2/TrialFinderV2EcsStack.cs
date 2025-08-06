@@ -1008,6 +1008,21 @@ public class TrialFinderV2EcsStack : Stack
             }
         }));
 
+        // Add specific permission for DescribeTaskDefinition with * resource
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowDescribeTaskDefinition",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeTaskDefinition"
+            },
+            Resources = new[]
+            {
+                "*"
+            }
+        }));
+        
         // Add ECR permissions for image access
         deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
