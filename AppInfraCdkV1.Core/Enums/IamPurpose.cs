@@ -23,5 +23,10 @@ public enum IamPurpose
     /// <summary>
     /// General service account
     /// </summary>
-    Service
+    Service,
+    
+    /// <summary>
+    /// GitHub Actions deployment role for ECS task definition updates
+    /// </summary>
+    GithubActionsDeploy
 }
