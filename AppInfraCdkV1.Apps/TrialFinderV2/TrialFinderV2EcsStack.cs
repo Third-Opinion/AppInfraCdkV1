@@ -39,6 +39,7 @@ public class TrialFinderV2EcsStack : Stack
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
+    private readonly Dictionary<string, IRepository> _ecrRepositories = new();
     private IRole? _githubActionsRole;
 
     public TrialFinderV2EcsStack(Construct scope,
@@ -73,6 +74,12 @@ public class TrialFinderV2EcsStack : Stack
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
+
+        // Create ECR repository for TrialFinder container images
+        _ecrRepositories["webapp"] = CreateEcrRepository(context);
+
+        // Export ECR repository information
+        ExportEcrRepositoryOutputs();
     }
 
     /// <summary>
@@ -1814,5 +1821,67 @@ public class TrialFinderV2EcsStack : Stack
         public string AppClientId { get; set; } = "";
         public string DomainUrl { get; set; } = "";
         public string DomainName { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Create ECR repository for TrialFinder container images
+    /// </summary>
+    private IRepository CreateEcrRepository(DeploymentContext context)
+    {
+        var repositoryName = context.Namer.EcrRepository("webapp");
+        
+        return GetOrCreateEcrRepository("webapp", repositoryName, "TrialFinderEcrRepository");
+    }
+
+    /// <summary>
+    /// Get existing ECR repository or create new one
+    /// </summary>
+    private IRepository GetOrCreateEcrRepository(string serviceType, string repositoryName, string constructId)
+    {
+        try
+        {
+            // Try to import existing repository first
+            var existingRepository = Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
+            Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
+            return existingRepository;
+        }
+        catch (Exception)
+        {
+            // If import fails, create new repository
+            var repository = new Repository(this, constructId, new RepositoryProps
+            {
+                RepositoryName = repositoryName,
+                ImageScanOnPush = true,
+                RemovalPolicy = RemovalPolicy.RETAIN
+            });
+            Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+            return repository;
+        }
+    }
+
+    /// <summary>
+    /// Export ECR repository information for external consumption
+    /// </summary>
+    private void ExportEcrRepositoryOutputs()
+    {
+        foreach (var kvp in _ecrRepositories)
+        {
+            var repositoryName = kvp.Key;
+            var repository = kvp.Value;
+
+            new CfnOutput(this, $"EcrRepositoryArn-{repositoryName}", new CfnOutputProps
+            {
+                Value = repository.RepositoryArn,
+                Description = $"TrialFinder ECR Repository ARN for {repositoryName}",
+                ExportName = $"{_context.Environment.Name}-trial-finder-{repositoryName}-ecr-repository-arn"
+            });
+
+            new CfnOutput(this, $"EcrRepositoryName-{repositoryName}", new CfnOutputProps
+            {
+                Value = repository.RepositoryName,
+                Description = $"TrialFinder ECR Repository Name for {repositoryName}",
+                ExportName = $"{_context.Environment.Name}-trial-finder-{repositoryName}-ecr-repository-name"
+            });
+        }
     }
 }
