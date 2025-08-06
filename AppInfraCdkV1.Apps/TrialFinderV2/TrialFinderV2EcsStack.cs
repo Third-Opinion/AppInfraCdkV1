@@ -1036,6 +1036,21 @@ public class TrialFinderV2EcsStack : Stack
             }
         }));
 
+        // Add specific permission for DescribeTaskDefinition with * resource
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowDescribeTaskDefinition",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeTaskDefinition"
+            },
+            Resources = new[]
+            {
+                "*"
+            }
+        }));
+        
         // Add ECR permissions for image access
         deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
@@ -1584,8 +1599,8 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private (bool exists, string? arn) GetSecret(string secretName)
     {
-        // Use Task.Run to avoid blocking the main thread
-        return Task.Run(() => GetSecretAsync(secretName)).Result;
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetSecretAsync(secretName).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -2066,21 +2081,57 @@ public class TrialFinderV2EcsStack : Stack
                 return null;
             }
 
-            // Check if latest tag exists
+            // Check if latest tag exists first, then fall back to the most recently pushed image
             var latestImage = listImagesResponse.ImageIds.FirstOrDefault(img => 
                 img.ImageTag != null && img.ImageTag.Equals("latest", StringComparison.OrdinalIgnoreCase));
 
             if (latestImage == null)
             {
-                Console.WriteLine($"     ℹ️  No 'latest' tag found in ECR repository: {repositoryName}");
-                return null;
+                // Get detailed information about all images to find the most recently pushed one
+                var describeImagesRequest = new DescribeImagesRequest
+                {
+                    RepositoryName = repositoryName,
+                    ImageIds = listImagesResponse.ImageIds
+                };
+
+                var describeImagesResponse = await ecrClient.DescribeImagesAsync(describeImagesRequest);
+                
+                if (describeImagesResponse.ImageDetails == null || describeImagesResponse.ImageDetails.Count == 0)
+                {
+                    Console.WriteLine($"     ℹ️  No image details found in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Find the most recently pushed image
+                var mostRecentImage = describeImagesResponse.ImageDetails
+                    .OrderByDescending(img => img.ImagePushedAt)
+                    .FirstOrDefault();
+
+                if (mostRecentImage == null)
+                {
+                    Console.WriteLine($"     ℹ️  No images with push timestamps found in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Get the tag for the most recent image
+                var imageTag = mostRecentImage.ImageTags?.FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(imageTag))
+                {
+                    Console.WriteLine($"     ℹ️  Most recent image has no tags in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Use the most recently pushed image
+                var mostRecentImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:{imageTag}";
+                Console.WriteLine($"     ✅ Found most recently pushed image: {mostRecentImageUri} (pushed at: {mostRecentImage.ImagePushedAt})");
+                return mostRecentImageUri;
             }
 
-            // Construct the full image URI
-            var imageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:latest";
-            Console.WriteLine($"     ✅ Found latest image: {imageUri}");
+            // Construct the full image URI for latest tag
+            var latestImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:latest";
+            Console.WriteLine($"     ✅ Found latest image: {latestImageUri}");
             
-            return imageUri;
+            return latestImageUri;
         }
         catch (RepositoryNotFoundException)
         {
@@ -2099,7 +2150,7 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private string? GetLatestEcrImageUri(string containerName, DeploymentContext context)
     {
-        // Use Task.Run to avoid blocking the main thread
-        return Task.Run(() => GetLatestEcrImageUriAsync(containerName, context)).Result;
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetLatestEcrImageUriAsync(containerName, context).GetAwaiter().GetResult();
     }
 }
