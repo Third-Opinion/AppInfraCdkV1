@@ -39,6 +39,7 @@ public class TrialFinderV2EcsStack : Stack
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
+    private IRole? _githubActionsRole;
 
     public TrialFinderV2EcsStack(Construct scope,
         string id,
@@ -66,6 +67,9 @@ public class TrialFinderV2EcsStack : Stack
 
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
+
+        // Create GitHub Actions deployment role
+        _githubActionsRole = CreateGithubActionsDeploymentRole(context);
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
@@ -952,6 +956,130 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Create GitHub Actions deployment role
+    /// </summary>
+    private IRole CreateGithubActionsDeploymentRole(DeploymentContext context)
+    {
+        // Follow naming convention: {environment}-{service}-github-actions-role
+        var roleName = context.Namer.IamRole(IamPurpose.GithubActionsDeploy);
+        
+        var deploymentRole = new Role(this, "GithubActionsDeploymentRole", new RoleProps
+        {
+            RoleName = roleName,
+            Description = $"Role for GitHub Actions to deploy to ECS in {context.Environment.Name}",
+            AssumedBy = new FederatedPrincipal("token.actions.githubusercontent.com", new Dictionary<string, object>
+            {
+                ["StringEquals"] = new Dictionary<string, string>
+                {
+                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
+                },
+                ["StringLike"] = new Dictionary<string, string>
+                {
+                    ["token.actions.githubusercontent.com:sub"] = $"repo:Third-Opinion/TrialFinderV2:*"
+                }
+            }, "sts:AssumeRoleWithWebIdentity"),
+            ManagedPolicies = Array.Empty<IManagedPolicy>()
+        });
+
+        // Add ECS permissions for task definition management
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECSDeployment",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition",
+                "ecs:DescribeServices",
+                "ecs:UpdateService",
+                "ecs:DescribeClusters",
+                "ecs:ListTasks",
+                "ecs:DescribeTasks",
+                "ecs:StopTask",
+                "ecs:RunTask"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:task-definition/*",
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:service/*",
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:cluster/*",
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:task/*"
+            }
+        }));
+
+        // Add ECR permissions for image access
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECRAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:ecr:{context.Environment.Region}:{context.Environment.AccountId}:repository/thirdopinion/*",
+                $"arn:aws:ecr:{context.Environment.Region}:{context.Environment.AccountId}:repository/{context.Application.Name.ToLowerInvariant()}/*"
+            }
+        }));
+
+        // Add ECR authorization token permission (account-wide)
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECRAuthorizationToken",
+            Effect = Effect.ALLOW,
+            Actions = new[] { "ecr:GetAuthorizationToken" },
+            Resources = new[] { "*" }
+        }));
+
+        // Add CloudFormation permissions to read stack outputs
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowCloudFormationRead",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "cloudformation:DescribeStacks",
+                "cloudformation:ListStacks",
+                "cloudformation:GetTemplate"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:cloudformation:{context.Environment.Region}:{context.Environment.AccountId}:stack/*"
+            }
+        }));
+
+        // Add IAM permissions for role assumption (needed for OIDC)
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowIAMRoleAssumption",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "iam:PassRole"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:iam::{context.Environment.AccountId}:role/{context.Environment.Name}-{context.Application.Name.ToLowerInvariant()}-*"
+            }
+        }));
+
+        // Add tag for identification
+        Amazon.CDK.Tags.Of(deploymentRole).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(deploymentRole).Add("Purpose", "GitHub-Actions-Deployment");
+        Amazon.CDK.Tags.Of(deploymentRole).Add("Service", context.Application.Name);
+
+        return deploymentRole;
+    }
+
+    /// <summary>
     /// Get container port for load balancer registration from JSON configuration
     /// Prefers port 8080 for web applications, falls back to first available port
     /// </summary>
@@ -1656,6 +1784,14 @@ public class TrialFinderV2EcsStack : Stack
             Value = taskDefinition.ExecutionRole?.RoleArn ?? "N/A",
             Description = "ECS Execution IAM Role ARN",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-execution-role-arn"
+        });
+
+        // Export GitHub Actions deployment role ARN
+        new CfnOutput(this, "GithubActionsRoleArn", new CfnOutputProps
+        {
+            Value = _githubActionsRole?.RoleArn ?? "N/A",
+            Description = "GitHub Actions deployment IAM Role ARN",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-github-actions-role-arn"
         });
     }
 
