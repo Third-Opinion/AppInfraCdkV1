@@ -68,6 +68,9 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
 
+        // Create ECR repositories from configuration
+        CreateEcrRepositoriesFromConfig(context);
+
         // Create GitHub Actions deployment role
         _githubActionsRole = CreateGithubActionsDeploymentRole(context);
 
@@ -76,9 +79,6 @@ public class TrialFinderV2EcsStack : Stack
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
-
-        // Create ECR repositories from configuration
-        CreateEcrRepositoriesFromConfig(context);
 
         // Export ECR repository information
         ExportEcrRepositoryOutputs();
@@ -392,7 +392,7 @@ public class TrialFinderV2EcsStack : Stack
                 environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
                 environmentVars["DEPLOYMENT_TYPE"] = "ecr-latest";
                 environmentVars["IMAGE_SOURCE"] = "ecr";
-                environmentVars["ECR_REPOSITORY"] = _ecrRepositories["webapp"].RepositoryName;
+                environmentVars["ECR_REPOSITORY"] = _ecrRepositories[containerName].RepositoryName;
                 Console.WriteLine($"     🚀 Using latest ECR image for container '{containerName}': {ecrImageUri}");
             }
             else
@@ -1691,21 +1691,6 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Get the actual value for a Cognito secret
-    /// </summary>
-    private string GetCognitoSecretValue(string secretName, CognitoStackOutputs cognitoOutputs)
-    {
-        return secretName.ToLowerInvariant() switch
-        {
-            "cognito-client-id" => cognitoOutputs.AppClientId,
-            "cognito-client-secret" => "***SECRET***", // Client secret is not exposed for security
-            "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
-            "cognito-domain" => cognitoOutputs.DomainUrl,
-            _ => throw new ArgumentException($"Unknown Cognito secret name: {secretName}")
-        };
-    }
-
-    /// <summary>
     /// Export secret ARNs for all created secrets
     /// </summary>
     private void ExportSecretArns()
@@ -1720,79 +1705,6 @@ public class TrialFinderV2EcsStack : Stack
                 ExportName = exportName
             });
         }
-    }
-
-    /// <summary>
-    /// Create test secrets in Secrets Manager for the current environment
-    /// </summary>
-    private void CreateTestSecrets()
-    {
-        var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
-        var applicationName = _context.Application.Name.ToLowerInvariant();
-        
-        // Create database connection secret
-        var dbSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "DatabaseConnectionSecret", new SecretProps
-        {
-            SecretName = $"/{environmentPrefix}/{applicationName}/database-connection",
-            Description = $"Database connection string for {_context.Application.Name} in {_context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
-            {
-                SecretStringTemplate = "{\"username\":\"trialfinderuser\"}",
-                GenerateStringKey = "password",
-                PasswordLength = 32,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
-
-        // Create API key secret
-        var apiKeySecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "ApiKeySecret", new SecretProps
-        {
-            SecretName = $"/{environmentPrefix}/{applicationName}/api-key",
-            Description = $"API key for {_context.Application.Name} in {_context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
-            {
-                SecretStringTemplate = "{\"service\":\"trial-finder\"}",
-                GenerateStringKey = "apiKey",
-                PasswordLength = 64,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
-
-        // Create service credentials secret
-        var serviceCredentialsSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "ServiceCredentialsSecret", new SecretProps
-        {
-            SecretName = $"/{environmentPrefix}/{applicationName}/service-credentials",
-            Description = $"Service credentials for {_context.Application.Name} in {_context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
-            {
-                SecretStringTemplate = "{\"clientId\":\"trial-finder-client\"}",
-                GenerateStringKey = "clientSecret",
-                PasswordLength = 48,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
-
-        // Export secret ARNs for reference
-        new CfnOutput(this, "DatabaseSecretArn", new CfnOutputProps
-        {
-            Value = dbSecret.SecretArn,
-            Description = "Database connection secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-db-secret-arn"
-        });
-
-        new CfnOutput(this, "ApiKeySecretArn", new CfnOutputProps
-        {
-            Value = apiKeySecret.SecretArn,
-            Description = "API key secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-api-key-secret-arn"
-        });
-
-        new CfnOutput(this, "ServiceCredentialsSecretArn", new CfnOutputProps
-        {
-            Value = serviceCredentialsSecret.SecretArn,
-            Description = "Service credentials secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-service-credentials-secret-arn"
-        });
     }
 
     /// <summary>
@@ -1931,12 +1843,6 @@ public class TrialFinderV2EcsStack : Stack
         }
     }
 
-    private IRepository CreateEcrRepository(DeploymentContext context)
-    {
-        var repositoryName = context.Namer.EcrRepository("webapp");
-        
-        return GetOrCreateEcrRepository("webapp", repositoryName, "TrialFinderEcrRepository");
-    }
 
     /// <summary>
     /// Get existing ECR repository or create new one
@@ -2048,14 +1954,17 @@ public class TrialFinderV2EcsStack : Stack
 
         try
         {
-            // Get the ECR repository for the container
-            if (!_ecrRepositories.TryGetValue(containerName, out var repository))
+            // Map container name to repository type based on configuration
+            string repositoryType = MapContainerNameToRepositoryType(containerName);
+            if (string.IsNullOrWhiteSpace(repositoryType))
             {
-                Console.WriteLine($"     ⚠️  ECR repository not found for container '{containerName}'");
+                Console.WriteLine($"     ⚠️  No repository type mapping found for container '{containerName}'");
                 return null;
             }
 
-            var repositoryName = repository.RepositoryName;
+            // Get the ECR repository name using the repository type
+            var repositoryName = context.Namer.EcrRepository(repositoryType);
+            Console.WriteLine($"     🔍 Using repository type '{repositoryType}' for container '{containerName}' -> repository: {repositoryName}");
             var region = context.Environment.Region;
             var accountId = context.Environment.AccountId;
 
@@ -2152,5 +2061,19 @@ public class TrialFinderV2EcsStack : Stack
     {
         // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
         return GetLatestEcrImageUriAsync(containerName, context).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Map container name to repository type based on configuration
+    /// </summary>
+    private string MapContainerNameToRepositoryType(string containerName)
+    {
+        // Map container names to repository types based on the configuration
+        return containerName switch
+        {
+            "trial-finder-v2" => "webapp",
+            "trial-finder-v2-loader" => "loader",
+            _ => string.Empty
+        };
     }
 }
