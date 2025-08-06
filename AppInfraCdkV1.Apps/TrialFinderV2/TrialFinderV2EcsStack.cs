@@ -1599,8 +1599,8 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private (bool exists, string? arn) GetSecret(string secretName)
     {
-        // Use Task.Run to avoid blocking the main thread
-        return Task.Run(() => GetSecretAsync(secretName)).Result;
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetSecretAsync(secretName).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -2150,7 +2150,7 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private string? GetLatestEcrImageUri(string containerName, DeploymentContext context)
     {
-        // Use Task.Run to avoid blocking the main thread
-        return Task.Run(() => GetLatestEcrImageUriAsync(containerName, context)).Result;
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetLatestEcrImageUriAsync(containerName, context).GetAwaiter().GetResult();
     }
 }
