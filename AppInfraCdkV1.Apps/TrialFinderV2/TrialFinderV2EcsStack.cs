@@ -392,7 +392,7 @@ public class TrialFinderV2EcsStack : Stack
                 environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
                 environmentVars["DEPLOYMENT_TYPE"] = "ecr-latest";
                 environmentVars["IMAGE_SOURCE"] = "ecr";
-                environmentVars["ECR_REPOSITORY"] = _ecrRepositories["webapp"].RepositoryName;
+                environmentVars["ECR_REPOSITORY"] = _ecrRepositories[containerName].RepositoryName;
                 Console.WriteLine($"     🚀 Using latest ECR image for container '{containerName}': {ecrImageUri}");
             }
             else
