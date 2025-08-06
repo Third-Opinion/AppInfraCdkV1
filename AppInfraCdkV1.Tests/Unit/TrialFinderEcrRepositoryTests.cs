@@ -1,62 +1,87 @@
-using AppInfraCdkV1.Core.Naming;
+using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Shouldly;
 using Xunit;
 
-namespace AppInfraCdkV1.Tests.Unit
+namespace AppInfraCdkV1.Tests.Unit;
+
+public class TrialFinderEcrRepositoryTests
 {
-    public class TrialFinderEcrRepositoryTests
+    [Fact]
+    public void ContainerRepositoryConfig_ShouldDeserializeCorrectly()
     {
-        [Fact]
-        public void EcrRepository_ShouldFollowNamingConvention_ForTrialFinder()
-        {
-            // Arrange
-            var context = CreateTestDeploymentContext();
-            var namer = new ResourceNamer(context);
-            
-            // Act
-            var repositoryName = namer.EcrRepository("webapp");
-            
-            // Assert
-            repositoryName.ShouldBe("thirdopinion/trialfinderv2/webapp");
-        }
+        // Arrange
+        var json = @"{
+            ""name"": ""trial-finder-v2"",
+            ""image"": ""placeholder"",
+            ""repository"": {
+                ""type"": ""webapp"",
+                ""description"": ""Main TrialFinder web application"",
+                ""imageScanOnPush"": true,
+                ""removalPolicy"": ""RETAIN""
+            }
+        }";
 
-        [Fact]
-        public void EcrRepository_ShouldBeConsistent_AcrossEnvironments()
-        {
-            // Arrange
-            var devContext = CreateTestDeploymentContext("dev");
-            var prodContext = CreateTestDeploymentContext("prod");
-            var devNamer = new ResourceNamer(devContext);
-            var prodNamer = new ResourceNamer(prodContext);
-            
-            // Act
-            var devRepositoryName = devNamer.EcrRepository("webapp");
-            var prodRepositoryName = prodNamer.EcrRepository("webapp");
-            
-            // Assert
-            devRepositoryName.ShouldBe("thirdopinion/trialfinderv2/webapp");
-            prodRepositoryName.ShouldBe("thirdopinion/trialfinderv2/webapp");
-            devRepositoryName.ShouldBe(prodRepositoryName);
-        }
+        // Act
+        var container = System.Text.Json.JsonSerializer.Deserialize<ContainerDefinitionConfig>(
+            json, 
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+        );
 
-        private static DeploymentContext CreateTestDeploymentContext(string environmentName = "dev")
+        // Assert
+        container.ShouldNotBeNull();
+        container.Name.ShouldBe("trial-finder-v2");
+        container.Image.ShouldBe("placeholder");
+        container.Repository.ShouldNotBeNull();
+        container.Repository.Type.ShouldBe("webapp");
+        container.Repository.Description.ShouldBe("Main TrialFinder web application");
+        container.Repository.ImageScanOnPush.ShouldBe(true);
+        container.Repository.RemovalPolicy.ShouldBe("RETAIN");
+    }
+
+    [Fact]
+    public void ConfigurationLoader_ShouldLoadRepositoryConfiguration()
+    {
+        // Arrange
+        var configLoader = new ConfigurationLoader();
+
+        // Act & Assert
+        Should.NotThrow(() => configLoader.LoadFullConfig("development"));
+    }
+
+    [Fact]
+    public void ResourceNamer_ShouldGenerateCorrectEcrRepositoryNames()
+    {
+        // Arrange
+        var context = CreateTestDeploymentContext();
+        var namer = new AppInfraCdkV1.Core.Naming.ResourceNamer(context);
+
+        // Act
+        var webappRepositoryName = namer.EcrRepository("webapp");
+        var loaderRepositoryName = namer.EcrRepository("loader");
+
+        // Assert
+        webappRepositoryName.ShouldBe("thirdopinion/trialfinderv2/webapp");
+        loaderRepositoryName.ShouldBe("thirdopinion/trialfinderv2/loader");
+    }
+
+    private static DeploymentContext CreateTestDeploymentContext()
+    {
+        return new DeploymentContext
         {
-            return new DeploymentContext
+            Environment = new EnvironmentConfig
             {
-                Application = new ApplicationConfig
-                {
-                    Name = "TrialFinderV2",
-                    Version = "1.0.0"
-                },
-                Environment = new EnvironmentConfig
-                {
-                    Name = environmentName,
-                    AccountType = AccountType.NonProduction,
-                    AccountId = "123456789012",
-                    Region = "us-east-2"
-                }
-            };
-        }
+                Name = "development",
+                AccountId = "123456789012",
+                Region = "us-east-2",
+                AccountType = AccountType.NonProduction
+            },
+            Application = new ApplicationConfig
+            {
+                Name = "TrialFinderV2",
+                Version = "1.0.0"
+            }
+        };
     }
 } 

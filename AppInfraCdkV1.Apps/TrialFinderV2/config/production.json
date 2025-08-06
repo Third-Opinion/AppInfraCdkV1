@@ -8,6 +8,12 @@
           {
             "name": "trial-finder-v2",
             "image": "placeholder",
+            "repository": {
+              "type": "webapp",
+              "description": "Main TrialFinder web application",
+              "imageScanOnPush": true,
+              "removalPolicy": "RETAIN"
+            },
             "cpu": 0,
             "portMappings": [
               {
@@ -65,6 +71,12 @@
           {
             "name": "trial-finder-v2-loader",
             "image": "placeholder",
+            "repository": {
+              "type": "loader",
+              "description": "Background loader service",
+              "imageScanOnPush": true,
+              "removalPolicy": "RETAIN"
+            },
             "cpu": 0,
             "portMappings": [],
             "essential": false,

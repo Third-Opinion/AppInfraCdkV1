@@ -77,8 +77,8 @@ public class TrialFinderV2EcsStack : Stack
         // Export secret ARNs for all created secrets
         ExportSecretArns();
 
-        // Create ECR repository for TrialFinder container images
-        _ecrRepositories["webapp"] = CreateEcrRepository(context);
+        // Create ECR repositories from configuration
+        CreateEcrRepositoriesFromConfig(context);
 
         // Export ECR repository information
         ExportEcrRepositoryOutputs();
@@ -1847,6 +1847,41 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Create ECR repository for TrialFinder container images
     /// </summary>
+    /// <summary>
+    /// Create ECR repositories from configuration
+    /// </summary>
+    private void CreateEcrRepositoriesFromConfig(DeploymentContext context)
+    {
+        var config = _configLoader.LoadFullConfig(context.Environment.Name);
+        
+        if (config.EcsConfiguration?.TaskDefinition != null)
+        {
+            foreach (var taskDef in config.EcsConfiguration.TaskDefinition)
+            {
+                if (taskDef.ContainerDefinitions != null)
+                {
+                    foreach (var container in taskDef.ContainerDefinitions)
+                    {
+                        if (container.Repository != null && !string.IsNullOrWhiteSpace(container.Repository.Type))
+                        {
+                            var repositoryName = context.Namer.EcrRepository(container.Repository.Type);
+                            var repositoryKey = container.Name ?? "unknown"; // Use container name as key
+                            
+                            if (!_ecrRepositories.ContainsKey(repositoryKey))
+                            {
+                                _ecrRepositories[repositoryKey] = GetOrCreateEcrRepository(
+                                    container.Repository.Type, 
+                                    repositoryName, 
+                                    $"TrialFinder{container.Name}EcrRepository"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private IRepository CreateEcrRepository(DeploymentContext context)
     {
         var repositoryName = context.Namer.EcrRepository("webapp");
@@ -1913,10 +1948,10 @@ public class TrialFinderV2EcsStack : Stack
     {
         try
         {
-            // Get the ECR repository for the webapp service type
-            if (!_ecrRepositories.TryGetValue("webapp", out var repository))
+            // Get the ECR repository for the container
+            if (!_ecrRepositories.TryGetValue(containerName, out var repository))
             {
-                Console.WriteLine($"     ⚠️  ECR repository 'webapp' not found for container '{containerName}'");
+                Console.WriteLine($"     ⚠️  ECR repository not found for container '{containerName}'");
                 return null;
             }
 
