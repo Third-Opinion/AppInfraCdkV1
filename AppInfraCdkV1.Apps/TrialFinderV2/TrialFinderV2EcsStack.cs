@@ -68,6 +68,9 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
 
+        // Create ECR repositories from configuration
+        CreateEcrRepositoriesFromConfig(context);
+
         // Create GitHub Actions deployment role
         _githubActionsRole = CreateGithubActionsDeploymentRole(context);
 
@@ -76,9 +79,6 @@ public class TrialFinderV2EcsStack : Stack
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
-
-        // Create ECR repositories from configuration
-        CreateEcrRepositoriesFromConfig(context);
 
         // Export ECR repository information
         ExportEcrRepositoryOutputs();
