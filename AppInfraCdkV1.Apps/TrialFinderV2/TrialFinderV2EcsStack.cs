@@ -136,13 +136,15 @@ public class TrialFinderV2EcsStack : Stack
         var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
         var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
         var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
+        var userPoolArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-arn");
 
         return new CognitoStackOutputs
         {
             UserPoolId = userPoolId,
             AppClientId = appClientId,
             DomainUrl = domainUrl,
-            DomainName = domainName
+            DomainName = domainName,
+            UserPoolArn = userPoolArn
         };
     }
 
@@ -1552,9 +1554,6 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Check if a secret exists in AWS Secrets Manager using AWS SDK
-    /// </summary>
-    /// <summary>
     /// Get secret information from AWS Secrets Manager using AWS SDK
     /// Returns a tuple with (exists, arn, currentValue) where arn and currentValue are null if secret doesn't exist
     /// </summary>
@@ -1571,29 +1570,11 @@ public class TrialFinderV2EcsStack : Stack
         {
             using var secretsManagerClient = new AmazonSecretsManagerClient();
             
-            // Convert secret name to full ARN format for AWS SDK
-            string secretId;
-            if (secretName.StartsWith("arn:aws:secretsmanager:"))
-            {
-                // Already in ARN format
-                secretId = secretName;
-            }
-            else if (secretName.StartsWith("/"))
-            {
-                // Convert path format to ARN format
-                secretId = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:{secretName}";
-            }
-            else
-            {
-                // Assume it's a secret name and convert to ARN
-                secretId = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{_context.Environment.Name.ToLowerInvariant()}/{_context.Application.Name.ToLowerInvariant()}/{secretName}";
-            }
-            
-            Console.WriteLine($"          🔍 Checking secret with ID: {secretId}");
+            Console.WriteLine($"          🔍 Checking secret with name: {secretName}");
             
             var describeSecretRequest = new DescribeSecretRequest
             {
-                SecretId = secretId
+                SecretId = secretName
             };
             
             var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
@@ -1604,7 +1585,7 @@ public class TrialFinderV2EcsStack : Stack
             {
                 var getSecretValueRequest = new GetSecretValueRequest
                 {
-                    SecretId = secretId
+                    SecretId = secretName
                 };
                 
                 var secretValueResponse = await secretsManagerClient.GetSecretValueAsync(getSecretValueRequest);
@@ -1680,6 +1661,8 @@ public class TrialFinderV2EcsStack : Stack
                 
                 if (!string.IsNullOrEmpty(actualValue))
                 {
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
                     var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                     {
                         SecretName = fullSecretName,
@@ -1692,6 +1675,10 @@ public class TrialFinderV2EcsStack : Stack
 
                     _createdSecrets[secretName] = cognitoSecret;
                     return cognitoSecret;
+                }
+                else
+                {
+                    Console.WriteLine($"          ⚠️  Could not determine actual value for Cognito secret '{secretName}', using generated value");
                 }
             }
             
@@ -1736,6 +1723,8 @@ public class TrialFinderV2EcsStack : Stack
                 
                 if (!string.IsNullOrEmpty(actualValue))
                 {
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
                     // Create secret with actual Cognito value
                     var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                     {
@@ -1788,7 +1777,9 @@ public class TrialFinderV2EcsStack : Stack
             "cognito-client-id" => cognitoOutputs.AppClientId,
             "cognito-client-secret" => null, // Client secret is not exposed in outputs for security
             "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
-            "cognito-domain" => cognitoOutputs.DomainName,
+            "cognito-domain" => cognitoOutputs.DomainUrl, //use url instead of domain name
+            "cognito-domain-url" => cognitoOutputs.DomainUrl,
+            "cognito-user-pool-arn" => cognitoOutputs.UserPoolArn,
             _ => null
         };
     }
@@ -1803,7 +1794,9 @@ public class TrialFinderV2EcsStack : Stack
             "cognito-client-id",
             "cognito-client-secret", 
             "cognito-user-pool-id",
-            "cognito-domain"
+            "cognito-domain",
+            "cognito-domain-url",
+            "cognito-user-pool-arn"
         };
         
         return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
@@ -1943,6 +1936,7 @@ public class TrialFinderV2EcsStack : Stack
         public string AppClientId { get; set; } = "";
         public string DomainUrl { get; set; } = "";
         public string DomainName { get; set; } = "";
+        public string UserPoolArn { get; set; } = "";
     }
 
     /// <summary>
