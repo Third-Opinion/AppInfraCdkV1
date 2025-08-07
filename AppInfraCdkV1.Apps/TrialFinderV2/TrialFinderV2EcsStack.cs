@@ -1774,12 +1774,12 @@ public class TrialFinderV2EcsStack : Stack
     {
         return secretName.ToLowerInvariant() switch
         {
-            "cognito-client-id" => cognitoOutputs.AppClientId,
-            "cognito-client-secret" => null, // Client secret is not exposed in outputs for security
-            "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
+            "cognito-clientid" => cognitoOutputs.AppClientId,
+            "cognito-clientsecret" => null, // Client secret is not exposed in outputs for security
+            "cognito-userpoolid" => cognitoOutputs.UserPoolId,
             "cognito-domain" => cognitoOutputs.DomainUrl, //use url instead of domain name
-            "cognito-domain-url" => cognitoOutputs.DomainUrl,
-            "cognito-user-pool-arn" => cognitoOutputs.UserPoolArn,
+            "cognito-domainurl" => cognitoOutputs.DomainUrl,
+            "cognito-userpoolarn" => cognitoOutputs.UserPoolArn,
             _ => null
         };
     }
@@ -1791,12 +1791,12 @@ public class TrialFinderV2EcsStack : Stack
     {
         var cognitoSecretNames = new[]
         {
-            "cognito-client-id",
-            "cognito-client-secret", 
-            "cognito-user-pool-id",
+            "cognito-clientid",
+            "cognito-clientsecret", 
+            "cognito-userpoolid",
+            "cognito-domainurl",
             "cognito-domain",
-            "cognito-domain-url",
-            "cognito-user-pool-arn"
+            "cognito-userpoolarn"
         };
         
         return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
