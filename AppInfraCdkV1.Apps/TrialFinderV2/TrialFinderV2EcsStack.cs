@@ -136,13 +136,15 @@ public class TrialFinderV2EcsStack : Stack
         var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
         var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
         var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
+        var userPoolArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-arn");
 
         return new CognitoStackOutputs
         {
             UserPoolId = userPoolId,
             AppClientId = appClientId,
             DomainUrl = domainUrl,
-            DomainName = domainName
+            DomainName = domainName,
+            UserPoolArn = userPoolArn
         };
     }
 
@@ -1680,6 +1682,8 @@ public class TrialFinderV2EcsStack : Stack
                 
                 if (!string.IsNullOrEmpty(actualValue))
                 {
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
                     var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                     {
                         SecretName = fullSecretName,
@@ -1692,6 +1696,10 @@ public class TrialFinderV2EcsStack : Stack
 
                     _createdSecrets[secretName] = cognitoSecret;
                     return cognitoSecret;
+                }
+                else
+                {
+                    Console.WriteLine($"          ⚠️  Could not determine actual value for Cognito secret '{secretName}', using generated value");
                 }
             }
             
@@ -1736,6 +1744,8 @@ public class TrialFinderV2EcsStack : Stack
                 
                 if (!string.IsNullOrEmpty(actualValue))
                 {
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
                     // Create secret with actual Cognito value
                     var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                     {
@@ -1788,7 +1798,9 @@ public class TrialFinderV2EcsStack : Stack
             "cognito-client-id" => cognitoOutputs.AppClientId,
             "cognito-client-secret" => null, // Client secret is not exposed in outputs for security
             "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
-            "cognito-domain" => cognitoOutputs.DomainName,
+            "cognito-domain" => cognitoOutputs.DomainUrl, //use url instead of domain name
+            "cognito-domain-url" => cognitoOutputs.DomainUrl,
+            "cognito-user-pool-arn" => cognitoOutputs.UserPoolArn,
             _ => null
         };
     }
@@ -1803,7 +1815,9 @@ public class TrialFinderV2EcsStack : Stack
             "cognito-client-id",
             "cognito-client-secret", 
             "cognito-user-pool-id",
-            "cognito-domain"
+            "cognito-domain",
+            "cognito-domain-url",
+            "cognito-user-pool-arn"
         };
         
         return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
@@ -1943,6 +1957,7 @@ public class TrialFinderV2EcsStack : Stack
         public string AppClientId { get; set; } = "";
         public string DomainUrl { get; set; } = "";
         public string DomainName { get; set; } = "";
+        public string UserPoolArn { get; set; } = "";
     }
 
     /// <summary>
