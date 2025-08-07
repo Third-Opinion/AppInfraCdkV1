@@ -1554,9 +1554,6 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Check if a secret exists in AWS Secrets Manager using AWS SDK
-    /// </summary>
-    /// <summary>
     /// Get secret information from AWS Secrets Manager using AWS SDK
     /// Returns a tuple with (exists, arn, currentValue) where arn and currentValue are null if secret doesn't exist
     /// </summary>
@@ -1573,29 +1570,11 @@ public class TrialFinderV2EcsStack : Stack
         {
             using var secretsManagerClient = new AmazonSecretsManagerClient();
             
-            // Convert secret name to full ARN format for AWS SDK
-            string secretId;
-            if (secretName.StartsWith("arn:aws:secretsmanager:"))
-            {
-                // Already in ARN format
-                secretId = secretName;
-            }
-            else if (secretName.StartsWith("/"))
-            {
-                // Convert path format to ARN format
-                secretId = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:{secretName}";
-            }
-            else
-            {
-                // Assume it's a secret name and convert to ARN
-                secretId = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{_context.Environment.Name.ToLowerInvariant()}/{_context.Application.Name.ToLowerInvariant()}/{secretName}";
-            }
-            
-            Console.WriteLine($"          🔍 Checking secret with ID: {secretId}");
+            Console.WriteLine($"          🔍 Checking secret with name: {secretName}");
             
             var describeSecretRequest = new DescribeSecretRequest
             {
-                SecretId = secretId
+                SecretId = secretName
             };
             
             var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
@@ -1606,7 +1585,7 @@ public class TrialFinderV2EcsStack : Stack
             {
                 var getSecretValueRequest = new GetSecretValueRequest
                 {
-                    SecretId = secretId
+                    SecretId = secretName
                 };
                 
                 var secretValueResponse = await secretsManagerClient.GetSecretValueAsync(getSecretValueRequest);
