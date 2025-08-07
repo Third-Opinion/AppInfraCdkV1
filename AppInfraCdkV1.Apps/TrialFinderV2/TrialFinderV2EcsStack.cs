@@ -996,12 +996,11 @@ public class TrialFinderV2EcsStack : Stack
             {
                 ["StringEquals"] = new Dictionary<string, string>
                 {
-                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com",
-                    ["token.actions.githubusercontent.com:iss"] = "https://token.actions.githubusercontent.com"
+                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
                 },
                 ["StringLike"] = new Dictionary<string, string>
                 {
-                    ["token.actions.githubusercontent.com:sub"] = $"repo:Third-Opinion/TrialFinderV2:*"
+                    ["token.actions.githubusercontent.com:sub"] = $"repo:Third-Opinion/TrialFinder:*"
                 }
             }, "sts:AssumeRoleWithWebIdentity"),
             ManagedPolicies = Array.Empty<IManagedPolicy>()
@@ -1125,6 +1124,7 @@ public class TrialFinderV2EcsStack : Stack
             },
             Resources = new[]
             {
+                // Allow access to secrets in both path and ARN formats
                 $"arn:aws:secretsmanager:{context.Environment.Region}:{context.Environment.AccountId}:secret:/{context.Environment.Name.ToLowerInvariant()}/{context.Application.Name.ToLowerInvariant()}/*"
             }
         }));
@@ -1244,10 +1244,10 @@ public class TrialFinderV2EcsStack : Stack
         // Define specific secret ARNs that the task can access
         var allowedSecretArns = new[]
         {
+            // Allow access to application-specific secrets
             $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{applicationName}/*",
             // Allow access to shared secrets if needed
-            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*",
-            // Allow access to RDS database credentials secret (including version suffixes)
+            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*"
         };
         
         // Add Secrets Manager permissions
@@ -1570,9 +1570,30 @@ public class TrialFinderV2EcsStack : Stack
         try
         {
             using var secretsManagerClient = new AmazonSecretsManagerClient();
+            
+            // Convert secret name to full ARN format for AWS SDK
+            string secretId;
+            if (secretName.StartsWith("arn:aws:secretsmanager:"))
+            {
+                // Already in ARN format
+                secretId = secretName;
+            }
+            else if (secretName.StartsWith("/"))
+            {
+                // Convert path format to ARN format
+                secretId = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:{secretName}";
+            }
+            else
+            {
+                // Assume it's a secret name and convert to ARN
+                secretId = $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{_context.Environment.Name.ToLowerInvariant()}/{_context.Application.Name.ToLowerInvariant()}/{secretName}";
+            }
+            
+            Console.WriteLine($"          🔍 Checking secret with ID: {secretId}");
+            
             var describeSecretRequest = new DescribeSecretRequest
             {
-                SecretId = secretName
+                SecretId = secretId
             };
             
             var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
