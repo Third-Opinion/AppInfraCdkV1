@@ -110,11 +110,11 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
     
-    - name: CDK Diff for Base Stack
+    - name: CDK Bootstrap (if needed)
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking production base stack changes..."
-        cdk diff --app="dotnet run -- --deploy-base --environment=${{ env.CDK_ENVIRONMENT }}"
+        cdk bootstrap --app="dotnet run -- --deploy-base --environment=${{ env.CDK_ENVIRONMENT }}" \
+                      --require-approval never
     
     - name: Deploy Base Stack to Production
       run: |
@@ -126,7 +126,7 @@ jobs:
                   --outputs-file base-outputs.json
         echo "✅ Base stack deployment completed successfully!"
     
-    - name: Upload base deployment outputs
+    - name: Upload base outputs
       uses: actions/upload-artifact@v4
       with:
         name: base-outputs-prod
@@ -205,9 +205,82 @@ jobs:
         name: deployment-outputs-${{ matrix.app }}-ALB-prod
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ALB-outputs.json
 
-  deploy-ecs-prod:
+  deploy-cognito-prod:
     needs: [validate-input, validate-naming, deploy-alb-prod]
     if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-alb-prod.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    
+    - name: CDK Diff for COGNITO Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking production changes for ${{ matrix.app }} COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Deploy COGNITO Stack to Production
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ matrix.app }} COGNITO stack to PRODUCTION environment..."
+        echo "⚠️  This is a PRODUCTION deployment!"
+        export CDK_STACK_TYPE=COGNITO
+        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        echo "✅ COGNITO stack deployment completed successfully!"
+    
+    - name: Display Production COGNITO Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f ${{ matrix.app }}-COGNITO-outputs.json ]; then
+          echo "📋 Production resources created/updated for COGNITO stack:"
+          cat ${{ matrix.app }}-COGNITO-outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat ${{ matrix.app }}-COGNITO-outputs.json
+        fi
+    
+    - name: Upload COGNITO deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-outputs-${{ matrix.app }}-COGNITO-prod
+        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-COGNITO-outputs.json
+
+  deploy-ecs-prod:
+    needs: [validate-input, validate-naming, deploy-cognito-prod]
+    if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-cognito-prod.result == 'success'
     runs-on: ubuntu-latest
     environment: production
     strategy:
@@ -350,76 +423,3 @@ jobs:
       with:
         name: deployment-outputs-${{ matrix.app }}-DATA-prod
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-DATA-outputs.json
-
-  deploy-cognito-prod:
-    needs: [validate-input, validate-naming, deploy-data-prod]
-    if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-data-prod.result == 'success'
-    runs-on: ubuntu-latest
-    environment: production
-    strategy:
-      matrix:
-        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["TrialFinderV2"]') }}
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
-    
-    - name: Setup Node.js (for CDK CLI)
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-    
-    - name: Install CDK CLI
-      run: npm install -g aws-cdk
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
-        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
-        aws-region: ${{ env.AWS_REGION }}
-    
-    - name: Restore dependencies
-      run: dotnet restore AppInfraCdkV1.sln
-    
-    - name: Build
-      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
-    
-    - name: Run tests
-      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
-    
-    - name: CDK Diff for COGNITO Stack
-      run: |
-        cd AppInfraCdkV1.Deploy
-        echo "🔍 Checking production changes for ${{ matrix.app }} COGNITO stack..."
-        export CDK_STACK_TYPE=COGNITO
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}"
-    
-    - name: CDK Deploy COGNITO Stack to Production
-      run: |
-        cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying ${{ matrix.app }} COGNITO stack to PRODUCTION environment..."
-        echo "⚠️  This is a PRODUCTION deployment!"
-        export CDK_STACK_TYPE=COGNITO
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
-        echo "✅ COGNITO stack deployment completed successfully!"
-    
-    - name: Display Production COGNITO Resources
-      run: |
-        cd AppInfraCdkV1.Deploy
-        if [ -f ${{ matrix.app }}-COGNITO-outputs.json ]; then
-          echo "📋 Production resources created/updated for COGNITO stack:"
-          cat ${{ matrix.app }}-COGNITO-outputs.json | jq -r 'to_entries[] | "🏭 \(.key): \(.value)"' || cat ${{ matrix.app }}-COGNITO-outputs.json
-        fi
-    
-    - name: Upload COGNITO deployment outputs
-      uses: actions/upload-artifact@v4
-      with:
-        name: deployment-outputs-${{ matrix.app }}-COGNITO-prod
-        path: AppInfraCdkV1.Deploy/${{ matrix.app }}-COGNITO-outputs.json

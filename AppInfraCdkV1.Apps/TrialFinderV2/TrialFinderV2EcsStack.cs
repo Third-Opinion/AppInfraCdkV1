@@ -654,13 +654,10 @@ public class TrialFinderV2EcsStack : Stack
     private Dictionary<string, string> GetContainerSpecificEnvironmentDefaults(string containerName,
         DeploymentContext context)
     {
-        return containerName.ToLowerInvariant() switch
+        // Add ASPNETCORE_ENVIRONMENT for all containers (assuming they are .NET applications)
+        return new Dictionary<string, string>
         {
-            "doc-nlp-service-web" => new Dictionary<string, string>
-            {
-                ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name)
-            },
-            _ => new Dictionary<string, string>()
+            ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name)
         };
     }
 
@@ -1641,37 +1638,71 @@ public class TrialFinderV2EcsStack : Stack
             // Secret doesn't exist - create it with generated values or Cognito values
             Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
             
-            // For Cognito secrets, we'll create them with generated values for now
-            // The actual values will be populated by the application at runtime
+            // For Cognito secrets, create them with actual values if available
             if (cognitoOutputs != null && IsCognitoSecret(secretName))
             {
-                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with generated value (will be updated manually)");
-            }
-            {
-                // Regular secret with generated values
-                var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with actual Cognito values");
+                
+                // Determine the actual value based on secret name
+                string? actualValue = GetCognitoActualValue(secretName, cognitoOutputs);
+                
+                if (!string.IsNullOrEmpty(actualValue))
                 {
-                    SecretName = fullSecretName,
-                    Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
-                    GenerateSecretString = new SecretStringGenerator
+                    // Create secret with actual Cognito value
+                    var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                     {
-                        SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
-                        GenerateStringKey = "value",
-                        PasswordLength = 32,
-                        ExcludeCharacters = "\"@/\\"
-                    }
-                });
+                        SecretName = fullSecretName,
+                        Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                        SecretStringValue = SecretValue.UnsafePlainText(actualValue)
+                    });
 
-                // Add the CDKManaged tag required by IAM policy
-                Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+                    // Add the CDKManaged tag required by IAM policy
+                    Amazon.CDK.Tags.Of(cognitoSecret).Add("CDKManaged", "true");
 
-                // Store the full ARN with version suffix for later use
-                // _secretFullArns[secretName] = secret.SecretArn; // This line is removed
-
-                _createdSecrets[secretName] = secret;
-                return secret;
+                    _createdSecrets[secretName] = cognitoSecret;
+                    return cognitoSecret;
+                }
+                else
+                {
+                    Console.WriteLine($"          ⚠️  Could not determine actual value for Cognito secret '{secretName}', using generated value");
+                }
             }
+            
+            // Regular secret with generated values (fallback for Cognito secrets without actual values)
+            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            {
+                SecretName = fullSecretName,
+                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                GenerateSecretString = new SecretStringGenerator
+                {
+                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                    GenerateStringKey = "value",
+                    PasswordLength = 32,
+                    ExcludeCharacters = "\"@/\\"
+                }
+            });
+
+            // Add the CDKManaged tag required by IAM policy
+            Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+
+            _createdSecrets[secretName] = secret;
+            return secret;
         }
+    }
+
+    /// <summary>
+    /// Get actual Cognito value based on secret name and Cognito outputs
+    /// </summary>
+    private string? GetCognitoActualValue(string secretName, CognitoStackOutputs cognitoOutputs)
+    {
+        return secretName.ToLowerInvariant() switch
+        {
+            "cognito-client-id" => cognitoOutputs.AppClientId,
+            "cognito-client-secret" => null, // Client secret is not exposed in outputs for security
+            "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
+            "cognito-domain" => cognitoOutputs.DomainName,
+            _ => null
+        };
     }
 
     /// <summary>
