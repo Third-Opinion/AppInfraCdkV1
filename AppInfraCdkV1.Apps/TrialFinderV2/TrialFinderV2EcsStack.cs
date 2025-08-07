@@ -1795,6 +1795,7 @@ public class TrialFinderV2EcsStack : Stack
             "cognito-clientsecret", 
             "cognito-userpoolid",
             "cognito-domainurl",
+            "cognito-domain",
             "cognito-userpoolarn"
         };
         
