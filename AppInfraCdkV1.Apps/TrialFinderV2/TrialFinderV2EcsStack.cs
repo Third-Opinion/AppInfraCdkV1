@@ -1791,12 +1791,11 @@ public class TrialFinderV2EcsStack : Stack
     {
         var cognitoSecretNames = new[]
         {
-            "cognito-client-id",
-            "cognito-client-secret", 
-            "cognito-user-pool-id",
-            "cognito-domain",
-            "cognito-domain-url",
-            "cognito-user-pool-arn"
+            "cognito-clientid",
+            "cognito-clientsecret", 
+            "cognito-userpoolid",
+            "cognito-domainurl",
+            "cognito-userpoolarn"
         };
         
         return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
