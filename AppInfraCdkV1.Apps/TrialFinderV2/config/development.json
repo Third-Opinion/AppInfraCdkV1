@@ -4,6 +4,8 @@
     "taskDefinition": [
       {
         "taskDefinitionName": "main",
+                            "cpu": 1024,
+                    "memory": 2048,
         "containerDefinitions": [
           {
             "name": "trial-finder-v2",

@@ -261,6 +261,8 @@ public class EcsTaskConfiguration
 public class TaskDefinitionConfig
 {
     public string TaskDefinitionName { get; set; } = string.Empty;
+    public int? Cpu { get; set; }
+    public int? Memory { get; set; }
     public List<ContainerDefinitionConfig>? ContainerDefinitions { get; set; }
 }
 

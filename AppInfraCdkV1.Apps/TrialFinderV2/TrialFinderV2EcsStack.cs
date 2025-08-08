@@ -203,13 +203,21 @@ public class TrialFinderV2EcsStack : Stack
             ? context.Namer.EcsTaskDefinition(firstTaskDef.TaskDefinitionName)
             : context.Namer.EcsTaskDefinition("web");
 
+        // Get CPU and memory from configuration or use defaults
+        var taskCpu = firstTaskDef?.Cpu ?? 256;
+        var taskMemory = firstTaskDef?.Memory ?? 512;
+        
+        Console.WriteLine($"📊 Task Definition Resources:");
+        Console.WriteLine($"   CPU: {taskCpu} units");
+        Console.WriteLine($"   Memory: {taskMemory} MB");
+
         // Create Fargate task definition
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName,
             new FargateTaskDefinitionProps
             {
                 Family = taskDefinitionName,
-                MemoryLimitMiB = 512,
-                Cpu = 256,
+                MemoryLimitMiB = taskMemory,
+                Cpu = taskCpu,
                 TaskRole = CreateTaskRole(),
                 ExecutionRole = CreateExecutionRole(logGroup),
                 RuntimePlatform = new RuntimePlatform
