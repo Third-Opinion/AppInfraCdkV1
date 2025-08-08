@@ -907,6 +907,9 @@ public class TrialFinderV2EcsStack : Stack
         // Add QuickSight permissions for embedding functionality
         AddQuickSightPermissions(taskRole);
 
+        // Add Bedrock permissions for AI model access
+        AddBedrockPermissions(taskRole);
+
         // Add tag for identification
         Amazon.CDK.Tags.Of(taskRole).Add("ManagedBy", "CDK");
         Amazon.CDK.Tags.Of(taskRole).Add("Purpose", "ECS-Task");
@@ -1453,6 +1456,71 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[] 
             { 
                 $"arn:aws:quicksight:{_context.Environment.Region}:{_context.Environment.AccountId}:theme/*"
+            }
+        }));
+    }
+
+    /// <summary>
+    /// Add Bedrock permissions to IAM role for AI model access
+    /// </summary>
+    private void AddBedrockPermissions(IRole role)
+    {
+        // Cast to Role to access AddToPolicy method
+        var concreteRole = role as Role;
+        if (concreteRole == null) return;
+
+        // Bedrock model invocation permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowBedrockModelInvocation",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "bedrock:InvokeModel",
+                "bedrock:InvokeModelWithResponseStream"
+            },
+            Resources = new[] 
+            { 
+                // Allow access to all foundation models (AWS managed models)
+                $"arn:aws:bedrock:{_context.Environment.Region}::foundation-model/*",
+                // Allow access to account-specific inference profiles
+                $"arn:aws:bedrock:{_context.Environment.Region}:{_context.Environment.AccountId}:inference-profile/*"
+            }
+        }));
+
+        // Bedrock model information permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowBedrockModelInformation",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "bedrock:GetFoundationModel",
+                "bedrock:ListFoundationModels",
+                "bedrock:GetModelInvocationLoggingConfiguration",
+                "bedrock:GetModelCustomizationJob",
+                "bedrock:ListModelCustomizationJobs",
+                "bedrock:GetProvisionedModelThroughput",
+                "bedrock:ListProvisionedModelThroughputs",
+                "bedrock:GetModelEvaluationJob",
+                "bedrock:ListModelEvaluationJobs"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Bedrock inference profile permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowBedrockInferenceProfiles",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "bedrock:GetInferenceProfile",
+                "bedrock:ListInferenceProfiles"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:bedrock:{_context.Environment.Region}:{_context.Environment.AccountId}:inference-profile/*"
             }
         }));
     }
