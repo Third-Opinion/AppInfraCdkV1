@@ -156,7 +156,6 @@ public class EnvironmentBaseStack : Stack
         
         // Allow traffic back to ALB for health checks
         ecsSg.AddEgressRule(albSg, Port.AllTcp(), "Health checks to ALB");
-        
         SharedSecurityGroups["ecs"] = ecsSg;
         
         // RDS Security Group - matches sg-070060ee6c22a9fd7 (rds-ec2-1)
@@ -170,6 +169,10 @@ public class EnvironmentBaseStack : Stack
         
         // Allow PostgreSQL from ECS
         rdsSg.AddIngressRule(ecsSg, Port.Tcp(5432), "Allow PostgreSQL from ECS");
+        
+        // Allow PostgreSQL traffic to RDS database
+        ecsSg.AddEgressRule(rdsSg, Port.Tcp(5432), "Allow PostgreSQL traffic to shared database");
+        
         
         // Allow PostgreSQL from QuickSight (will be added after QuickSight security group is created)
         // This will be handled in CreateQuickSightSecurityGroup method

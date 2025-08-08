@@ -14,6 +14,8 @@ using Constructs;
 using System.Text.RegularExpressions;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
+using Amazon.ECR;
+using Amazon.ECR.Model;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2;
 
@@ -39,6 +41,8 @@ public class TrialFinderV2EcsStack : Stack
     private readonly ConfigurationLoader _configLoader;
     private readonly Dictionary<string, Amazon.CDK.AWS.SecretsManager.ISecret> _createdSecrets = new();
     private readonly Dictionary<string, string> _envVarToSecretNameMapping = new();
+    private readonly Dictionary<string, IRepository> _ecrRepositories = new();
+    private IRole? _githubActionsRole;
 
     public TrialFinderV2EcsStack(Construct scope,
         string id,
@@ -64,11 +68,20 @@ public class TrialFinderV2EcsStack : Stack
         // Create ECS cluster
         var cluster = CreateEcsCluster(vpc, context);
 
+        // Create ECR repositories from configuration
+        CreateEcrRepositoriesFromConfig(context);
+
+        // Create GitHub Actions deployment role
+        _githubActionsRole = CreateGithubActionsDeploymentRole(context);
+
         // Create ECS service with containers from configuration
         CreateEcsService(cluster, albOutputs, cognitoOutputs, context);
 
         // Export secret ARNs for all created secrets
         ExportSecretArns();
+
+        // Export ECR repository information
+        ExportEcrRepositoryOutputs();
     }
 
     /// <summary>
@@ -123,13 +136,15 @@ public class TrialFinderV2EcsStack : Stack
         var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
         var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
         var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
+        var userPoolArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-arn");
 
         return new CognitoStackOutputs
         {
             UserPoolId = userPoolId,
             AppClientId = appClientId,
             DomainUrl = domainUrl,
-            DomainName = domainName
+            DomainName = domainName,
+            UserPoolArn = userPoolArn
         };
     }
 
@@ -188,13 +203,21 @@ public class TrialFinderV2EcsStack : Stack
             ? context.Namer.EcsTaskDefinition(firstTaskDef.TaskDefinitionName)
             : context.Namer.EcsTaskDefinition("web");
 
+        // Get CPU and memory from configuration or use defaults
+        var taskCpu = firstTaskDef?.Cpu ?? 256;
+        var taskMemory = firstTaskDef?.Memory ?? 512;
+        
+        Console.WriteLine($"📊 Task Definition Resources:");
+        Console.WriteLine($"   CPU: {taskCpu} units");
+        Console.WriteLine($"   Memory: {taskMemory} MB");
+
         // Create Fargate task definition
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName,
             new FargateTaskDefinitionProps
             {
                 Family = taskDefinitionName,
-                MemoryLimitMiB = 512,
-                Cpu = 256,
+                MemoryLimitMiB = taskMemory,
+                Cpu = taskCpu,
                 TaskRole = CreateTaskRole(),
                 ExecutionRole = CreateExecutionRole(logGroup),
                 RuntimePlatform = new RuntimePlatform
@@ -215,13 +238,7 @@ public class TrialFinderV2EcsStack : Stack
         // Import security groups
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup",
             albOutputs.EcsSecurityGroupId);
-        var rdsSecurityGroup = ImportSharedDatabaseSecurityGroup();
-
-        // Add outbound rule to ECS security group to allow traffic to RDS
-        Console.WriteLine("🔗 Adding outbound rule to ECS security group for database connectivity...");
-        ecsSecurityGroup.AddEgressRule(rdsSecurityGroup, Port.Tcp(5432), "Allow PostgreSQL traffic to shared database");
-        Console.WriteLine("✅ Added outbound rule: ECS -> RDS (port 5432)");
-
+        
         // Create ECS service with deployment-friendly settings
         var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
         {
@@ -370,29 +387,48 @@ public class TrialFinderV2EcsStack : Stack
     {
         var containerName = containerConfig.Name ?? "default-container";
         
-        // Determine if we should use placeholder or specified image
+        // Determine if we should use ECR latest image, placeholder, or specified image
         ContainerImage containerImage;
         Dictionary<string, string> environmentVars;
         
         if (string.IsNullOrWhiteSpace(containerConfig.Image) || containerConfig.Image == "placeholder")
         {
-            // Use placeholder repository
-            var placeholderRepository = Repository.FromRepositoryName(this, $"PlaceholderRepository-{containerName}",
-                "thirdopinion/infra/deploy-placeholder");
-            containerImage = ContainerImage.FromEcrRepository(placeholderRepository, "latest");
-            
-            // Add placeholder-specific environment variables
-            environmentVars = CreateDefaultEnvironmentVariables(context);
-            environmentVars["DEPLOYMENT_TYPE"] = "placeholder";
-            environmentVars["MANAGED_BY"] = "CDK";
-            environmentVars["APP_NAME"] = context.Application.Name;
-            environmentVars["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
+            // Check if ECR repository has latest image first
+            var ecrImageUri = GetLatestEcrImageUri(containerName, context);
+            if (!string.IsNullOrEmpty(ecrImageUri))
+            {
+                // Use latest image from ECR repository
+                containerImage = ContainerImage.FromRegistry(ecrImageUri);
+                environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
+                environmentVars["DEPLOYMENT_TYPE"] = "ecr-latest";
+                environmentVars["IMAGE_SOURCE"] = "ecr";
+                environmentVars["ECR_REPOSITORY"] = _ecrRepositories[containerName].RepositoryName;
+                Console.WriteLine($"     🚀 Using latest ECR image for container '{containerName}': {ecrImageUri}");
+            }
+            else
+            {
+                // Fall back to placeholder image
+                var placeholderRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, $"PlaceholderRepository-{containerName}",
+                    "thirdopinion/infra/deploy-placeholder");
+                containerImage = ContainerImage.FromEcrRepository(placeholderRepository, "latest");
+                
+                // Add placeholder-specific environment variables
+                environmentVars = CreateDefaultEnvironmentVariables(context);
+                environmentVars["DEPLOYMENT_TYPE"] = "placeholder";
+                environmentVars["MANAGED_BY"] = "CDK";
+                environmentVars["APP_NAME"] = context.Application.Name;
+                environmentVars["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
+                environmentVars["IMAGE_SOURCE"] = "placeholder";
+                Console.WriteLine($"     📦 Using placeholder image for container '{containerName}' (no latest ECR image found)");
+            }
         }
         else
         {
             // Use specified image
             containerImage = ContainerImage.FromRegistry(containerConfig.Image);
             environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
+            environmentVars["IMAGE_SOURCE"] = "specified";
+            Console.WriteLine($"     🎯 Using specified image for container '{containerName}': {containerConfig.Image}");
         }
 
         var containerOptions = new ContainerDefinitionOptions
@@ -628,13 +664,10 @@ public class TrialFinderV2EcsStack : Stack
     private Dictionary<string, string> GetContainerSpecificEnvironmentDefaults(string containerName,
         DeploymentContext context)
     {
-        return containerName.ToLowerInvariant() switch
+        // Add ASPNETCORE_ENVIRONMENT for all containers (assuming they are .NET applications)
+        return new Dictionary<string, string>
         {
-            "doc-nlp-service-web" => new Dictionary<string, string>
-            {
-                ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name)
-            },
-            _ => new Dictionary<string, string>()
+            ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name)
         };
     }
 
@@ -758,7 +791,7 @@ public class TrialFinderV2EcsStack : Stack
         DeploymentContext context)
     {
         // Import the ECR repository for the placeholder image
-        var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository",
+        var placeholderRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, "PlaceholderRepository",
             "thirdopinion/infra/deploy-placeholder");
 
         // Add environment variables that GitHub Actions will override
@@ -874,6 +907,9 @@ public class TrialFinderV2EcsStack : Stack
         // Add QuickSight permissions for embedding functionality
         AddQuickSightPermissions(taskRole);
 
+        // Add Bedrock permissions for AI model access
+        AddBedrockPermissions(taskRole);
+
         // Add tag for identification
         Amazon.CDK.Tags.Of(taskRole).Add("ManagedBy", "CDK");
         Amazon.CDK.Tags.Of(taskRole).Add("Purpose", "ECS-Task");
@@ -955,6 +991,163 @@ public class TrialFinderV2EcsStack : Stack
         Amazon.CDK.Tags.Of(executionRole).Add("Service", _context.Application.Name);
 
         return executionRole;
+    }
+
+    /// <summary>
+    /// Create GitHub Actions deployment role
+    /// </summary>
+    private IRole CreateGithubActionsDeploymentRole(DeploymentContext context)
+    {
+        // Follow naming convention: {environment}-{service}-github-actions-role
+        var roleName = context.Namer.IamRole(IamPurpose.GithubActionsDeploy);
+        
+        var deploymentRole = new Role(this, "GithubActionsDeploymentRole", new RoleProps
+        {
+            RoleName = roleName,
+            Description = $"Role for GitHub Actions to deploy to ECS in {context.Environment.Name}",
+            AssumedBy = new FederatedPrincipal($"arn:aws:iam::{context.Environment.AccountId}:oidc-provider/token.actions.githubusercontent.com", new Dictionary<string, object>
+            {
+                ["StringEquals"] = new Dictionary<string, string>
+                {
+                    ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com"
+                },
+                ["StringLike"] = new Dictionary<string, string>
+                {
+                    ["token.actions.githubusercontent.com:sub"] = $"repo:Third-Opinion/TrialFinder:*"
+                }
+            }, "sts:AssumeRoleWithWebIdentity"),
+            ManagedPolicies = Array.Empty<IManagedPolicy>()
+        });
+
+        // Add ECS permissions for task definition management
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECSDeployment",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition",
+                "ecs:DescribeServices",
+                "ecs:UpdateService",
+                "ecs:DescribeClusters",
+                "ecs:ListTasks",
+                "ecs:DescribeTasks",
+                "ecs:StopTask",
+                "ecs:RunTask"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:task-definition/*",
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:service/*",
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:cluster/*",
+                $"arn:aws:ecs:{context.Environment.Region}:{context.Environment.AccountId}:task/*"
+            }
+        }));
+
+        // Add specific permission for DescribeTaskDefinition with * resource
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowDescribeTaskDefinition",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecs:DescribeTaskDefinition"
+            },
+            Resources = new[]
+            {
+                "*"
+            }
+        }));
+        
+        // Add ECR permissions for image access
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECRAccess",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:ecr:{context.Environment.Region}:{context.Environment.AccountId}:repository/thirdopinion/*",
+                $"arn:aws:ecr:{context.Environment.Region}:{context.Environment.AccountId}:repository/{context.Application.Name.ToLowerInvariant()}/*"
+            }
+        }));
+
+        // Add ECR authorization token permission (account-wide)
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowECRAuthorizationToken",
+            Effect = Effect.ALLOW,
+            Actions = new[] { "ecr:GetAuthorizationToken" },
+            Resources = new[] { "*" }
+        }));
+
+        // Add CloudFormation permissions to read stack outputs
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowCloudFormationRead",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "cloudformation:DescribeStacks",
+                "cloudformation:ListStacks",
+                "cloudformation:GetTemplate"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:cloudformation:{context.Environment.Region}:{context.Environment.AccountId}:stack/*"
+            }
+        }));
+
+        // Add IAM permissions for role assumption (needed for OIDC)
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowIAMRoleAssumption",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "iam:PassRole"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:iam::{context.Environment.AccountId}:role/{context.Environment.Name}-{context.Application.Name.ToLowerInvariant()}-*"
+            }
+        }));
+
+        // Add Secrets Manager permissions for secret existence checking
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowSecretsManagerRead",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:ListSecrets"
+            },
+            Resources = new[]
+            {
+                // Allow access to secrets in both path and ARN formats
+                $"arn:aws:secretsmanager:{context.Environment.Region}:{context.Environment.AccountId}:secret:/{context.Environment.Name.ToLowerInvariant()}/{context.Application.Name.ToLowerInvariant()}/*"
+            }
+        }));
+
+        // Add tag for identification
+        Amazon.CDK.Tags.Of(deploymentRole).Add("ManagedBy", "CDK");
+        Amazon.CDK.Tags.Of(deploymentRole).Add("Purpose", "GitHub-Actions-Deployment");
+        Amazon.CDK.Tags.Of(deploymentRole).Add("Service", context.Application.Name);
+
+        return deploymentRole;
     }
 
     /// <summary>
@@ -1064,10 +1257,10 @@ public class TrialFinderV2EcsStack : Stack
         // Define specific secret ARNs that the task can access
         var allowedSecretArns = new[]
         {
+            // Allow access to application-specific secrets
             $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/{applicationName}/*",
             // Allow access to shared secrets if needed
-            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*",
-            // Allow access to RDS database credentials secret (including version suffixes)
+            $"arn:aws:secretsmanager:{_context.Environment.Region}:{_context.Environment.AccountId}:secret:/{environmentPrefix}/shared/*"
         };
         
         // Add Secrets Manager permissions
@@ -1268,6 +1461,71 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
+    /// Add Bedrock permissions to IAM role for AI model access
+    /// </summary>
+    private void AddBedrockPermissions(IRole role)
+    {
+        // Cast to Role to access AddToPolicy method
+        var concreteRole = role as Role;
+        if (concreteRole == null) return;
+
+        // Bedrock model invocation permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowBedrockModelInvocation",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "bedrock:InvokeModel",
+                "bedrock:InvokeModelWithResponseStream"
+            },
+            Resources = new[] 
+            { 
+                // Allow access to all foundation models (AWS managed models)
+                $"arn:aws:bedrock:{_context.Environment.Region}::foundation-model/*",
+                // Allow access to account-specific inference profiles
+                $"arn:aws:bedrock:{_context.Environment.Region}:{_context.Environment.AccountId}:inference-profile/*"
+            }
+        }));
+
+        // Bedrock model information permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowBedrockModelInformation",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "bedrock:GetFoundationModel",
+                "bedrock:ListFoundationModels",
+                "bedrock:GetModelInvocationLoggingConfiguration",
+                "bedrock:GetModelCustomizationJob",
+                "bedrock:ListModelCustomizationJobs",
+                "bedrock:GetProvisionedModelThroughput",
+                "bedrock:ListProvisionedModelThroughputs",
+                "bedrock:GetModelEvaluationJob",
+                "bedrock:ListModelEvaluationJobs"
+            },
+            Resources = new[] { "*" }
+        }));
+
+        // Bedrock inference profile permissions
+        concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowBedrockInferenceProfiles",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "bedrock:GetInferenceProfile",
+                "bedrock:ListInferenceProfiles"
+            },
+            Resources = new[] 
+            { 
+                $"arn:aws:bedrock:{_context.Environment.Region}:{_context.Environment.AccountId}:inference-profile/*"
+            }
+        }));
+    }
+
+    /// <summary>
     /// Collect all secret names from all containers and build mapping once
     /// </summary>
     private void CollectAllSecretsAndBuildMapping(TaskDefinitionConfig? taskDefConfig, DeploymentContext context)
@@ -1372,43 +1630,83 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Check if a secret exists in AWS Secrets Manager using AWS SDK
-    /// </summary>
-    /// <summary>
     /// Get secret information from AWS Secrets Manager using AWS SDK
-    /// Returns a tuple with (exists, arn) where arn is null if secret doesn't exist
+    /// Returns a tuple with (exists, arn, currentValue) where arn and currentValue are null if secret doesn't exist
     /// </summary>
-    private (bool exists, string? arn) GetSecret(string secretName)
+    private async Task<(bool exists, string? arn, string? currentValue)> GetSecretAsync(string secretName)
     {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(secretName))
+        {
+            Console.WriteLine($"          ⚠️  Secret name is null or empty");
+            return (false, null, null);
+        }
+
         try
         {
             using var secretsManagerClient = new AmazonSecretsManagerClient();
+            
+            Console.WriteLine($"          🔍 Checking secret with name: {secretName}");
+            
             var describeSecretRequest = new DescribeSecretRequest
             {
                 SecretId = secretName
             };
             
-            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
-            return (true, response.ARN);
+            var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
+            
+            // Try to get the current secret value
+            string? currentValue = null;
+            try
+            {
+                var getSecretValueRequest = new GetSecretValueRequest
+                {
+                    SecretId = secretName
+                };
+                
+                var secretValueResponse = await secretsManagerClient.GetSecretValueAsync(getSecretValueRequest);
+                currentValue = secretValueResponse.SecretString;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"          ⚠️  Could not retrieve current secret value: {ex.Message}");
+                // Continue without the current value
+            }
+            
+            return (true, response.ARN, currentValue);
         }
         catch (ResourceNotFoundException)
         {
-            return (false, null);
+            return (false, null, null);
         }
         catch (Exception ex)
         {
             // Log the error but don't fail the deployment
             Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
             Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
-            return (false, null);
+            return (false, null, null);
         }
+    }
+
+    /// <summary>
+    /// Check if a secret exists in Secrets Manager using AWS SDK (synchronous wrapper)
+    /// </summary>
+    private (bool exists, string? arn, string? currentValue) GetSecret(string secretName)
+    {
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetSecretAsync(secretName).GetAwaiter().GetResult();
     }
 
     /// <summary>
     /// Get or create a secret in Secrets Manager
     /// This method uses AWS SDK to check if secrets exist before creating them.
-    /// If a secret exists, it imports the existing secret reference to preserve manual values.
+    /// If a secret exists, it creates a CloudFormation-managed secret with the same name
+    /// to ensure proper lifecycle management while preserving existing values.
     /// If a secret doesn't exist, it creates a new secret with generated values.
+    /// 
+    /// IMPORTANT: This approach ensures that all secrets are properly managed by CloudFormation
+    /// and will appear in the CloudFormation resources section, preventing them from disappearing
+    /// when the stack is updated or redeployed.
     /// </summary>
     private Amazon.CDK.AWS.SecretsManager.ISecret GetOrCreateSecret(string secretName, string fullSecretName, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
     {
@@ -1419,21 +1717,70 @@ public class TrialFinderV2EcsStack : Stack
             return _createdSecrets[secretName];
         }
 
-        // Use AWS SDK to check if secret exists and get its ARN
+        // Use AWS SDK to check if secret exists and get its current value
         Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
         
-        var (secretExists, secretArn) = GetSecret(fullSecretName);
+        var (secretExists, secretArn, currentValue) = GetSecret(fullSecretName);
         
         if (secretExists)
         {
-            // Secret exists - import it to preserve manual values
-            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
+            // Secret exists - create a CloudFormation-managed secret with the same name
+            // This ensures proper lifecycle management while preserving existing values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - creating CloudFormation-managed secret (preserving existing values)");
             
-            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretCompleteArn(this, $"ImportedSecret-{secretName}", secretArn!);
+            // For Cognito secrets, use actual values if available
+            if (cognitoOutputs != null && IsCognitoSecret(secretName))
+            {
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with actual Cognito values");
+                
+                string? actualValue = GetCognitoActualValue(secretName, cognitoOutputs);
+                
+                if (!string.IsNullOrEmpty(actualValue))
+                {
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
+                    var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+                    {
+                        SecretName = fullSecretName,
+                        Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                        SecretStringValue = SecretValue.UnsafePlainText(actualValue)
+                    });
+
+                    // Add the CDKManaged tag required by IAM policy
+                    Amazon.CDK.Tags.Of(cognitoSecret).Add("CDKManaged", "true");
+
+                    _createdSecrets[secretName] = cognitoSecret;
+                    return cognitoSecret;
+                }
+                else
+                {
+                    Console.WriteLine($"          ⚠️  Could not determine actual value for Cognito secret '{secretName}', using generated value");
+                }
+            }
             
-            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+            // For existing secrets, create a CloudFormation-managed secret with the same name
+            // This will either preserve existing values or create new ones if the secret was deleted
+            if (ShouldPreserveExistingValue(secretName, currentValue))
+            {
+                Console.WriteLine($"          🔄 Preserving existing value for secret '{secretName}'");
+            }
+            else
+            {
+                Console.WriteLine($"          🔄 Creating new value for existing secret '{secretName}' (not preserving current value)");
+            }
+            
+            var existingSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            {
+                SecretName = fullSecretName,
+                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                SecretStringValue = ShouldPreserveExistingValue(secretName, currentValue)
+                    ? SecretValue.UnsafePlainText(currentValue!)
+                    : SecretValue.UnsafePlainText($"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\",\"existingSecret\":\"true\",\"value\":\"{Guid.NewGuid():N}\"}}")
+            });
+
+            // Add the CDKManaged tag required by IAM policy
             Amazon.CDK.Tags.Of(existingSecret).Add("CDKManaged", "true");
-            
+
             _createdSecrets[secretName] = existingSecret;
             return existingSecret;
         }
@@ -1442,37 +1789,75 @@ public class TrialFinderV2EcsStack : Stack
             // Secret doesn't exist - create it with generated values or Cognito values
             Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
             
-            // For Cognito secrets, we'll create them with generated values for now
-            // The actual values will be populated by the application at runtime
+            // For Cognito secrets, create them with actual values if available
             if (cognitoOutputs != null && IsCognitoSecret(secretName))
             {
-                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with generated value (will be updated manually)");
-            }
-            {
-                // Regular secret with generated values
-                var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with actual Cognito values");
+                
+                // Determine the actual value based on secret name
+                string? actualValue = GetCognitoActualValue(secretName, cognitoOutputs);
+                
+                if (!string.IsNullOrEmpty(actualValue))
                 {
-                    SecretName = fullSecretName,
-                    Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
-                    GenerateSecretString = new SecretStringGenerator
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
+                    // Create secret with actual Cognito value
+                    var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
                     {
-                        SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
-                        GenerateStringKey = "value",
-                        PasswordLength = 32,
-                        ExcludeCharacters = "\"@/\\"
-                    }
-                });
+                        SecretName = fullSecretName,
+                        Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                        SecretStringValue = SecretValue.UnsafePlainText(actualValue)
+                    });
 
-                // Add the CDKManaged tag required by IAM policy
-                Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+                    // Add the CDKManaged tag required by IAM policy
+                    Amazon.CDK.Tags.Of(cognitoSecret).Add("CDKManaged", "true");
 
-                // Store the full ARN with version suffix for later use
-                // _secretFullArns[secretName] = secret.SecretArn; // This line is removed
-
-                _createdSecrets[secretName] = secret;
-                return secret;
+                    _createdSecrets[secretName] = cognitoSecret;
+                    return cognitoSecret;
+                }
+                else
+                {
+                    Console.WriteLine($"          ⚠️  Could not determine actual value for Cognito secret '{secretName}', using generated value");
+                }
             }
+            
+            // Regular secret with generated values (fallback for Cognito secrets without actual values)
+            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            {
+                SecretName = fullSecretName,
+                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                GenerateSecretString = new SecretStringGenerator
+                {
+                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                    GenerateStringKey = "value",
+                    PasswordLength = 32,
+                    ExcludeCharacters = "\"@/\\"
+                }
+            });
+
+            // Add the CDKManaged tag required by IAM policy
+            Amazon.CDK.Tags.Of(secret).Add("CDKManaged", "true");
+
+            _createdSecrets[secretName] = secret;
+            return secret;
         }
+    }
+
+    /// <summary>
+    /// Get actual Cognito value based on secret name and Cognito outputs
+    /// </summary>
+    private string? GetCognitoActualValue(string secretName, CognitoStackOutputs cognitoOutputs)
+    {
+        return secretName.ToLowerInvariant() switch
+        {
+            "cognito-clientid" => cognitoOutputs.AppClientId,
+            "cognito-clientsecret" => null, // Client secret is not exposed in outputs for security
+            "cognito-userpoolid" => cognitoOutputs.UserPoolId,
+            "cognito-domain" => cognitoOutputs.DomainUrl, //use url instead of domain name
+            "cognito-domainurl" => cognitoOutputs.DomainUrl,
+            "cognito-userpoolarn" => cognitoOutputs.UserPoolArn,
+            _ => null
+        };
     }
 
     /// <summary>
@@ -1482,28 +1867,36 @@ public class TrialFinderV2EcsStack : Stack
     {
         var cognitoSecretNames = new[]
         {
-            "cognito-client-id",
-            "cognito-client-secret", 
-            "cognito-user-pool-id",
-            "cognito-domain"
+            "cognito-clientid",
+            "cognito-clientsecret", 
+            "cognito-userpoolid",
+            "cognito-domainurl",
+            "cognito-domain",
+            "cognito-userpoolarn"
         };
         
         return cognitoSecretNames.Contains(secretName.ToLowerInvariant());
     }
 
     /// <summary>
-    /// Get the actual value for a Cognito secret
+    /// Determine if we should preserve existing secret values
     /// </summary>
-    private string GetCognitoSecretValue(string secretName, CognitoStackOutputs cognitoOutputs)
+    private bool ShouldPreserveExistingValue(string secretName, string? currentValue)
     {
-        return secretName.ToLowerInvariant() switch
-        {
-            "cognito-client-id" => cognitoOutputs.AppClientId,
-            "cognito-client-secret" => "***SECRET***", // Client secret is not exposed for security
-            "cognito-user-pool-id" => cognitoOutputs.UserPoolId,
-            "cognito-domain" => cognitoOutputs.DomainUrl,
-            _ => throw new ArgumentException($"Unknown Cognito secret name: {secretName}")
-        };
+        // Don't preserve if no current value exists
+        if (string.IsNullOrEmpty(currentValue))
+            return false;
+            
+        // Don't preserve Cognito secrets as they should use actual Cognito values
+        if (IsCognitoSecret(secretName))
+            return false;
+            
+        // Don't preserve test secrets
+        if (secretName.Equals("test-secret", StringComparison.OrdinalIgnoreCase))
+            return false;
+            
+        // Preserve other existing secrets
+        return true;
     }
 
     /// <summary>
@@ -1521,79 +1914,6 @@ public class TrialFinderV2EcsStack : Stack
                 ExportName = exportName
             });
         }
-    }
-
-    /// <summary>
-    /// Create test secrets in Secrets Manager for the current environment
-    /// </summary>
-    private void CreateTestSecrets()
-    {
-        var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
-        var applicationName = _context.Application.Name.ToLowerInvariant();
-        
-        // Create database connection secret
-        var dbSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "DatabaseConnectionSecret", new SecretProps
-        {
-            SecretName = $"/{environmentPrefix}/{applicationName}/database-connection",
-            Description = $"Database connection string for {_context.Application.Name} in {_context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
-            {
-                SecretStringTemplate = "{\"username\":\"trialfinderuser\"}",
-                GenerateStringKey = "password",
-                PasswordLength = 32,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
-
-        // Create API key secret
-        var apiKeySecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "ApiKeySecret", new SecretProps
-        {
-            SecretName = $"/{environmentPrefix}/{applicationName}/api-key",
-            Description = $"API key for {_context.Application.Name} in {_context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
-            {
-                SecretStringTemplate = "{\"service\":\"trial-finder\"}",
-                GenerateStringKey = "apiKey",
-                PasswordLength = 64,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
-
-        // Create service credentials secret
-        var serviceCredentialsSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "ServiceCredentialsSecret", new SecretProps
-        {
-            SecretName = $"/{environmentPrefix}/{applicationName}/service-credentials",
-            Description = $"Service credentials for {_context.Application.Name} in {_context.Environment.Name}",
-            GenerateSecretString = new SecretStringGenerator
-            {
-                SecretStringTemplate = "{\"clientId\":\"trial-finder-client\"}",
-                GenerateStringKey = "clientSecret",
-                PasswordLength = 48,
-                ExcludeCharacters = "\"@/\\"
-            }
-        });
-
-        // Export secret ARNs for reference
-        new CfnOutput(this, "DatabaseSecretArn", new CfnOutputProps
-        {
-            Value = dbSecret.SecretArn,
-            Description = "Database connection secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-db-secret-arn"
-        });
-
-        new CfnOutput(this, "ApiKeySecretArn", new CfnOutputProps
-        {
-            Value = apiKeySecret.SecretArn,
-            Description = "API key secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-api-key-secret-arn"
-        });
-
-        new CfnOutput(this, "ServiceCredentialsSecretArn", new CfnOutputProps
-        {
-            Value = serviceCredentialsSecret.SecretArn,
-            Description = "Service credentials secret ARN",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-service-credentials-secret-arn"
-        });
     }
 
     /// <summary>
@@ -1663,6 +1983,14 @@ public class TrialFinderV2EcsStack : Stack
             Description = "ECS Execution IAM Role ARN",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-execution-role-arn"
         });
+
+        // Export GitHub Actions deployment role ARN
+        new CfnOutput(this, "GithubActionsRoleArn", new CfnOutputProps
+        {
+            Value = _githubActionsRole?.RoleArn ?? "N/A",
+            Description = "GitHub Actions deployment IAM Role ARN",
+            ExportName = $"{context.Environment.Name}-{context.Application.Name}-github-actions-role-arn"
+        });
     }
 
 
@@ -1684,5 +2012,278 @@ public class TrialFinderV2EcsStack : Stack
         public string AppClientId { get; set; } = "";
         public string DomainUrl { get; set; } = "";
         public string DomainName { get; set; } = "";
+        public string UserPoolArn { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Create ECR repository for TrialFinder container images
+    /// </summary>
+    /// <summary>
+    /// Create ECR repositories from configuration
+    /// </summary>
+    private void CreateEcrRepositoriesFromConfig(DeploymentContext context)
+    {
+        var config = _configLoader.LoadFullConfig(context.Environment.Name);
+        
+        if (config.EcsConfiguration?.TaskDefinition != null)
+        {
+            foreach (var taskDef in config.EcsConfiguration.TaskDefinition)
+            {
+                if (taskDef.ContainerDefinitions != null)
+                {
+                    foreach (var container in taskDef.ContainerDefinitions)
+                    {
+                        if (container.Repository != null && !string.IsNullOrWhiteSpace(container.Repository.Type))
+                        {
+                            var repositoryName = context.Namer.EcrRepository(container.Repository.Type);
+                            var repositoryKey = container.Name ?? "unknown"; // Use container name as key
+                            
+                            if (!_ecrRepositories.ContainsKey(repositoryKey))
+                            {
+                                _ecrRepositories[repositoryKey] = GetOrCreateEcrRepository(
+                                    container.Repository.Type, 
+                                    repositoryName, 
+                                    $"TrialFinder{container.Name}EcrRepository"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Get existing ECR repository or create new one
+    /// </summary>
+    private IRepository GetOrCreateEcrRepository(string serviceType, string repositoryName, string constructId)
+    {
+        // Use AWS SDK to check if repository actually exists
+        var region = _context.Environment.Region;
+        using var ecrClient = new AmazonECRClient(new AmazonECRConfig
+        {
+            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region)
+        });
+
+        try
+        {
+            // Check if repository exists using AWS SDK
+            var describeRequest = new DescribeRepositoriesRequest
+            {
+                RepositoryNames = new List<string> { repositoryName }
+            };
+            var describeResponse = Task.Run(() => ecrClient.DescribeRepositoriesAsync(describeRequest)).Result;
+            
+            if (describeResponse.Repositories != null && describeResponse.Repositories.Count > 0)
+            {
+                // Repository exists, import it
+                var existingRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
+                Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
+                return existingRepository;
+            }
+            else
+            {
+                // Repository doesn't exist, create it
+                var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
+                {
+                    RepositoryName = repositoryName,
+                    ImageScanOnPush = true,
+                    RemovalPolicy = RemovalPolicy.RETAIN
+                });
+                Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+                return repository;
+            }
+        }
+        catch (RepositoryNotFoundException)
+        {
+            // Repository doesn't exist, create it
+            var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
+            {
+                RepositoryName = repositoryName,
+                ImageScanOnPush = true,
+                RemovalPolicy = RemovalPolicy.RETAIN
+            });
+            Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+            return repository;
+        }
+        catch (Exception ex)
+        {
+            // For any other error, assume repository doesn't exist and create it
+            Console.WriteLine($"⚠️  Error checking ECR repository '{repositoryName}': {ex.Message}");
+            Console.WriteLine($"   Creating new ECR repository: {repositoryName}");
+            
+            var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
+            {
+                RepositoryName = repositoryName,
+                ImageScanOnPush = true,
+                RemovalPolicy = RemovalPolicy.RETAIN
+            });
+            Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+            return repository;
+        }
+    }
+
+    /// <summary>
+    /// Export ECR repository information for external consumption
+    /// </summary>
+    private void ExportEcrRepositoryOutputs()
+    {
+        foreach (var kvp in _ecrRepositories)
+        {
+            var repositoryName = kvp.Key;
+            var repository = kvp.Value;
+
+            new CfnOutput(this, $"EcrRepositoryArn-{repositoryName}", new CfnOutputProps
+            {
+                Value = repository.RepositoryArn,
+                Description = $"TrialFinder ECR Repository ARN for {repositoryName}",
+                ExportName = $"{_context.Environment.Name}-trial-finder-{repositoryName}-ecr-repository-arn"
+            });
+
+            new CfnOutput(this, $"EcrRepositoryName-{repositoryName}", new CfnOutputProps
+            {
+                Value = repository.RepositoryName,
+                Description = $"TrialFinder ECR Repository Name for {repositoryName}",
+                ExportName = $"{_context.Environment.Name}-trial-finder-{repositoryName}-ecr-repository-name"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Check if ECR repository has a latest image and return its URI (async version)
+    /// </summary>
+    private async Task<string?> GetLatestEcrImageUriAsync(string containerName, DeploymentContext context)
+    {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(containerName))
+        {
+            Console.WriteLine($"     ⚠️  Container name is null or empty");
+            return null;
+        }
+
+        try
+        {
+            // Map container name to repository type based on configuration
+            string repositoryType = MapContainerNameToRepositoryType(containerName);
+            if (string.IsNullOrWhiteSpace(repositoryType))
+            {
+                Console.WriteLine($"     ⚠️  No repository type mapping found for container '{containerName}'");
+                return null;
+            }
+
+            // Get the ECR repository name using the repository type
+            var repositoryName = context.Namer.EcrRepository(repositoryType);
+            Console.WriteLine($"     🔍 Using repository type '{repositoryType}' for container '{containerName}' -> repository: {repositoryName}");
+            var region = context.Environment.Region;
+            var accountId = context.Environment.AccountId;
+
+            Console.WriteLine($"     🔍 Checking for latest image in ECR repository: {repositoryName}");
+
+            // Use AWS SDK to check if repository has latest tag
+            using var ecrClient = new AmazonECRClient(new AmazonECRConfig
+            {
+                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region)
+            });
+
+            // List images in the repository
+            var listImagesRequest = new ListImagesRequest
+            {
+                RepositoryName = repositoryName
+            };
+
+            var listImagesResponse = await ecrClient.ListImagesAsync(listImagesRequest);
+            
+            if (listImagesResponse.ImageIds == null || listImagesResponse.ImageIds.Count == 0)
+            {
+                Console.WriteLine($"     ℹ️  No images found in ECR repository: {repositoryName}");
+                return null;
+            }
+
+            // Check if latest tag exists first, then fall back to the most recently pushed image
+            var latestImage = listImagesResponse.ImageIds.FirstOrDefault(img => 
+                img.ImageTag != null && img.ImageTag.Equals("latest", StringComparison.OrdinalIgnoreCase));
+
+            if (latestImage == null)
+            {
+                // Get detailed information about all images to find the most recently pushed one
+                var describeImagesRequest = new DescribeImagesRequest
+                {
+                    RepositoryName = repositoryName,
+                    ImageIds = listImagesResponse.ImageIds
+                };
+
+                var describeImagesResponse = await ecrClient.DescribeImagesAsync(describeImagesRequest);
+                
+                if (describeImagesResponse.ImageDetails == null || describeImagesResponse.ImageDetails.Count == 0)
+                {
+                    Console.WriteLine($"     ℹ️  No image details found in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Find the most recently pushed image
+                var mostRecentImage = describeImagesResponse.ImageDetails
+                    .OrderByDescending(img => img.ImagePushedAt)
+                    .FirstOrDefault();
+
+                if (mostRecentImage == null)
+                {
+                    Console.WriteLine($"     ℹ️  No images with push timestamps found in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Get the tag for the most recent image
+                var imageTag = mostRecentImage.ImageTags?.FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(imageTag))
+                {
+                    Console.WriteLine($"     ℹ️  Most recent image has no tags in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Use the most recently pushed image
+                var mostRecentImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:{imageTag}";
+                Console.WriteLine($"     ✅ Found most recently pushed image: {mostRecentImageUri} (pushed at: {mostRecentImage.ImagePushedAt})");
+                return mostRecentImageUri;
+            }
+
+            // Construct the full image URI for latest tag
+            var latestImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:latest";
+            Console.WriteLine($"     ✅ Found latest image: {latestImageUri}");
+            
+            return latestImageUri;
+        }
+        catch (RepositoryNotFoundException)
+        {
+            Console.WriteLine($"     ⚠️  ECR repository not found for container '{containerName}'");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"     ⚠️  Error checking ECR repository for container '{containerName}': {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Check if ECR repository has a latest image and return its URI (synchronous wrapper)
+    /// </summary>
+    private string? GetLatestEcrImageUri(string containerName, DeploymentContext context)
+    {
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetLatestEcrImageUriAsync(containerName, context).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Map container name to repository type based on configuration
+    /// </summary>
+    private string MapContainerNameToRepositoryType(string containerName)
+    {
+        // Map container names to repository types based on the configuration
+        return containerName switch
+        {
+            "trial-finder-v2" => "webapp",
+            "trial-finder-v2-loader" => "loader",
+            _ => string.Empty
+        };
     }
 }

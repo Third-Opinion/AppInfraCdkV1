@@ -492,15 +492,34 @@ public class TrialFinderV2Stack : WebApplicationStack
     /// </summary>
     private IRepository CreateEcrRepository(DeploymentContext context)
     {
-        var repositoryName = context.Namer.EcrRepository("web");
+        var repositoryName = context.Namer.EcrRepository("webapp");
         
-        //TODO we should be able to create one here and not assume one is there
-        // Import existing ECR repository instead of creating new one
-        var repository = Repository.FromRepositoryName(this, "TrialFinderRepository", repositoryName);
+        return GetOrCreateEcrRepository("webapp", repositoryName, "TrialFinderEcrRepository");
+    }
 
-        // Note: ECR pull permissions will be granted to the ECS execution role 
-        // when the task definition is created
-
-        return repository;
+    /// <summary>
+    /// Get existing ECR repository or create new one
+    /// </summary>
+    private IRepository GetOrCreateEcrRepository(string serviceType, string repositoryName, string constructId)
+    {
+        try
+        {
+            // Try to import existing repository first
+            var existingRepository = Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
+            Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
+            return existingRepository;
+        }
+        catch (Exception)
+        {
+            // If import fails, create new repository
+            var repository = new Repository(this, constructId, new RepositoryProps
+            {
+                RepositoryName = repositoryName,
+                ImageScanOnPush = true,
+                RemovalPolicy = RemovalPolicy.RETAIN
+            });
+            Console.WriteLine($"✅ Created new ECR repository: {repositoryName}");
+            return repository;
+        }
     }
 }
