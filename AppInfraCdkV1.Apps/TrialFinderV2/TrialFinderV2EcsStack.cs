@@ -1482,9 +1482,9 @@ public class TrialFinderV2EcsStack : Stack
             Resources = new[] 
             { 
                 // Allow access to all foundation models (AWS managed models)
-                $"arn:aws:bedrock:{_context.Environment.Region}::foundation-model/*",
+                $"arn:aws:bedrock:*::foundation-model/*",
                 // Allow access to account-specific inference profiles
-                $"arn:aws:bedrock:{_context.Environment.Region}:{_context.Environment.AccountId}:inference-profile/*"
+                $"arn:aws:bedrock:*:{_context.Environment.AccountId}:inference-profile/*"
             }
         }));
 
