@@ -18,7 +18,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             : base(scope, id, props)
         {
             // Create KMS key for encryption (production only for PHI data)
-            if (config.Environment.ToLower() == "prod" || config.Environment.ToLower() == "production")
+            if (config.Environment.ToLower() == "prd" || config.Environment.ToLower() == "production")
             {
                 DataEncryptionKey = new Key(this, "DataLakeEncryptionKey", new KeyProps
                 {

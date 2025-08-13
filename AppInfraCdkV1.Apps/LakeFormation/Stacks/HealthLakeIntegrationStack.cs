@@ -9,6 +9,7 @@ using Amazon.CDK.AWS.StepFunctions.Tasks;
 using Amazon.CDK.AWS.S3;
 using Constructs;
 using System.Collections.Generic;
+using System.IO;
 
 namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
 {
@@ -195,11 +196,15 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
                 Resources = new[] { $"arn:aws:glue:{_config.Region}:{_config.AccountId}:job/{GlueETLJob.Name}" }
             }));
             
+            // Note: The Lambda package needs to be built first using:
+            // cd AppInfraCdkV1.Tools/HealthLakeETL && dotnet publish -c Release -r linux-x64 --self-contained false
+            var lambdaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.Tools", "HealthLakeETL");
+            
             ExportFunction = new Function(this, "HealthLakeExportFunction", new FunctionProps
             {
                 Runtime = Runtime.DOTNET_8,
-                Handler = "AppInfraCdkV1.Tools.HealthLakeETL::AppInfraCdkV1.Tools.HealthLakeETL.HealthLakeETLFunction::FunctionHandler",
-                Code = Code.FromAsset($"../AppInfraCdkV1.Tools/HealthLakeETL/bin/Release/net8.0/publish"),
+                Handler = "healthlake-etl::AppInfraCdkV1.Tools.HealthLakeETL.HealthLakeETLFunction::FunctionHandler",
+                Code = Code.FromAsset(lambdaPath),
                 Description = "Triggers HealthLake exports and initiates ETL processing",
                 MemorySize = 1024,
                 Role = exportFunctionRole,

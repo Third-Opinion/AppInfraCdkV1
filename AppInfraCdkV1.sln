@@ -1,5 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppInfraCdkV1.Deploy", "AppInfraCdkV1.Deploy\AppInfraCdkV1.Deploy.csproj", "{F305E56A-4729-4449-8DD7-C3B4BC44A400}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppInfraCdkV1.Apps", "AppInfraCdkV1.Apps\AppInfraCdkV1.Apps.csproj", "{19A3DA91-8369-4410-AB2C-091AC9119666}"
@@ -15,6 +16,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppInfraCdkV1.Stacks", "AppInfraCdkV1.Stacks\AppInfraCdkV1.Stacks.csproj", "{4B8328E7-8421-470F-84BD-5767AB6FFEF8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppInfraCdkV1.Tools", "AppInfraCdkV1.Tools\AppInfraCdkV1.Tools.csproj", "{E698DCAD-FE90-46E5-9593-EA99BC9F09FA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AppInfraCdkV1.Tools", "AppInfraCdkV1.Tools", "{CC2662AD-DDB3-48E4-8A51-E2FCCF7D9C33}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppInfraCdkV1.Tools.HealthLakeETL", "AppInfraCdkV1.Tools\HealthLakeETL\AppInfraCdkV1.Tools.HealthLakeETL.csproj", "{8E48E87E-1EEF-455C-97B2-1E5B93F0A5EA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -46,6 +51,10 @@ Global
 		{E698DCAD-FE90-46E5-9593-EA99BC9F09FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E698DCAD-FE90-46E5-9593-EA99BC9F09FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E698DCAD-FE90-46E5-9593-EA99BC9F09FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E48E87E-1EEF-455C-97B2-1E5B93F0A5EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E48E87E-1EEF-455C-97B2-1E5B93F0A5EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E48E87E-1EEF-455C-97B2-1E5B93F0A5EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E48E87E-1EEF-455C-97B2-1E5B93F0A5EA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{42A90B92-928C-4798-A775-A5BFE3C041BD} = {D2EC0A91-4BFA-4A7D-B6C8-EA64BE9B6B77}
@@ -54,5 +63,6 @@ Global
 		{F305E56A-4729-4449-8DD7-C3B4BC44A400} = {68429669-F1ED-427E-81BE-31CD239EFC85}
 		{4B8328E7-8421-470F-84BD-5767AB6FFEF8} = {68429669-F1ED-427E-81BE-31CD239EFC85}
 		{E698DCAD-FE90-46E5-9593-EA99BC9F09FA} = {68429669-F1ED-427E-81BE-31CD239EFC85}
+		{8E48E87E-1EEF-455C-97B2-1E5B93F0A5EA} = {CC2662AD-DDB3-48E4-8A51-E2FCCF7D9C33}
 	EndGlobalSection
 EndGlobal
