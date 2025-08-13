@@ -5,6 +5,7 @@ namespace AppInfraCdkV1.Core.Models;
 
 public class DeploymentContext
 {
+    private readonly object _namerLock = new object();
     private ResourceNamer? _namer;
     private EnvironmentConfig _environment = new();
     private ApplicationConfig _application = new();
@@ -41,7 +42,23 @@ public class DeploymentContext
     ///     Gets the resource namer for this deployment context
     ///     Think of this as your personal naming assistant that knows your project details
     /// </summary>
-    public ResourceNamer Namer => _namer ??= new ResourceNamer(this);
+    public ResourceNamer Namer
+    {
+        get
+        {
+            if (_namer == null)
+            {
+                lock (_namerLock)
+                {
+                    if (_namer == null)
+                    {
+                        _namer = new ResourceNamer(this);
+                    }
+                }
+            }
+            return _namer;
+        }
+    }
 
     /// <summary>
     /// External resource validation results

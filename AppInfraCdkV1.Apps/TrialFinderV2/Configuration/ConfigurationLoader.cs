@@ -115,6 +115,18 @@ public class ConfigurationLoader
             throw new InvalidOperationException($"Container '{container.Name}' requires an image");
         }
         
+        // Allow "placeholder" as a valid image value for development/testing
+        if (container.Image.Equals("placeholder", StringComparison.OrdinalIgnoreCase))
+        {
+            // This is valid - placeholder images are used for development/testing
+        }
+        
+        // Validate repository configuration if present
+        if (container.Repository != null)
+        {
+            ValidateRepositoryConfiguration(container.Repository, container.Name);
+        }
+        
         // Validate port mappings
         if (container.PortMappings?.Count > 0)
         {
@@ -143,6 +155,32 @@ public class ConfigurationLoader
             }
         }
         
+    }
+
+    /// <summary>
+    /// Validate repository configuration
+    /// </summary>
+    private void ValidateRepositoryConfiguration(ContainerRepositoryConfig repository, string containerName)
+    {
+        if (string.IsNullOrWhiteSpace(repository.Type))
+        {
+            throw new InvalidOperationException($"Container '{containerName}' repository configuration requires a type");
+        }
+        
+        if (string.IsNullOrWhiteSpace(repository.Description))
+        {
+            throw new InvalidOperationException($"Container '{containerName}' repository configuration requires a description");
+        }
+        
+        // Validate removal policy if specified
+        if (!string.IsNullOrWhiteSpace(repository.RemovalPolicy))
+        {
+            var validRemovalPolicies = new[] { "RETAIN", "DESTROY", "SNAPSHOT" };
+            if (!validRemovalPolicies.Contains(repository.RemovalPolicy))
+            {
+                throw new InvalidOperationException($"Container '{containerName}' repository has invalid removal policy: '{repository.RemovalPolicy}'. Must be one of: {string.Join(", ", validRemovalPolicies)}");
+            }
+        }
     }
     
     /// <summary>
@@ -223,13 +261,24 @@ public class EcsTaskConfiguration
 public class TaskDefinitionConfig
 {
     public string TaskDefinitionName { get; set; } = string.Empty;
+    public int? Cpu { get; set; }
+    public int? Memory { get; set; }
     public List<ContainerDefinitionConfig>? ContainerDefinitions { get; set; }
+}
+
+public class ContainerRepositoryConfig
+{
+    public string? Type { get; set; }
+    public string? Description { get; set; }
+    public bool? ImageScanOnPush { get; set; }
+    public string? RemovalPolicy { get; set; }
 }
 
 public class ContainerDefinitionConfig
 {
     public string? Name { get; set; }
     public string? Image { get; set; }
+    public ContainerRepositoryConfig? Repository { get; set; }
     public int? Cpu { get; set; }
     public bool? Essential { get; set; }
     public List<PortMapping>? PortMappings { get; set; }
