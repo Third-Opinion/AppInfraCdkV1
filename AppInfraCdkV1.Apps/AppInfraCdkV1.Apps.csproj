@@ -32,6 +32,9 @@
       <None Update="TrialFinderV2\config\staging.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="LakeFormation\lakeformation-config.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

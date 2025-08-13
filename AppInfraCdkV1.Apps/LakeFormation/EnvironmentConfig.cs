@@ -1,159 +1,204 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace AppInfraCdkV1.Apps.LakeFormation
 {
     public class LakeFormationEnvironmentConfig
     {
+        [JsonPropertyName("environment")]
         public string Environment { get; set; } = string.Empty;
+        
+        [JsonPropertyName("accountId")]
         public string AccountId { get; set; } = string.Empty;
+        
+        [JsonPropertyName("region")]
         public string Region { get; set; } = "us-east-2";
+        
+        [JsonPropertyName("identityCenter")]
         public IdentityCenterConfig IdentityCenter { get; set; } = new();
-        public LakeFormationGroupMappings GroupMappings { get; set; } = new();
+        
+        [JsonPropertyName("groupMappings")]
+        public Dictionary<string, GroupPermissions> GroupMappings { get; set; } = new();
+        
+        [JsonPropertyName("bucketConfig")]
         public DataLakeBucketConfig BucketConfig { get; set; } = new();
+        
+        [JsonPropertyName("tags")]
         public Dictionary<string, string> Tags { get; set; } = new();
+        
+        [JsonPropertyName("healthLake")]
         public HealthLakeConfig HealthLake { get; set; } = new();
     }
     
     public class HealthLakeConfig
     {
+        [JsonPropertyName("datastoreId")]
         public string DatastoreId { get; set; } = string.Empty;
+        
+        [JsonPropertyName("datastoreArn")]
         public string DatastoreArn { get; set; } = string.Empty;
+        
+        [JsonPropertyName("enableMultiTenancy")]
         public bool EnableMultiTenancy { get; set; } = true;
+        
+        [JsonPropertyName("tenantClaimSystem")]
         public string TenantClaimSystem { get; set; } = "http://thirdopinion.io/identity/claims/tenant";
-        public List<string> ResourceTypesToExport { get; set; } = new() 
-        { 
-            "Patient", "Observation", "Condition", "MedicationRequest", 
-            "Procedure", "DiagnosticReport", "Encounter", "AllergyIntolerance" 
-        };
     }
     
     public class IdentityCenterConfig
     {
+        [JsonPropertyName("instanceArn")]
         public string InstanceArn { get; set; } = "arn:aws:sso:::instance/ssoins-66849025a110d385";
-        public string IdentityStoreId { get; set; } = "d-9a677c3adb";
-        public string IdentityCenterAccountId { get; set; } = "442042533707";
-    }
-    
-    public class LakeFormationGroupMappings
-    {
-        public Dictionary<string, GroupPermissions> Groups { get; set; } = new();
         
-        public LakeFormationGroupMappings()
-        {
-            Groups = new Dictionary<string, GroupPermissions>
-            {
-                ["data-analysts-dev"] = new GroupPermissions
-                {
-                    GroupName = "data-analysts-dev",
-                    GroupEmail = "data-analysts-dev@thirdopinion.io",
-                    Description = "Development data analysts with non-PHI access",
-                    Permissions = new List<string> { "SELECT", "DESCRIBE" },
-                    AllowedDatabases = new List<string> { "thirdopinion_dev", "thirdopinion_staging" },
-                    AllowedTables = new List<string> { "*" },
-                    ExcludePHI = true
-                },
-                ["data-analysts-phi"] = new GroupPermissions
-                {
-                    GroupName = "data-analysts-phi",
-                    GroupEmail = "data-analysts-phi@thirdopinion.io",
-                    Description = "Data analysts with PHI access",
-                    Permissions = new List<string> { "SELECT", "DESCRIBE" },
-                    AllowedDatabases = new List<string> { "thirdopinion_prod", "thirdopinion_phi" },
-                    AllowedTables = new List<string> { "*" },
-                    ExcludePHI = false
-                },
-                ["data-engineers-phi"] = new GroupPermissions
-                {
-                    GroupName = "data-engineers-phi",
-                    GroupEmail = "data-engineers-phi@thirdopinion.io",
-                    Description = "Data engineers with full PHI access",
-                    Permissions = new List<string> { "ALL" },
-                    AllowedDatabases = new List<string> { "*" },
-                    AllowedTables = new List<string> { "*" },
-                    ExcludePHI = false,
-                    IsDataLakeAdmin = true
-                }
-            };
-        }
+        [JsonPropertyName("identityStoreId")]
+        public string IdentityStoreId { get; set; } = "d-9a677c3adb";
+        
+        [JsonPropertyName("identityCenterAccountId")]
+        public string IdentityCenterAccountId { get; set; } = "442042533707";
     }
     
     public class GroupPermissions
     {
+        [JsonPropertyName("groupName")]
         public string GroupName { get; set; } = string.Empty;
+        
+        [JsonPropertyName("groupEmail")]
         public string GroupEmail { get; set; } = string.Empty;
+        
+        [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
+        
+        [JsonPropertyName("permissions")]
         public List<string> Permissions { get; set; } = new();
+        
+        [JsonPropertyName("allowedDatabases")]
         public List<string> AllowedDatabases { get; set; } = new();
+        
+        [JsonPropertyName("allowedTables")]
         public List<string> AllowedTables { get; set; } = new();
+        
+        [JsonPropertyName("excludePHI")]
         public bool ExcludePHI { get; set; } = true;
+        
+        [JsonPropertyName("isDataLakeAdmin")]
         public bool IsDataLakeAdmin { get; set; } = false;
     }
     
     public class DataLakeBucketConfig
     {
+        [JsonPropertyName("bucketPrefix")]
         public string BucketPrefix { get; set; } = "thirdopinion";
+        
+        [JsonPropertyName("enableVersioning")]
         public bool EnableVersioning { get; set; } = true;
+        
+        [JsonPropertyName("enableEncryption")]
         public bool EnableEncryption { get; set; } = true;
+        
+        [JsonPropertyName("enableAccessLogging")]
         public bool EnableAccessLogging { get; set; } = true;
+        
+        [JsonPropertyName("lifecycle")]
         public DataLifecycleConfig Lifecycle { get; set; } = new();
+        
+        [JsonPropertyName("enableMultiTenantStructure")]
         public bool EnableMultiTenantStructure { get; set; } = true;
+        
+        [JsonPropertyName("tenantPartitionKey")]
         public string TenantPartitionKey { get; set; } = "tenantGuid";
     }
     
     public class DataLifecycleConfig
     {
+        [JsonPropertyName("transitionToIADays")]
         public int TransitionToIADays { get; set; } = 30;
+        
+        [JsonPropertyName("transitionToGlacierDays")]
         public int TransitionToGlacierDays { get; set; } = 90;
+        
+        [JsonPropertyName("expirationDays")]
         public int ExpirationDays { get; set; } = 0;
+        
+        [JsonPropertyName("enableIntelligentTiering")]
         public bool EnableIntelligentTiering { get; set; } = true;
+    }
+    
+    public class LakeFormationConfigRoot
+    {
+        [JsonPropertyName("environments")]
+        public Dictionary<string, LakeFormationEnvironmentConfig> Environments { get; set; } = new();
     }
     
     public static class LakeFormationEnvironmentConfigFactory
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true
+        };
+        
         public static LakeFormationEnvironmentConfig CreateConfig(string environment, string accountId)
         {
-            var config = new LakeFormationEnvironmentConfig
-            {
-                Environment = environment,
-                AccountId = accountId,
-                Region = "us-east-2"
-            };
+            // Normalize environment name to lowercase
+            var envKey = environment.ToLower();
             
-            switch (environment.ToLower())
+            // Find the configuration file
+            var configPath = FindConfigFile();
+            if (!File.Exists(configPath))
             {
-                case "dev":
-                case "development":
-                    config.Tags = new Dictionary<string, string>
-                    {
-                        ["Environment"] = "Development",
-                        ["Project"] = "ThirdOpinionDataLake",
-                        ["ManagedBy"] = "CDK",
-                        ["Owner"] = "DataEngineering"
-                    };
-                    config.BucketConfig.Lifecycle.ExpirationDays = 90;
-                    break;
-                    
-                case "prod":
-                case "production":
-                    config.Tags = new Dictionary<string, string>
-                    {
-                        ["Environment"] = "Production",
-                        ["Project"] = "ThirdOpinionDataLake",
-                        ["ManagedBy"] = "CDK",
-                        ["Owner"] = "DataEngineering",
-                        ["Compliance"] = "HIPAA"
-                    };
-                    config.BucketConfig.Lifecycle.ExpirationDays = 0;
-                    config.BucketConfig.EnableAccessLogging = true;
-                    config.BucketConfig.EnableEncryption = true;
-                    break;
-                    
-                default:
-                    throw new ArgumentException($"Unknown environment: {environment}");
+                throw new FileNotFoundException($"Lake Formation configuration file not found at: {configPath}");
+            }
+            
+            // Read and parse the configuration
+            var jsonContent = File.ReadAllText(configPath);
+            var configRoot = JsonSerializer.Deserialize<LakeFormationConfigRoot>(jsonContent, JsonOptions);
+            
+            if (configRoot?.Environments == null)
+            {
+                throw new InvalidOperationException("Invalid Lake Formation configuration: missing environments section");
+            }
+            
+            // Find the matching environment
+            if (!configRoot.Environments.TryGetValue(envKey, out var config))
+            {
+                throw new ArgumentException($"Unknown environment: {environment}. Available environments: {string.Join(", ", configRoot.Environments.Keys)}");
+            }
+            
+            // Override account ID if provided
+            if (!string.IsNullOrEmpty(accountId))
+            {
+                config.AccountId = accountId;
             }
             
             return config;
+        }
+        
+        private static string FindConfigFile()
+        {
+            // Try multiple locations for the config file
+            var possiblePaths = new[]
+            {
+                Path.Combine(Directory.GetCurrentDirectory(), "lakeformation-config.json"),
+                Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.Apps", "LakeFormation", "lakeformation-config.json"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lakeformation-config.json"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "AppInfraCdkV1.Apps", "LakeFormation", "lakeformation-config.json")
+            };
+            
+            foreach (var path in possiblePaths)
+            {
+                var fullPath = Path.GetFullPath(path);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+            
+            // Default location
+            return Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.Apps", "LakeFormation", "lakeformation-config.json");
         }
     }
 }

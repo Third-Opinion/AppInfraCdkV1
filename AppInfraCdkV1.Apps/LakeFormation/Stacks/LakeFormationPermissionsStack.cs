@@ -27,7 +27,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void GrantGroupPermissions()
         {
-            foreach (var groupMapping in _config.GroupMappings.Groups)
+            foreach (var groupMapping in _config.GroupMappings)
             {
                 var groupName = groupMapping.Key;
                 var groupConfig = groupMapping.Value;

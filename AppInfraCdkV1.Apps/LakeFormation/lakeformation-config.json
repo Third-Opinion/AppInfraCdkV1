@@ -1,0 +1,121 @@
+{
+  "environments": {
+    "development": {
+      "environment": "Development",
+      "accountId": "615299752206",
+      "region": "us-east-2",
+      "identityCenter": {
+        "instanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+        "identityStoreId": "d-9a677c3adb",
+        "identityCenterAccountId": "442042533707"
+      },
+      "healthLake": {
+        "datastoreId": "",
+        "datastoreArn": "",
+        "enableMultiTenancy": true,
+        "tenantClaimSystem": "http://thirdopinion.io/identity/claims/tenant"
+      },
+      "bucketConfig": {
+        "bucketPrefix": "thirdopinion",
+        "enableVersioning": true,
+        "enableEncryption": true,
+        "enableAccessLogging": true,
+        "enableMultiTenantStructure": true,
+        "tenantPartitionKey": "tenantGuid",
+        "lifecycle": {
+          "transitionToIADays": 30,
+          "transitionToGlacierDays": 90,
+          "expirationDays": 90,
+          "enableIntelligentTiering": true
+        }
+      },
+      "groupMappings": {
+        "data-analysts-dev": {
+          "groupName": "data-analysts-dev",
+          "groupEmail": "data-analysts-dev@thirdopinion.io",
+          "description": "Development data analysts with non-PHI access",
+          "permissions": ["SELECT", "DESCRIBE"],
+          "allowedDatabases": ["thirdopinion_dev", "thirdopinion_staging"],
+          "allowedTables": ["*"],
+          "excludePHI": true,
+          "isDataLakeAdmin": false
+        },
+        "data-engineers-dev": {
+          "groupName": "data-engineers-dev",
+          "groupEmail": "data-engineers-dev@thirdopinion.io",
+          "description": "Development data engineers",
+          "permissions": ["ALL"],
+          "allowedDatabases": ["thirdopinion_dev", "thirdopinion_staging"],
+          "allowedTables": ["*"],
+          "excludePHI": false,
+          "isDataLakeAdmin": true
+        }
+      },
+      "tags": {
+        "Environment": "Development",
+        "Project": "ThirdOpinionDataLake",
+        "ManagedBy": "CDK",
+        "Owner": "DataEngineering"
+      }
+    },
+    "production": {
+      "environment": "Production",
+      "accountId": "442042533707",
+      "region": "us-east-2",
+      "identityCenter": {
+        "instanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+        "identityStoreId": "d-9a677c3adb",
+        "identityCenterAccountId": "442042533707"
+      },
+      "healthLake": {
+        "datastoreId": "",
+        "datastoreArn": "",
+        "enableMultiTenancy": true,
+        "tenantClaimSystem": "http://thirdopinion.io/identity/claims/tenant"
+      },
+      "bucketConfig": {
+        "bucketPrefix": "thirdopinion",
+        "enableVersioning": true,
+        "enableEncryption": true,
+        "enableAccessLogging": true,
+        "enableMultiTenantStructure": true,
+        "tenantPartitionKey": "tenantGuid",
+        "lifecycle": {
+          "transitionToIADays": 30,
+          "transitionToGlacierDays": 90,
+          "expirationDays": 0,
+          "enableIntelligentTiering": true
+        }
+      },
+      "groupMappings": {
+        "data-analysts-phi": {
+          "groupName": "data-analysts-phi",
+          "groupEmail": "data-analysts-phi@thirdopinion.io",
+          "description": "Data analysts with PHI access",
+          "permissions": ["SELECT", "DESCRIBE"],
+          "allowedDatabases": ["thirdopinion_prod", "thirdopinion_phi"],
+          "allowedTables": ["*"],
+          "excludePHI": false,
+          "isDataLakeAdmin": false
+        },
+        "data-engineers-phi": {
+          "groupName": "data-engineers-phi",
+          "groupEmail": "data-engineers-phi@thirdopinion.io",
+          "description": "Data engineers with full PHI access",
+          "permissions": ["ALL"],
+          "allowedDatabases": ["*"],
+          "allowedTables": ["*"],
+          "excludePHI": false,
+          "isDataLakeAdmin": true
+        }
+      },
+      "tags": {
+        "Environment": "Production",
+        "Project": "ThirdOpinionDataLake",
+        "ManagedBy": "CDK",
+        "Owner": "DataEngineering",
+        "Compliance": "HIPAA"
+      }
+    }
+  }
+}

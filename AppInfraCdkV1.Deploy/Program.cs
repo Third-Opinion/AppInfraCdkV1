@@ -1,5 +1,5 @@
 ﻿using Amazon.CDK;
-using AppInfraCdkV1.Apps.ScimSync;
+using AppInfraCdkV1.InternalApps.ScimSync;
 using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Apps.LakeFormation;
 using AppInfraCdkV1.Apps.LakeFormation.Stacks;
@@ -267,15 +267,15 @@ public abstract class Program
             StackName = permissionsStackName
         }, lakeFormationConfig, setupStack);
         
-        // Deploy HealthLake Integration Stack
-        var healthLakeStackName = $"{envPrefix}-lf-healthlake-{regionCode}";
-        var healthLakeStack = new HealthLakeIntegrationStack(app, healthLakeStackName, new StackProps
-        {
-            Env = environmentConfig.ToAwsEnvironment(),
-            Description = $"HealthLake to Lake Formation integration for {environmentName} environment",
-            Tags = context.GetCommonTags(),
-            StackName = healthLakeStackName
-        }, lakeFormationConfig, storageStack);
+        // HealthLake Integration Stack has been moved to DataPipeline solution
+        // var healthLakeStackName = $"{envPrefix}-lf-healthlake-{regionCode}";
+        // var healthLakeStack = new HealthLakeIntegrationStack(app, healthLakeStackName, new StackProps
+        // {
+        //     Env = environmentConfig.ToAwsEnvironment(),
+        //     Description = $"HealthLake to Lake Formation integration for {environmentName} environment",
+        //     Tags = context.GetCommonTags(),
+        //     StackName = healthLakeStackName
+        // }, lakeFormationConfig, storageStack);
     }
 
     private static void ValidateNamingConventions(DeploymentContext context)

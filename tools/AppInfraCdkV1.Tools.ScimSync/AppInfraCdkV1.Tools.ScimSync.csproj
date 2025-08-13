@@ -2,24 +2,23 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <OutputType>Exe</OutputType>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AssemblyName>scim-sync</AssemblyName>
+    <PackageId>AppInfraCdkV1.Tools.ScimSync</PackageId>
     <AWSProjectType>Lambda</AWSProjectType>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PublishReadyToRun>true</PublishReadyToRun>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <AssemblyName>healthlake-etl</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Amazon.Lambda.Core" Version="2.2.0" />
-    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.4.0" />
-    <PackageReference Include="AWSSDK.S3" Version="3.7.305.0" />
-    <PackageReference Include="AWSSDK.Glue" Version="3.7.305.0" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.4.1" />
+    <PackageReference Include="AWSSDK.SimpleSystemsManagement" Version="3.7.303.14" />
+    <PackageReference Include="Google.Apis.Admin.Directory.directory_v1" Version="1.63.0.3205" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.63.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Parquet.Net" Version="4.18.0" />
-    <PackageReference Include="CommandLineParser" Version="2.9.1" />
   </ItemGroup>
 
 </Project>

@@ -15,6 +15,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
 {
     public class HealthLakeIntegrationStack : Stack
     {
+        public Function IngestionPreprocessorFunction { get; private set; }
         public Function ExportFunction { get; private set; }
         public CfnJob GlueETLJob { get; private set; }
         public Role GlueJobRole { get; private set; }
@@ -29,7 +30,8 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             _config = config;
             _storageStack = storageStack;
             
-            CreateHealthLakeExportRole();
+            CreateHealthLakeImportRole();
+            CreateIngestionPreprocessor();
             CreateGlueETLJob();
             CreateExportOrchestration();
             
@@ -37,61 +39,112 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
         }
         
-        private void CreateHealthLakeExportRole()
+        private void CreateHealthLakeImportRole()
         {
-            // Create IAM role for HealthLake export operations
-            var exportRole = new Role(this, "HealthLakeExportRole", new RoleProps
+            // Create IAM role for HealthLake import operations
+            var importRole = new Role(this, "HealthLakeImportRole", new RoleProps
             {
                 AssumedBy = new ServicePrincipal("healthlake.amazonaws.com"),
-                Description = "Role for HealthLake to export data to S3",
-                RoleName = $"HealthLakeExportRole-{_config.Environment}"
+                Description = "Role for HealthLake to import data from S3",
+                RoleName = $"HealthLakeImportRole-{_config.Environment}"
             });
             
-            exportRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+            importRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
             {
                 Effect = Effect.ALLOW,
                 Actions = new[]
                 {
-                    "s3:PutObject",
-                    "s3:PutObjectAcl",
                     "s3:GetObject",
-                    "s3:GetObjectVersion"
+                    "s3:GetObjectVersion",
+                    "s3:ListBucket"
                 },
                 Resources = new[]
                 {
+                    _storageStack.RawDataBucket.BucketArn,
                     $"{_storageStack.RawDataBucket.BucketArn}/*"
-                }
-            }));
-            
-            exportRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
-            {
-                Effect = Effect.ALLOW,
-                Actions = new[]
-                {
-                    "s3:ListBucket",
-                    "s3:GetBucketLocation"
-                },
-                Resources = new[]
-                {
-                    _storageStack.RawDataBucket.BucketArn
                 }
             }));
             
             // Add KMS permissions if encryption is enabled
             if (_storageStack.DataEncryptionKey != null)
             {
-                exportRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+                importRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
                 {
                     Effect = Effect.ALLOW,
                     Actions = new[]
                     {
                         "kms:Decrypt",
-                        "kms:GenerateDataKey",
-                        "kms:CreateGrant"
+                        "kms:DescribeKey"
                     },
                     Resources = new[] { _storageStack.DataEncryptionKey.KeyArn }
                 }));
             }
+        }
+        
+        private void CreateIngestionPreprocessor()
+        {
+            // Create Lambda function for preprocessing external FHIR data
+            var preprocessorRole = new Role(this, "FhirPreprocessorRole", new RoleProps
+            {
+                AssumedBy = new ServicePrincipal("lambda.amazonaws.com"),
+                ManagedPolicies = new[]
+                {
+                    ManagedPolicy.FromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
+                }
+            });
+            
+            // Add S3 permissions for reading source data and writing preprocessed data
+            preprocessorRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+            {
+                Effect = Effect.ALLOW,
+                Actions = new[]
+                {
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket"
+                },
+                Resources = new[]
+                {
+                    _storageStack.RawDataBucket.BucketArn,
+                    $"{_storageStack.RawDataBucket.BucketArn}/*"
+                }
+            }));
+            
+            // Add HealthLake permissions for triggering imports
+            preprocessorRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+            {
+                Effect = Effect.ALLOW,
+                Actions = new[]
+                {
+                    "healthlake:StartFHIRImportJob",
+                    "healthlake:DescribeFHIRImportJob",
+                    "healthlake:ListFHIRImportJobs"
+                },
+                Resources = new[] { _config.HealthLake.DatastoreArn }
+            }));
+            
+            var lambdaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "tools", "AppInfraCdkV1.Tools.HealthLakeETL");
+            
+            IngestionPreprocessorFunction = new Function(this, "FhirIngestionPreprocessor", new FunctionProps
+            {
+                Runtime = Runtime.DOTNET_8,
+                Handler = "healthlake-etl::AppInfraCdkV1.Tools.HealthLakeETL.FhirIngestionFunction::FunctionHandler",
+                Code = Code.FromAsset(lambdaPath),
+                Description = "Preprocesses external FHIR data for HealthLake ingestion with tenant security labels",
+                MemorySize = 1024,
+                Role = preprocessorRole,
+                Environment = new Dictionary<string, string>
+                {
+                    ["OUTPUT_BUCKET"] = _storageStack.RawDataBucket.BucketName,
+                    ["SOURCE_SYSTEM"] = "external-fhir",
+                    ["BATCH_SIZE"] = "1000",
+                    ["VALIDATE_RESOURCES"] = "true",
+                    ["CLEANUP_RESOURCES"] = "true",
+                    ["CONTINUE_ON_ERROR"] = "true"
+                },
+                Timeout = Duration.Minutes(15),
+                FunctionName = $"fhir-ingestion-preprocessor-{_config.Environment}"
+            });
         }
         
         private void CreateGlueETLJob()
@@ -198,7 +251,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             
             // Note: The Lambda package needs to be built first using:
             // cd AppInfraCdkV1.Tools/HealthLakeETL && dotnet publish -c Release -r linux-x64 --self-contained false
-            var lambdaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.Tools", "HealthLakeETL");
+            var lambdaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "tools", "AppInfraCdkV1.Tools.HealthLakeETL");
             
             ExportFunction = new Function(this, "HealthLakeExportFunction", new FunctionProps
             {
@@ -230,7 +283,14 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             
             exportSchedule.AddTarget(new LambdaFunction(ExportFunction));
             
-            // Output the Lambda function ARN
+            // Output the Lambda function ARNs
+            new CfnOutput(this, "IngestionPreprocessorArn", new CfnOutputProps
+            {
+                Value = IngestionPreprocessorFunction.FunctionArn,
+                Description = "ARN of the FHIR ingestion preprocessor Lambda function",
+                ExportName = $"{_config.Environment}-fhir-ingestion-preprocessor"
+            });
+            
             new CfnOutput(this, "ExportFunctionArn", new CfnOutputProps
             {
                 Value = ExportFunction.FunctionArn,

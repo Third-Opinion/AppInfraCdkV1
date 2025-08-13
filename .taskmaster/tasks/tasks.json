@@ -241,7 +241,7 @@
             "id": 1,
             "title": "Add CDK C# SCIM Sync Stack to AppInfraCdkV1",
             "description": "Create ScimSyncStack.cs and integrate with existing CDK infrastructure",
-            "status": "pending",
+            "status": "done",
             "dependencies": [],
             "details": "Add required NuGet packages (AWS CDK libraries for Lambda, EventBridge, IAM, SSM). Create ScimSyncStack.cs with Lambda function for SCIM sync, EventBridge scheduled rule, IAM roles and policies for Google Workspace and AWS Identity Center access. Update Program.cs to instantiate ScimSyncStack for each environment.",
             "testStrategy": ""
@@ -367,7 +367,7 @@
     ],
     "metadata": {
       "created": "2025-01-12T00:21:00.000Z",
-      "updated": "2025-08-13T03:32:01.623Z",
+      "updated": "2025-08-13T16:17:36.095Z",
       "description": "Tasks for master context"
     }
   }

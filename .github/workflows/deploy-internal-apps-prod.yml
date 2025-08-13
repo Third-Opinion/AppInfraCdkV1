@@ -1,0 +1,189 @@
+name: Deploy InternalApps to Production
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'AppInfraCdkV1.InternalApps/**'
+      - '.github/workflows/deploy-internal-apps-prod.yml'
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: 'Stack to deploy (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - 'ScimSync'
+      confirm:
+        description: 'Type "deploy-to-production" to confirm'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+  ENVIRONMENT: Production
+  AWS_ACCOUNT_ID: 442042533707
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      stacks: ${{ steps.detect.outputs.stacks }}
+    steps:
+      - name: Validate production deployment
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy-to-production" ]; then
+            echo "❌ Production deployment not confirmed"
+            echo "Please type 'deploy-to-production' to confirm"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Detect stacks to deploy
+        id: detect
+        run: |
+          if [ "${{ github.event.inputs.stack }}" != "" ]; then
+            echo "stacks=[\"${{ github.event.inputs.stack }}\"]" >> $GITHUB_OUTPUT
+          else
+            # For now, only ScimSync is in InternalApps
+            echo "stacks=[\"ScimSync\"]" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build solution
+        run: |
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+
+      - name: Run tests
+        run: |
+          dotnet test --configuration Release --no-build --verbosity normal
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        stack: ${{ fromJson(needs.validate.outputs.stacks) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+          role-session-name: github-actions-internal-apps-prod
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build project
+        run: |
+          dotnet restore
+          dotnet build --configuration Release --no-restore
+
+      - name: Synthesize CDK app
+        working-directory: ./AppInfraCdkV1.Deploy
+        run: |
+          dotnet run -- --app=${{ matrix.stack }} --environment=${{ env.ENVIRONMENT }}
+
+      - name: Deploy ${{ matrix.stack }} stack
+        working-directory: ./AppInfraCdkV1.Deploy
+        run: |
+          # Get stack name based on environment and app
+          STACK_PREFIX="prod"
+          APP_CODE=$(echo "${{ matrix.stack }}" | tr '[:upper:]' '[:lower:]' | sed 's/scimsync/scim/')
+          STACK_NAME="${STACK_PREFIX}-${APP_CODE}-sync-ue2"
+          
+          echo "Deploying stack: $STACK_NAME"
+          
+          cdk deploy $STACK_NAME \
+            --app "dotnet run -- --app=${{ matrix.stack }} --environment=${{ env.ENVIRONMENT }}" \
+            --require-approval never \
+            --outputs-file outputs.json
+
+      - name: Upload stack outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.stack }}-outputs
+          path: ./AppInfraCdkV1.Deploy/outputs.json
+
+      - name: Create deployment record
+        if: success()
+        run: |
+          echo "Deployment completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> deployment.log
+          echo "Stack: ${{ matrix.stack }}" >> deployment.log
+          echo "Environment: Production" >> deployment.log
+          echo "Commit: ${{ github.sha }}" >> deployment.log
+          echo "Actor: ${{ github.actor }}" >> deployment.log
+
+  post-deploy-config:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+          role-session-name: github-actions-internal-apps-config
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Post-deployment configuration reminder
+        run: |
+          echo "📋 Post-Deployment Configuration Required:"
+          echo ""
+          echo "SCIM Sync requires configuration of SSM parameters:"
+          echo "1. Navigate to tools/AppInfraCdkV1.Tools.Common/scripts"
+          echo "2. Run: ./configure-scim-sync.sh prod configure"
+          echo "3. Provide:"
+          echo "   - Google Workspace service account JSON key"
+          echo "   - AWS Identity Center SCIM endpoint URL"
+          echo "   - AWS Identity Center SCIM access token"
+          echo ""
+          echo "See docs/scim-sync-deployment.md for detailed instructions"
+
+  notify:
+    needs: [validate, deploy, post-deploy-config]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify deployment status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ InternalApps deployment to Production succeeded"
+            echo "⚠️  Remember to configure SSM parameters for SCIM Sync"
+          else
+            echo "❌ InternalApps deployment to Production failed"
+          fi

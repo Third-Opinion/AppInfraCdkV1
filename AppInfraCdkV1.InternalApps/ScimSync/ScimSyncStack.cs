@@ -10,7 +10,7 @@ using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
 
-namespace AppInfraCdkV1.Apps.ScimSync;
+namespace AppInfraCdkV1.InternalApps.ScimSync;
 
 /// <summary>
 /// CDK Stack for SCIM synchronization between Google Workspace and AWS IAM Identity Center
@@ -214,19 +214,27 @@ public class ScimSyncStack : Stack
     {
         var functionName = _context.Namer.Lambda(ResourcePurpose.Internal);
         
+        // Path to the Lambda function code
+        var lambdaPath = System.IO.Path.Combine(
+            System.IO.Directory.GetCurrentDirectory(), 
+            "..", 
+            "tools", 
+            "AppInfraCdkV1.Tools.ScimSync"
+        );
+        
         ScimSyncFunction = new Function(this, "ScimSyncFunction", new FunctionProps
         {
             FunctionName = functionName,
-            Runtime = Runtime.FROM_IMAGE,
-            Code = Code.FromEcrImage(Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, "ScimSyncRepo", "slashdevops/idp-scim-sync")),
-            Handler = Handler.FROM_IMAGE,
+            Runtime = Runtime.DOTNET_8,
+            Code = Code.FromAsset(lambdaPath),
+            Handler = "scim-sync::AppInfraCdkV1.Tools.ScimSync.ScimSyncFunction::FunctionHandler",
             Role = ScimLambdaExecutionRole,
             Timeout = Duration.Minutes(5),
             MemorySize = 512,
             LogGroup = ScimLogGroup,
             Environment = new Dictionary<string, string>
             {
-                ["SCIM_SYNC_CONFIG_PATH"] = $"/scim-sync/{_context.Environment.Name}"
+                ["SCIM_SYNC_CONFIG_PATH"] = $"/scim-sync/{_context.Environment.Name.ToLower()}"
             },
             Description = "SCIM synchronization function for Google Workspace to AWS Identity Center"
         });

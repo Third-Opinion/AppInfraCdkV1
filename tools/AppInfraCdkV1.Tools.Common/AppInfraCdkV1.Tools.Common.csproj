@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
+      <Content Include="..\..\.dockerignore">
         <Link>TestContainer\.dockerignore</Link>
       </Content>
     </ItemGroup>
@@ -23,12 +23,6 @@
       <Content Include="scripts\README.md" />
       <Content Include="scripts\lake-formation\README.md" />
       <Content Include="scripts\lake-formation\CROSS_ACCOUNT_ARCHITECTURE.md" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Remove="HealthLakeETL\**" />
-      <EmbeddedResource Remove="HealthLakeETL\**" />
-      <None Remove="HealthLakeETL\**" />
     </ItemGroup>
 
 </Project>
