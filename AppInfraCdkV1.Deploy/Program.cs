@@ -1,4 +1,5 @@
 ﻿using Amazon.CDK;
+using AppInfraCdkV1.Apps.ScimSync;
 using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
@@ -85,6 +86,15 @@ public abstract class Program
                 // Deploy specific TrialFinderV2 stack type
                 var (stack, stackName) = CreateTrialFinderV2SpecificStack(app, stackType, context, environmentConfig, appName, environmentName);
                 Console.WriteLine($"✅ {stackType} Stack '{stackName}' configured successfully");
+                app.Synth();
+                return;
+            }
+
+            // Handle SCIM sync application
+            if (appName.ToLower() == "scimsync")
+            {
+                var (stack, stackName) = CreateScimSyncStack(app, context, environmentConfig, environmentName);
+                Console.WriteLine($"✅ SCIM Sync Stack '{stackName}' configured successfully");
                 app.Synth();
                 return;
             }
@@ -179,6 +189,27 @@ public abstract class Program
             default:
                 throw new ArgumentException($"Unknown TrialFinderV2 stack type: {stackType}. Supported types: ALB, ECS, DATA, COGNITO");
         }
+    }
+
+    private static (Stack stack, string stackName) CreateScimSyncStack(
+        App app, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        
+        var stackName = $"{envPrefix}-scim-sync-{regionCode}";
+        var stack = new ScimSyncStack(app, stackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"SCIM synchronization infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+            Tags = context.GetCommonTags(),
+            StackName = stackName
+        }, context);
+        
+        return (stack, stackName);
     }
 
     private static void ValidateNamingConventions(DeploymentContext context)
@@ -422,7 +453,7 @@ public abstract class Program
         Console.Error.WriteLine("Available environments:");
         Console.Error.WriteLine("  Non-Production Account: Development, Integration");
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
-        Console.Error.WriteLine("Available applications: TrialFinderV2");
+        Console.Error.WriteLine("Available applications: TrialFinderV2, ScimSync");
         Console.Error.WriteLine(
             "Available regions: us-east-1, us-east-2, us-west-1, us-west-2");
         Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
@@ -430,6 +461,7 @@ public abstract class Program
             "To add new environments, update appsettings.json and NamingConvention.cs");
         Console.Error.WriteLine("\nExample usage:");
         Console.Error.WriteLine("  dotnet run -- --app=TrialFinderV2 --environment=Development");
+        Console.Error.WriteLine("  dotnet run -- --app=ScimSync --environment=Development");
         Console.Error.WriteLine(
             "  dotnet run -- --app=TrialFinderV2 --environment=Staging --validate-only");
         Console.Error.WriteLine(
@@ -567,6 +599,7 @@ public abstract class Program
         return appName.ToLower() switch
         {
             "trialfinderv2" => TrialFinderV2Config.GetConfig(environmentName),
+            "scimsync" => new ApplicationConfig { Name = "ScimSync" },
             _ => throw new ArgumentException($"Unknown application configuration: {appName}")
         };
     }

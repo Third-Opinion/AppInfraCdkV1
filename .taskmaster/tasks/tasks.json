@@ -130,7 +130,7 @@
         "testStrategy": "Verify project compiles successfully with dotnet build, confirm CDK can synthesize templates without errors",
         "priority": "medium",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -228,7 +228,7 @@
         "id": 34,
         "title": "Configure slashdevops/idp-scim-sync for Google Workspace to IAM Identity Center Synchronization",
         "description": "Set up and configure the SCIM synchronization tool to automatically sync users and groups from Google Workspace to AWS IAM Identity Center, ensuring Lake Formation groups are properly maintained. This includes comprehensive CDK C# deployment, configuration management, and operational procedures for the AppInfraCdkV1 infrastructure.",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           24,
           25
@@ -308,13 +308,66 @@
             "dependencies": [],
             "details": "Deploy SCIM stack to all environments, validate Lake Formation group synchronization, test all disable/enable methods, verify environment variable controls, and confirm operational procedures work as documented.",
             "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Add Required NuGet Packages for SCIM Sync Dependencies",
+            "description": "Install and configure the necessary AWS CDK NuGet packages required for SCIM synchronization infrastructure including Lambda, EventBridge, IAM, SSM, and CloudWatch components",
+            "dependencies": [],
+            "details": "Add NuGet package references to AppInfraCdkV1.csproj: Amazon.CDK.AWS.Lambda, Amazon.CDK.AWS.Events, Amazon.CDK.AWS.Events.Targets, Amazon.CDK.AWS.IAM, Amazon.CDK.AWS.SSM, Amazon.CDK.AWS.Logs, Amazon.CDK.AWS.CloudWatch. Update package versions to match existing CDK version in project. Verify package compatibility and resolve any version conflicts.",
+            "status": "done",
+            "testStrategy": "Verify project builds successfully after adding packages and no version conflicts exist"
+          },
+          {
+            "id": 10,
+            "title": "Create ScimSyncStack CDK Infrastructure",
+            "description": "Implement ScimSyncStack.cs with complete AWS infrastructure for SCIM synchronization including Lambda function, EventBridge scheduling, IAM roles, and parameter storage",
+            "dependencies": [
+              "34.9"
+            ],
+            "details": "Create ScimSyncStack.cs inheriting from Stack. Implement Lambda function using slashdevops/idp-scim-sync container image. Create EventBridge scheduled rule for sync frequency (configurable per environment). Define IAM roles with least privilege access for Google Workspace Directory API and AWS Identity Center SCIM. Create SSM parameters for configuration storage including Google service account key, Identity Center SCIM endpoint, and group filters. Add CloudWatch log group for monitoring.",
+            "status": "done",
+            "testStrategy": "Deploy stack to dev environment and verify all resources created correctly"
+          },
+          {
+            "id": 11,
+            "title": "Integrate SCIM Stack with CDK Program and Context Variables",
+            "description": "Update Program.cs to instantiate ScimSyncStack for each environment and configure context variables in cdk.json for environment-specific SCIM settings",
+            "dependencies": [
+              "34.10"
+            ],
+            "details": "Modify Program.cs to create ScimSyncStack instance for each environment (dev/prod). Add context variables to cdk.json for SCIM configuration: sync frequency per environment, Google Workspace domain, Identity Center instance ARN, group filtering rules, and enable/disable flags. Implement environment-specific parameter passing to ScimSyncStack constructor. Ensure proper stack naming conventions following project patterns.",
+            "status": "in-progress",
+            "testStrategy": "Verify CDK synth generates correct templates for each environment with proper context variable substitution"
+          },
+          {
+            "id": 12,
+            "title": "Implement Three-Tier SCIM Disable Methodology",
+            "description": "Create comprehensive disable mechanisms through EventBridge rule disabling, group filtering, and Identity Center configuration to provide multiple safety controls",
+            "dependencies": [
+              "34.11"
+            ],
+            "details": "Implement EventBridge rule state management to pause/resume sync scheduling. Create group filter parameter in SSM to exclude specific groups from sync. Add Identity Center SCIM endpoint enable/disable configuration. Create environment variables and CDK context parameters for each disable method. Implement CloudFormation stack update procedures to modify these settings. Document the hierarchical disable approach and recovery procedures.",
+            "status": "pending",
+            "testStrategy": "Test each disable method independently and verify sync stops as expected. Validate re-enable procedures restore full functionality"
+          },
+          {
+            "id": 13,
+            "title": "Configure SCIM Sync Environment Variables and Operational Controls",
+            "description": "Set up comprehensive environment variable configuration system and create operational procedures for managing SCIM synchronization across all environments",
+            "dependencies": [
+              "34.12"
+            ],
+            "details": "Create SSM parameter hierarchy for all SCIM configuration: Google Workspace service account credentials, Identity Center SCIM token and endpoint, group filtering rules, sync frequency settings, and feature flags. Implement environment-specific parameter naming conventions. Create operational scripts for common tasks: enabling/disabling sync, updating group filters, rotating credentials, and monitoring sync status. Document troubleshooting procedures and emergency response protocols.",
+            "status": "pending",
+            "testStrategy": "Verify all environment variables properly configure SCIM sync behavior. Test operational procedures in dev environment and validate monitoring and alerting functionality"
           }
         ]
       }
     ],
     "metadata": {
       "created": "2025-01-12T00:21:00.000Z",
-      "updated": "2025-08-12T23:35:46.101Z",
+      "updated": "2025-08-13T01:52:37.401Z",
       "description": "Tasks for master context"
     }
   }
