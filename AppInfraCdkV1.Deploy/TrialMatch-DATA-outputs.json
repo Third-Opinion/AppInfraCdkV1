@@ -1,8 +1,0 @@
-{
-  "dev-tm-data-ue2": {
-    "DocumentsBucketName": "dev-tm-data-ue2-trialdocumentsbucket7160a97c-zjobdh3jswjl",
-    "AppBucketName": "thirdopinion.io-dev-tm-app-ue2",
-    "UploadsBucketName": "thirdopinion.io-dev-tm-uploads-ue2",
-    "BackupsBucketName": "thirdopinion.io-dev-tm-backups-ue2"
-  }
-}
