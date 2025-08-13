@@ -1,0 +1,33 @@
+{
+    "DataLakeSettings": {
+        "DataLakeAdmins": [],
+        "ReadOnlyAdmins": [],
+        "CreateDatabaseDefaultPermissions": [
+            {
+                "Principal": {
+                    "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+                },
+                "Permissions": [
+                    "ALL"
+                ]
+            }
+        ],
+        "CreateTableDefaultPermissions": [
+            {
+                "Principal": {
+                    "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+                },
+                "Permissions": [
+                    "ALL"
+                ]
+            }
+        ],
+        "Parameters": {
+            "CROSS_ACCOUNT_VERSION": "4",
+            "SET_CONTEXT": "TRUE"
+        },
+        "TrustedResourceOwners": [],
+        "AllowExternalDataFiltering": false,
+        "ExternalDataFilteringAllowList": []
+    }
+}

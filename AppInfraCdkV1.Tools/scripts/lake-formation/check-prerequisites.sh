@@ -223,7 +223,7 @@ check_iam_permissions() {
         print_status "success" "Can access Lake Formation Identity Center configuration"
     else
         # This might fail if not configured yet, try list-data-lake-settings instead
-        if aws lakeformation list-data-lake-settings \
+        if aws lakeformation list-resources \
             --profile "$profile" &> /dev/null; then
             print_status "success" "Can access Lake Formation settings"
         else
@@ -251,7 +251,7 @@ check_iam_permissions() {
     # Test Identity Store permissions
     print_status "info" "Testing Identity Store permissions..."
     if [ -n "${IDENTITY_STORE_ID:-}" ]; then
-        if aws identitystore describe-identity-store \
+        if aws identitystore list-users \
             --identity-store-id "$IDENTITY_STORE_ID" \
             --profile "$sso_profile" &> /dev/null; then
             print_status "success" "Can access Identity Store APIs"

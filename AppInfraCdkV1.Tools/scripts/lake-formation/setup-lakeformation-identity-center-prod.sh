@@ -279,7 +279,8 @@ create_identity_center_configuration() {
         --region $REGION"
     
     # Add production-specific configuration
-    cmd="$cmd --external-filtering Status=ENABLED"
+    # For production, we specify external filtering with authorized targets
+    cmd="$cmd --external-filtering 'Status=ENABLED,AuthorizedTargets=[]'"
     
     print_status "info" "Executing integration command..."
     echo "Command: $cmd" >> "$LOG_FILE"
@@ -316,7 +317,8 @@ update_identity_center_configuration() {
         --region $REGION"
     
     # Add configuration parameters
-    cmd="$cmd --external-filtering Status=ENABLED"
+    # For updates, maintain external filtering with authorized targets
+    cmd="$cmd --external-filtering 'Status=ENABLED,AuthorizedTargets=[]'"
     
     print_status "info" "Executing update command..."
     echo "Command: $cmd" >> "$LOG_FILE"

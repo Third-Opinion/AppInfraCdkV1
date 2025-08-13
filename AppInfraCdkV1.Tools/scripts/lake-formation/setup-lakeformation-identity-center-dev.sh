@@ -142,9 +142,10 @@ create_identity_center_configuration() {
         --profile $AWS_PROFILE \
         --region $REGION"
     
-    # Optionally add external filtering configuration
-    # For now, we'll enable with no specific targets
-    cmd="$cmd --external-filtering Status=ENABLED"
+    # Add external filtering configuration
+    # AuthorizedTargets can be empty array to allow all or specific account IDs
+    # For development, we'll allow filtering but with empty targets (allows flexibility)
+    cmd="$cmd --external-filtering 'Status=ENABLED,AuthorizedTargets=[]'"
     
     print_status "info" "Executing integration command..."
     print_status "info" "This will link dev Lake Formation to production Identity Center"
@@ -174,7 +175,8 @@ update_identity_center_configuration() {
         --region $REGION"
     
     # Add configuration parameters as needed
-    cmd="$cmd --external-filtering Status=ENABLED"
+    # For updates, we maintain the external filtering with empty authorized targets
+    cmd="$cmd --external-filtering 'Status=ENABLED,AuthorizedTargets=[]'"
     
     print_status "info" "Executing update command..."
     echo "Command: $cmd" >> "$LOG_FILE"
