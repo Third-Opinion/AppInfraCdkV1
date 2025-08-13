@@ -166,7 +166,7 @@ public class ConfigurationModelsTests
         // Assert
         healthCheckConfig.ShouldNotBeNull();
         healthCheckConfig.Command.ShouldNotBeNull();
-        healthCheckConfig.Command.Count.ShouldBe(1);
+        healthCheckConfig.Command.Count.ShouldBe(2);
         // Default values should be applied
         healthCheckConfig.Interval.ShouldBe(30);
         healthCheckConfig.Timeout.ShouldBe(5);
