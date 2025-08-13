@@ -127,7 +127,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
                 }
             }));
             
-            // Create Glue job for ETL processing
+            // Create Glue job for ETL processing (using C# processor)
             GlueETLJob = new CfnJob(this, "HealthLakeETLJob", new CfnJobProps
             {
                 Name = $"healthlake-etl-{_config.Environment}",
@@ -135,8 +135,8 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
                 Command = new CfnJob.JobCommandProperty
                 {
                     Name = "glueetl",
-                    ScriptLocation = $"s3://{_storageStack.RawDataBucket.BucketName}/glue-scripts/healthlake_etl.py",
-                    PythonVersion = "3"
+                    ScriptLocation = $"s3://{_storageStack.RawDataBucket.BucketName}/glue-scripts/healthlake-etl",
+                    PythonVersion = "3"  // Still required even for non-Python scripts
                 },
                 DefaultArguments = new Dictionary<string, string>
                 {
@@ -197,59 +197,11 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             
             ExportFunction = new Function(this, "HealthLakeExportFunction", new FunctionProps
             {
-                Runtime = Runtime.PYTHON_3_9,
-                Handler = "index.handler",
-                Code = Code.FromInline(@"
-import boto3
-import json
-import os
-from datetime import datetime
-
-healthlake = boto3.client('healthlake')
-glue = boto3.client('glue')
-
-def handler(event, context):
-    datastore_id = os.environ['DATASTORE_ID']
-    output_bucket = os.environ['OUTPUT_BUCKET']
-    glue_job_name = os.environ['GLUE_JOB_NAME']
-    
-    # Start HealthLake export job
-    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-    export_job_name = f'export-{timestamp}'
-    
-    response = healthlake.start_fhir_export_job(
-        JobName=export_job_name,
-        OutputDataConfig={
-            'S3Configuration': {
-                'S3Uri': f's3://{output_bucket}/healthlake-exports/{timestamp}/',
-                'KmsKeyId': os.environ.get('KMS_KEY_ID', '')
-            }
-        },
-        DatastoreId=datastore_id,
-        DataAccessRoleArn=os.environ['EXPORT_ROLE_ARN']
-    )
-    
-    export_job_id = response['JobId']
-    
-    # Start Glue ETL job after export completes
-    # In production, you'd want to use Step Functions for better orchestration
-    glue_response = glue.start_job_run(
-        JobName=glue_job_name,
-        Arguments={
-            '--EXPORT_PATH': f's3://{output_bucket}/healthlake-exports/{timestamp}/',
-            '--EXPORT_JOB_ID': export_job_id,
-            '--TIMESTAMP': timestamp
-        }
-    )
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps({
-            'exportJobId': export_job_id,
-            'glueJobRunId': glue_response['JobRunId']
-        })
-    }
-"),
+                Runtime = Runtime.DOTNET_8,
+                Handler = "AppInfraCdkV1.Tools.HealthLakeETL::AppInfraCdkV1.Tools.HealthLakeETL.HealthLakeETLFunction::FunctionHandler",
+                Code = Code.FromAsset($"../AppInfraCdkV1.Tools/HealthLakeETL/bin/Release/net8.0/publish"),
+                Description = "Triggers HealthLake exports and initiates ETL processing",
+                MemorySize = 1024,
                 Role = exportFunctionRole,
                 Environment = new Dictionary<string, string>
                 {
