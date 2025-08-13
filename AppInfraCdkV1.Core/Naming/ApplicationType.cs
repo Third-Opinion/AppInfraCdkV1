@@ -4,5 +4,6 @@ public enum ApplicationType
 {
     TrialFinderV2,
     Cdk,
-    ScimSync
+    ScimSync,
+    LakeFormation
 }

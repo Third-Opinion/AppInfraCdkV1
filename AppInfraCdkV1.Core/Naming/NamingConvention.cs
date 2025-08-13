@@ -34,6 +34,7 @@ public static class NamingConvention
         [ApplicationType.TrialFinderV2] = "tfv2",
         [ApplicationType.Cdk] = "cdk",
         [ApplicationType.ScimSync] = "scim",
+        [ApplicationType.LakeFormation] = "lf",
     };
 
     // Region codes

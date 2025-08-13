@@ -1,6 +1,8 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.ScimSync;
 using AppInfraCdkV1.Apps.TrialFinderV2;
+using AppInfraCdkV1.Apps.LakeFormation;
+using AppInfraCdkV1.Apps.LakeFormation.Stacks;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
@@ -95,6 +97,15 @@ public abstract class Program
             {
                 var (stack, stackName) = CreateScimSyncStack(app, context, environmentConfig, environmentName);
                 Console.WriteLine($"✅ SCIM Sync Stack '{stackName}' configured successfully");
+                app.Synth();
+                return;
+            }
+
+            // Handle Lake Formation application
+            if (appName.ToLower() == "lakeformation")
+            {
+                DeployLakeFormationStacks(app, context, environmentConfig, environmentName);
+                Console.WriteLine($"✅ Lake Formation Stacks configured successfully");
                 app.Synth();
                 return;
             }
@@ -210,6 +221,51 @@ public abstract class Program
         }, context);
         
         return (stack, stackName);
+    }
+
+    private static void DeployLakeFormationStacks(
+        App app, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        
+        // Create Lake Formation configuration
+        var lakeFormationConfig = LakeFormationEnvironmentConfigFactory.CreateConfig(
+            environmentName, 
+            environmentConfig.AccountId);
+        
+        // Deploy Storage Stack
+        var storageStackName = $"{envPrefix}-lf-storage-{regionCode}";
+        var storageStack = new DataLakeStorageStack(app, storageStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"Lake Formation storage infrastructure for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = storageStackName
+        }, lakeFormationConfig);
+        
+        // Deploy Setup Stack
+        var setupStackName = $"{envPrefix}-lf-setup-{regionCode}";
+        var setupStack = new LakeFormationSetupStack(app, setupStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"Lake Formation setup and configuration for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = setupStackName
+        }, lakeFormationConfig, storageStack);
+        
+        // Deploy Permissions Stack
+        var permissionsStackName = $"{envPrefix}-lf-permissions-{regionCode}";
+        var permissionsStack = new LakeFormationPermissionsStack(app, permissionsStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"Lake Formation permissions management for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = permissionsStackName
+        }, lakeFormationConfig, setupStack);
     }
 
     private static void ValidateNamingConventions(DeploymentContext context)
@@ -600,6 +656,7 @@ public abstract class Program
         {
             "trialfinderv2" => TrialFinderV2Config.GetConfig(environmentName),
             "scimsync" => new ApplicationConfig { Name = "ScimSync" },
+            "lakeformation" => new ApplicationConfig { Name = "LakeFormation" },
             _ => throw new ArgumentException($"Unknown application configuration: {appName}")
         };
     }
