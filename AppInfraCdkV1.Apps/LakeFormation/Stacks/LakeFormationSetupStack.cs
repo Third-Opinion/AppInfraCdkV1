@@ -134,42 +134,48 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void CreateGlueDatabases()
         {
-            var databases = new List<(string name, string description)>
-            {
-                ("thirdopinion_dev", "Development database for Third Opinion data lake"),
-                ("thirdopinion_prod", "Production database for Third Opinion data lake")
-            };
+            // Create single multi-tenant analytics database
+            var databaseName = "healthlake_analytics";
+            var description = $"Multi-tenant HealthLake analytics database for {_config.Environment} environment";
             
-            if (_config.Environment.ToLower() == "prod" || _config.Environment.ToLower() == "production")
+            var database = new CfnDatabase(this, "HealthLakeAnalyticsDatabase", new CfnDatabaseProps
             {
-                databases.Add(("thirdopinion_phi", "PHI database for Third Opinion sensitive data"));
-            }
-            
-            foreach (var (name, description) in databases)
-            {
-                if (_config.Environment.ToLower() == "dev" && name.Contains("prod"))
-                    continue;
-                if (_config.Environment.ToLower() == "prod" && name.Contains("dev"))
-                    continue;
-                    
-                var database = new CfnDatabase(this, $"Database-{name}", new CfnDatabaseProps
+                CatalogId = _config.AccountId,
+                DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
-                    CatalogId = _config.AccountId,
-                    DatabaseInput = new CfnDatabase.DatabaseInputProperty
+                    Name = databaseName,
+                    Description = description,
+                    LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/",
+                    Parameters = new Dictionary<string, string>
                     {
-                        Name = name,
-                        Description = description,
-                        LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/{name}/",
-                        Parameters = new Dictionary<string, string>
-                        {
-                            ["classification"] = "parquet",
-                            ["compressionType"] = "snappy"
-                        }
+                        ["classification"] = "parquet",
+                        ["compressionType"] = "snappy",
+                        ["partitionKeys"] = _config.BucketConfig.TenantPartitionKey,
+                        ["multiTenant"] = "true"
                     }
-                });
-                
-                Databases.Add(database);
-            }
+                }
+            });
+            
+            Databases.Add(database);
+            
+            // Create metadata database for tracking exports and ETL jobs
+            var metadataDatabase = new CfnDatabase(this, "MetadataDatabase", new CfnDatabaseProps
+            {
+                CatalogId = _config.AccountId,
+                DatabaseInput = new CfnDatabase.DatabaseInputProperty
+                {
+                    Name = $"healthlake_metadata_{_config.Environment.ToLower()}",
+                    Description = "Metadata database for tracking HealthLake exports and ETL jobs",
+                    LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/metadata/",
+                    Parameters = new Dictionary<string, string>
+                    {
+                        ["classification"] = "parquet",
+                        ["compressionType"] = "snappy"
+                    }
+                }
+            });
+            
+            Databases.Add(metadataDatabase);
         }
         
         private void RegisterS3Locations()

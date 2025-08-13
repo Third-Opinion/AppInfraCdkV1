@@ -12,6 +12,20 @@ namespace AppInfraCdkV1.Apps.LakeFormation
         public LakeFormationGroupMappings GroupMappings { get; set; } = new();
         public DataLakeBucketConfig BucketConfig { get; set; } = new();
         public Dictionary<string, string> Tags { get; set; } = new();
+        public HealthLakeConfig HealthLake { get; set; } = new();
+    }
+    
+    public class HealthLakeConfig
+    {
+        public string DatastoreId { get; set; } = string.Empty;
+        public string DatastoreArn { get; set; } = string.Empty;
+        public bool EnableMultiTenancy { get; set; } = true;
+        public string TenantClaimSystem { get; set; } = "http://thirdopinion.io/identity/claims/tenant";
+        public List<string> ResourceTypesToExport { get; set; } = new() 
+        { 
+            "Patient", "Observation", "Condition", "MedicationRequest", 
+            "Procedure", "DiagnosticReport", "Encounter", "AllergyIntolerance" 
+        };
     }
     
     public class IdentityCenterConfig
@@ -83,6 +97,8 @@ namespace AppInfraCdkV1.Apps.LakeFormation
         public bool EnableEncryption { get; set; } = true;
         public bool EnableAccessLogging { get; set; } = true;
         public DataLifecycleConfig Lifecycle { get; set; } = new();
+        public bool EnableMultiTenantStructure { get; set; } = true;
+        public string TenantPartitionKey { get; set; } = "tenantGuid";
     }
     
     public class DataLifecycleConfig

@@ -89,14 +89,49 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void GrantAllDatabasePermissions(string groupName, string principalIdentifier, string[] permissions)
         {
+            // Grant permissions to all databases including multi-tenant analytics database
             foreach (var database in _lakeFormationStack.Databases)
             {
                 var databaseName = (database.DatabaseInput as CfnDatabase.DatabaseInputProperty)?.Name;
                 if (databaseName != null)
                 {
                     GrantDatabasePermissions(groupName, databaseName, principalIdentifier, permissions);
+                    
+                    // For the healthlake_analytics database, ensure access to all tenant partitions
+                    if (databaseName == "healthlake_analytics")
+                    {
+                        GrantMultiTenantTablePermissions(groupName, databaseName, principalIdentifier, permissions);
+                    }
                 }
             }
+        }
+        
+        private void GrantMultiTenantTablePermissions(string groupName, string databaseName, 
+            string principalIdentifier, string[] permissions)
+        {
+            // Grant permissions on all tables in the multi-tenant database
+            // This allows access to all tenant data partitions
+            new CfnPrincipalPermissions(this, $"MultiTenantPermissions-{groupName}", new CfnPrincipalPermissionsProps
+            {
+                Principal = new CfnPrincipalPermissions.DataLakePrincipalProperty
+                {
+                    DataLakePrincipalIdentifier = principalIdentifier
+                },
+                Resource = new CfnPrincipalPermissions.ResourceProperty
+                {
+                    TableWithColumns = new CfnPrincipalPermissions.TableWithColumnsResourceProperty
+                    {
+                        CatalogId = _config.AccountId,
+                        DatabaseName = databaseName,
+                        Name = "ALL_TABLES",
+                        ColumnWildcard = new Dictionary<string, object>()
+                    }
+                },
+                Permissions = permissions.Contains("ALL") 
+                    ? new[] { "SELECT", "DESCRIBE", "ALTER", "INSERT", "DELETE" }
+                    : permissions,
+                PermissionsWithGrantOption = new string[] { }
+            });
         }
         
         private void GrantDatabasePermissions(string groupName, string databaseName, 

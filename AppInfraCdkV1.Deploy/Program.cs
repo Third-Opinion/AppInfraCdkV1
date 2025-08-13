@@ -266,6 +266,16 @@ public abstract class Program
             Tags = context.GetCommonTags(),
             StackName = permissionsStackName
         }, lakeFormationConfig, setupStack);
+        
+        // Deploy HealthLake Integration Stack
+        var healthLakeStackName = $"{envPrefix}-lf-healthlake-{regionCode}";
+        var healthLakeStack = new HealthLakeIntegrationStack(app, healthLakeStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"HealthLake to Lake Formation integration for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = healthLakeStackName
+        }, lakeFormationConfig, storageStack);
     }
 
     private static void ValidateNamingConventions(DeploymentContext context)
