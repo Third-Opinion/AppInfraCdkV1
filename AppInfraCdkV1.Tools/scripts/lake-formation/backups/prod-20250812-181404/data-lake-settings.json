@@ -1,0 +1,37 @@
+{
+    "DataLakeSettings": {
+        "DataLakeAdmins": [
+            {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            }
+        ],
+        "ReadOnlyAdmins": [],
+        "CreateDatabaseDefaultPermissions": [
+            {
+                "Principal": {
+                    "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+                },
+                "Permissions": [
+                    "ALL"
+                ]
+            }
+        ],
+        "CreateTableDefaultPermissions": [
+            {
+                "Principal": {
+                    "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+                },
+                "Permissions": [
+                    "ALL"
+                ]
+            }
+        ],
+        "Parameters": {
+            "CROSS_ACCOUNT_VERSION": "4",
+            "SET_CONTEXT": "TRUE"
+        },
+        "TrustedResourceOwners": [],
+        "AllowExternalDataFiltering": false,
+        "ExternalDataFilteringAllowList": []
+    }
+}

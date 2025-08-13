@@ -1,0 +1,42 @@
+Lake Formation Identity Center Integration Test Report
+=======================================================
+Started: Tue Aug 12 18:16:18 PDT 2025
+
+[PASS] Prerequisites Script Exists: Script found
+[PASS] Prerequisites Check - Dev: All prerequisites met
+[PASS] AWS Auth - dev: Authenticated to correct account
+[PASS] AWS Auth - prod: Authenticated to correct account
+[PASS] Identity Center Instance: Found 1 instance(s)
+[PASS] Identity Center ARN: ARN retrieved successfully
+[PASS] Identity Store ID: ID retrieved successfully
+[PASS] Lake Formation Config Exists: Configuration found
+[PASS] Lake Formation Instance ARN: Instance ARN configured
+[PASS] External Filtering: External filtering is enabled
+[SKIP] Group Sync - data-analysts-dev: Group not yet synced (may take 15-40 minutes)
+[SKIP] Group Sync - data-analysts-phi: Group not yet synced (may take 15-40 minutes)
+[SKIP] Group Sync - data-engineers-phi: Group not yet synced (may take 15-40 minutes)
+[SKIP] Group Sync Summary: No groups synced yet - check Google Workspace sync status
+[PASS] Rollback Backup Exists: Backup found at backups/prod-20250812-181404
+[PASS] Rollback - Data Lake Settings: Data lake settings backed up
+[PASS] Rollback - Identity Center Config: Identity Center config backed up
+[PASS] Dev Setup Script Exists: Script found
+[PASS] Dev Setup Script Executable: Script has execute permissions
+[PASS] Prod Setup Script Exists: Script found
+[PASS] Prod Setup Script Executable: Script has execute permissions
+[PASS] Verification Script Exists: Script found
+[PASS] Verification Script - Dev: Verification completed successfully
+[PASS] Dev Config File: Configuration file exists
+[PASS] Dev Config JSON Valid: Valid JSON format
+[PASS] Prod Config File: Configuration file exists
+[PASS] Prod Config JSON Valid: Valid JSON format
+[PASS] Log Files Generated: Found        9 log file(s)
+[PASS] Log File Content: Log contains       49 lines
+
+=================================
+Test Execution Summary
+=================================
+Timestamp: Tue Aug 12 18:16:39 PDT 2025
+Total Tests: 29
+Passed: 25
+Failed: 0
+Skipped: 4

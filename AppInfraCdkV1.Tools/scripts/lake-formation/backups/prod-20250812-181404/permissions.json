@@ -1,0 +1,299 @@
+{
+    "PrincipalResourcePermissions": [
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "alb_logs"
+                }
+            },
+            "Permissions": [
+                "ALL",
+                "ALTER",
+                "CREATE_TABLE",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "PermissionsWithGrantOption": [
+                "ALL",
+                "ALTER",
+                "CREATE_TABLE",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "LastUpdated": "2025-04-17T19:25:42.778000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "default"
+                }
+            },
+            "Permissions": [
+                "ALL",
+                "ALTER",
+                "CREATE_TABLE",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "PermissionsWithGrantOption": [
+                "ALL",
+                "ALTER",
+                "CREATE_TABLE",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "LastUpdated": "2025-04-17T19:20:35.405000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "mcos_fhir_data_store_6830301e11f8cc10ca7ea546f72cd99e_healthlake_view"
+                }
+            },
+            "Permissions": [
+                "ALL",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "PermissionsWithGrantOption": [
+                "ALL",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "LastUpdated": "2025-07-29T18:19:21.392000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "dedication_health_fhir_data_store_09c582f4bf2be43ae76957574fd99425_healthlake_view"
+                }
+            },
+            "Permissions": [
+                "ALL",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "PermissionsWithGrantOption": [
+                "ALL",
+                "DESCRIBE",
+                "DROP"
+            ],
+            "LastUpdated": "2025-07-29T18:44:50.829000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "Table": {
+                    "CatalogId": "442042533707",
+                    "DatabaseName": "alb_logs",
+                    "Name": "alb_access_logs"
+                }
+            },
+            "Permissions": [
+                "ALL",
+                "ALTER",
+                "DELETE",
+                "DESCRIBE",
+                "DROP",
+                "INSERT"
+            ],
+            "PermissionsWithGrantOption": [
+                "ALL",
+                "ALTER",
+                "DELETE",
+                "DESCRIBE",
+                "DROP",
+                "INSERT"
+            ],
+            "LastUpdated": "2025-04-17T19:25:50.786000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "TableWithColumns": {
+                    "CatalogId": "442042533707",
+                    "DatabaseName": "alb_logs",
+                    "Name": "alb_access_logs",
+                    "ColumnWildcard": {}
+                }
+            },
+            "Permissions": [
+                "SELECT"
+            ],
+            "PermissionsWithGrantOption": [
+                "SELECT"
+            ],
+            "LastUpdated": "2025-04-17T19:25:50.786000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "Table": {
+                    "CatalogId": "442042533707",
+                    "DatabaseName": "default",
+                    "Name": "alb_access_logs"
+                }
+            },
+            "Permissions": [
+                "ALL",
+                "ALTER",
+                "DELETE",
+                "DESCRIBE",
+                "DROP",
+                "INSERT"
+            ],
+            "PermissionsWithGrantOption": [
+                "ALL",
+                "ALTER",
+                "DELETE",
+                "DESCRIBE",
+                "DROP",
+                "INSERT"
+            ],
+            "LastUpdated": "2025-04-17T19:20:35.540000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+            },
+            "Resource": {
+                "TableWithColumns": {
+                    "CatalogId": "442042533707",
+                    "DatabaseName": "default",
+                    "Name": "alb_access_logs",
+                    "ColumnWildcard": {}
+                }
+            },
+            "Permissions": [
+                "SELECT"
+            ],
+            "PermissionsWithGrantOption": [
+                "SELECT"
+            ],
+            "LastUpdated": "2025-04-17T19:20:35.540000-07:00",
+            "LastUpdatedBy": "arn:aws:iam::442042533707:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_e2da81b561a38b15"
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "default"
+                }
+            },
+            "Permissions": [
+                "ALL"
+            ],
+            "PermissionsWithGrantOption": []
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+            },
+            "Resource": {
+                "Table": {
+                    "CatalogId": "442042533707",
+                    "DatabaseName": "alb_logs",
+                    "Name": "alb_access_logs"
+                }
+            },
+            "Permissions": [
+                "ALL"
+            ],
+            "PermissionsWithGrantOption": []
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "mcos_fhir_data_store_6830301e11f8cc10ca7ea546f72cd99e_healthlake_view"
+                }
+            },
+            "Permissions": [
+                "ALL"
+            ],
+            "PermissionsWithGrantOption": []
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "alb_logs"
+                }
+            },
+            "Permissions": [
+                "ALL"
+            ],
+            "PermissionsWithGrantOption": []
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+            },
+            "Resource": {
+                "Database": {
+                    "CatalogId": "442042533707",
+                    "Name": "dedication_health_fhir_data_store_09c582f4bf2be43ae76957574fd99425_healthlake_view"
+                }
+            },
+            "Permissions": [
+                "ALL"
+            ],
+            "PermissionsWithGrantOption": []
+        },
+        {
+            "Principal": {
+                "DataLakePrincipalIdentifier": "IAM_ALLOWED_PRINCIPALS"
+            },
+            "Resource": {
+                "Table": {
+                    "CatalogId": "442042533707",
+                    "DatabaseName": "default",
+                    "Name": "alb_access_logs"
+                }
+            },
+            "Permissions": [
+                "ALL"
+            ],
+            "PermissionsWithGrantOption": []
+        }
+    ],
+    "NextToken": "eyJzaG91bGRRdWVyeUFsbFRhYmxlc1Blcm1pc3Npb25zIjpmYWxzZSwic2hvdWxkUXVlcnlBY2NvdW50UGVybWlzc2lvbnMiOnRydWUsInNob3VsZFF1ZXJ5QWxsSUFNUHJpbmNpcGFsUGVybWlzc2lvbnMiOmZhbHNlLCJzaG91bGRRdWVyeUNyb3NzQWNjb3VudFBlcm1pc3Npb25zRm9yQ2F0YWxvZ1Jlc291cmNlIjpmYWxzZX0="
+}
