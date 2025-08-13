@@ -13,4 +13,16 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <None Include="scripts\**\*">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="scripts\README.md" />
+      <Content Include="scripts\lake-formation\README.md" />
+      <Content Include="scripts\lake-formation\CROSS_ACCOUNT_ARCHITECTURE.md" />
+    </ItemGroup>
+
 </Project>
