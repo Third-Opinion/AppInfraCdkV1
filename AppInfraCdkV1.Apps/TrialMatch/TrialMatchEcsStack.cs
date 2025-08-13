@@ -8,7 +8,6 @@ using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Apps.TrialMatch.Configuration;
-using AppInfraCdkV1.Apps.TrialMatch.Configuration;
 using AppInfraCdkV1.Core.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
@@ -16,6 +15,9 @@ using Constructs;
 using System.Text.RegularExpressions;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
+using Amazon.ECR;
+using Amazon.ECR.Model;
+using System.Threading.Tasks;
 
 namespace AppInfraCdkV1.Apps.TrialMatch;
 
@@ -312,27 +314,57 @@ public class TrialMatchEcsStack : Stack
         Console.WriteLine($"     Environment Variables: {containerConfig.Environment?.Count ?? 0}");
         Console.WriteLine($"     Secrets: {containerConfig.Secrets?.Count ?? 0}");
 
-        // Handle placeholder image by using ECR repository
+        // Determine if we should use ECR latest image, placeholder, or specified image
         ContainerImage containerImage;
-        if (containerConfig.Image == "placeholder")
+        Dictionary<string, string> environmentVars;
+        
+        if (string.IsNullOrWhiteSpace(containerConfig.Image) || containerConfig.Image == "placeholder")
         {
-            var placeholderRepository = Repository.FromRepositoryName(this, $"PlaceholderRepository-{containerConfig.Name}",
-                "thirdopinion/infra/deploy-placeholder");
-            containerImage = ContainerImage.FromEcrRepository(placeholderRepository, "latest");
+            // Check if ECR repository has latest image first
+            var ecrImageUri = GetLatestEcrImageUri(containerConfig.Name, context);
+            if (!string.IsNullOrEmpty(ecrImageUri))
+            {
+                // Use latest image from ECR repository
+                containerImage = ContainerImage.FromRegistry(ecrImageUri);
+                environmentVars = GetEnvironmentVariables(containerConfig, context, containerConfig.Name);
+                environmentVars["DEPLOYMENT_TYPE"] = "ecr-latest";
+                environmentVars["IMAGE_SOURCE"] = "ecr";
+                environmentVars["ECR_REPOSITORY"] = _ecrRepositories[containerConfig.Name].RepositoryName;
+                Console.WriteLine($"     🚀 Using latest ECR image for container '{containerConfig.Name}': {ecrImageUri}");
+            }
+            else
+            {
+                // Fall back to placeholder image
+                var placeholderRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, $"PlaceholderRepository-{containerConfig.Name}",
+                    "thirdopinion/infra/deploy-placeholder");
+                containerImage = ContainerImage.FromEcrRepository(placeholderRepository, "latest");
+                
+                // Add placeholder-specific environment variables
+                environmentVars = CreateDefaultEnvironmentVariables(context, containerConfig.Name);
+                environmentVars["DEPLOYMENT_TYPE"] = "placeholder";
+                environmentVars["MANAGED_BY"] = "CDK";
+                environmentVars["APP_NAME"] = context.Application.Name;
+                environmentVars["APP_VERSION"] = "1.0.0"; // Static version to prevent unnecessary redeployments
+                environmentVars["IMAGE_SOURCE"] = "placeholder";
+                Console.WriteLine($"     📦 Using placeholder image for container '{containerConfig.Name}' (no latest ECR image found)");
+            }
         }
         else
         {
-            containerImage = ContainerImage.FromRegistry(containerConfig.Image ?? "placeholder");
+            // Use specified image
+            containerImage = ContainerImage.FromRegistry(containerConfig.Image);
+            environmentVars = GetEnvironmentVariables(containerConfig, context, containerConfig.Name);
+            environmentVars["IMAGE_SOURCE"] = "specified";
+            Console.WriteLine($"     🎯 Using specified image for container '{containerConfig.Name}': {containerConfig.Image}");
         }
 
-        var container = taskDefinition.AddContainer(containerConfig.Name, new ContainerDefinitionOptions
+        var containerOptions = new ContainerDefinitionOptions
         {
             Image = containerImage,
             ContainerName = containerConfig.Name,
             Cpu = containerConfig.Cpu ?? 0,
             Essential = containerConfig.Essential ?? GetDefaultEssential(containerConfig.Name),
-            PortMappings = GetPortMappings(containerConfig, containerConfig.Name),
-            Environment = GetEnvironmentVariables(containerConfig, context, containerConfig.Name),
+            Environment = environmentVars,
             Secrets = GetContainerSecrets(containerConfig.Secrets, context),
             Logging = LogDrivers.AwsLogs(new AwsLogDriverProps
             {
@@ -340,7 +372,21 @@ public class TrialMatchEcsStack : Stack
                 StreamPrefix = "ecs"
             }),
             HealthCheck = GetContainerHealthCheck(containerConfig, containerConfig.Name)
-        });
+        };
+
+        // Add port mappings only if they exist in configuration
+        var portMappings = GetPortMappings(containerConfig, containerConfig.Name);
+        if (portMappings.Length > 0)
+        {
+            containerOptions.PortMappings = portMappings;
+            Console.WriteLine($"     Added {portMappings.Length} port mapping(s) to container '{containerConfig.Name}'");
+        }
+        else
+        {
+            Console.WriteLine($"     No port mappings configured for container '{containerConfig.Name}'");
+        }
+
+        taskDefinition.AddContainer(containerConfig.Name, containerOptions);
     }
 
     /// <summary>
@@ -552,7 +598,7 @@ public class TrialMatchEcsStack : Stack
         DeploymentContext context)
     {
         // Import the ECR repository for the placeholder image
-        var placeholderRepository = Repository.FromRepositoryName(this, "PlaceholderRepository",
+        var placeholderRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, "PlaceholderRepository",
             "thirdopinion/infra/deploy-placeholder");
 
         // Add environment variables that GitHub Actions will override
@@ -649,7 +695,12 @@ public class TrialMatchEcsStack : Stack
             ["APP_VERSION"] = context.Application.Version,
             ["AWS_REGION"] = context.Environment.Region,
             ["PORT"] = port,
-            ["HEALTH_CHECK_PATH"] = "/health"
+            ["HEALTH_CHECK_PATH"] = "/health",
+            ["DEPLOYMENT_TYPE"] = "placeholder", // Default value, will be overridden
+            ["IMAGE_SOURCE"] = "placeholder", // Default value, will be overridden
+            ["ECR_REPOSITORY"] = "", // Default value, will be overridden
+            ["MANAGED_BY"] = "CDK",
+            ["APP_NAME"] = context.Application.Name
         };
     }
 
@@ -1100,7 +1151,8 @@ public class TrialMatchEcsStack : Stack
                 Description = $"Multi-value secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
                 GenerateSecretString = new SecretStringGenerator
                 {
-                    SecretStringTemplate = frontendEnvVarsJson
+                    SecretStringTemplate = frontendEnvVarsJson,
+                    GenerateStringKey = "value"
                 }
             });
 
@@ -1245,24 +1297,205 @@ public class TrialMatchEcsStack : Stack
     }
 
     /// <summary>
-    /// Create ECR repositories for API and frontend
+    /// Create ECR repositories from configuration
     /// </summary>
     private void CreateEcrRepositories(DeploymentContext context)
     {
-        var apiRepositoryName = context.Namer.EcrRepository("api");
-        var frontendRepositoryName = context.Namer.EcrRepository("frontend");
-
-        // Create or import API repository
-        if (!_ecrRepositories.ContainsKey("api"))
+        var config = _configLoader.LoadFullConfig(context.Environment.Name);
+        
+        if (config.EcsConfiguration?.Services != null)
         {
-            _ecrRepositories["api"] = GetOrCreateEcrRepository("api", apiRepositoryName, "TrialMatchApiEcrRepository");
+            foreach (var service in config.EcsConfiguration.Services)
+            {
+                if (service.TaskDefinition != null)
+                {
+                    foreach (var taskDef in service.TaskDefinition)
+                    {
+                        if (taskDef.ContainerDefinitions != null)
+                        {
+                            foreach (var container in taskDef.ContainerDefinitions)
+                            {
+                                if (container.Name != null)
+                                {
+                                    // Map container name to repository type
+                                    var repositoryType = MapContainerNameToRepositoryType(container.Name);
+                                    if (!string.IsNullOrEmpty(repositoryType))
+                                    {
+                                        var repositoryName = context.Namer.EcrRepository(repositoryType);
+                                        var repositoryKey = container.Name; // Use container name as key
+                                        
+                                        if (!_ecrRepositories.ContainsKey(repositoryKey))
+                                        {
+                                            _ecrRepositories[repositoryKey] = GetOrCreateEcrRepository(
+                                                repositoryType, 
+                                                repositoryName, 
+                                                $"TrialMatch{repositoryType}EcrRepository"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback to hardcoded repositories if no configuration found
+        if (_ecrRepositories.Count == 0)
+        {
+            var apiRepositoryName = context.Namer.EcrRepository("api");
+            var frontendRepositoryName = context.Namer.EcrRepository("frontend");
+
+            // Create or import API repository
+            if (!_ecrRepositories.ContainsKey("api"))
+            {
+                _ecrRepositories["api"] = GetOrCreateEcrRepository("api", apiRepositoryName, "TrialMatchApiEcrRepository");
+            }
+
+            // Create or import frontend repository
+            if (!_ecrRepositories.ContainsKey("frontend"))
+            {
+                _ecrRepositories["frontend"] = GetOrCreateEcrRepository("frontend", frontendRepositoryName, "TrialMatchFrontendEcrRepository");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Map container name to repository type based on configuration
+    /// </summary>
+    private string MapContainerNameToRepositoryType(string containerName)
+    {
+        // Map container names to repository types based on the configuration
+        return containerName.ToLowerInvariant() switch
+        {
+            "trial-match-api" => "api",
+            "trial-match-frontend" => "frontend",
+            _ => string.Empty
+        };
+    }
+
+    /// <summary>
+    /// Check if ECR repository has a latest image and return its URI (async version)
+    /// </summary>
+    private async Task<string?> GetLatestEcrImageUriAsync(string containerName, DeploymentContext context)
+    {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(containerName))
+        {
+            Console.WriteLine($"     ⚠️  Container name is null or empty");
+            return null;
         }
 
-        // Create or import frontend repository
-        if (!_ecrRepositories.ContainsKey("frontend"))
+        try
         {
-            _ecrRepositories["frontend"] = GetOrCreateEcrRepository("frontend", frontendRepositoryName, "TrialMatchFrontendEcrRepository");
+            // Map container name to repository type based on configuration
+            string repositoryType = MapContainerNameToRepositoryType(containerName);
+            if (string.IsNullOrWhiteSpace(repositoryType))
+            {
+                Console.WriteLine($"     ⚠️  No repository type mapping found for container '{containerName}'");
+                return null;
+            }
+
+            // Get the ECR repository name using the repository type
+            var repositoryName = context.Namer.EcrRepository(repositoryType);
+            Console.WriteLine($"     🔍 Using repository type '{repositoryType}' for container '{containerName}' -> repository: {repositoryName}");
+            var region = context.Environment.Region;
+            var accountId = context.Environment.AccountId;
+
+            Console.WriteLine($"     🔍 Checking for latest image in ECR repository: {repositoryName}");
+
+            // Use AWS SDK to check if repository has latest tag
+            using var ecrClient = new AmazonECRClient(new AmazonECRConfig
+            {
+                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region)
+            });
+
+            // List images in the repository
+            var listImagesRequest = new ListImagesRequest
+            {
+                RepositoryName = repositoryName
+            };
+
+            var listImagesResponse = await ecrClient.ListImagesAsync(listImagesRequest);
+            
+            if (listImagesResponse.ImageIds == null || listImagesResponse.ImageIds.Count == 0)
+            {
+                Console.WriteLine($"     ℹ️  No images found in ECR repository: {repositoryName}");
+                return null;
+            }
+
+            // Check if latest tag exists first, then fall back to the most recently pushed image
+            var latestImage = listImagesResponse.ImageIds.FirstOrDefault(img => 
+                img.ImageTag != null && img.ImageTag.Equals("latest", StringComparison.OrdinalIgnoreCase));
+
+            if (latestImage == null)
+            {
+                // Get detailed information about all images to find the most recently pushed one
+                var describeImagesRequest = new DescribeImagesRequest
+                {
+                    RepositoryName = repositoryName,
+                    ImageIds = listImagesResponse.ImageIds
+                };
+
+                var describeImagesResponse = await ecrClient.DescribeImagesAsync(describeImagesRequest);
+                
+                if (describeImagesResponse.ImageDetails == null || describeImagesResponse.ImageDetails.Count == 0)
+                {
+                    Console.WriteLine($"     ℹ️  No image details found in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Find the most recently pushed image
+                var mostRecentImage = describeImagesResponse.ImageDetails
+                    .OrderByDescending(img => img.ImagePushedAt)
+                    .FirstOrDefault();
+
+                if (mostRecentImage == null)
+                {
+                    Console.WriteLine($"     ℹ️  No images with push timestamps found in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Get the tag for the most recent image
+                var imageTag = mostRecentImage.ImageTags?.FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(imageTag))
+                {
+                    Console.WriteLine($"     ℹ️  Most recent image has no tags in ECR repository: {repositoryName}");
+                    return null;
+                }
+
+                // Use the most recently pushed image
+                var mostRecentImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:{imageTag}";
+                Console.WriteLine($"     ✅ Found most recently pushed image: {mostRecentImageUri} (pushed at: {mostRecentImage.ImagePushedAt})");
+                return mostRecentImageUri;
+            }
+
+            // Construct the full image URI for latest tag
+            var latestImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:latest";
+            Console.WriteLine($"     ✅ Found latest image: {latestImageUri}");
+            
+            return latestImageUri;
         }
+        catch (RepositoryNotFoundException)
+        {
+            Console.WriteLine($"     ⚠️  ECR repository not found for container '{containerName}'");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"     ⚠️  Error checking ECR repository for container '{containerName}': {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Check if ECR repository has a latest image and return its URI (synchronous wrapper)
+    /// </summary>
+    private string? GetLatestEcrImageUri(string containerName, DeploymentContext context)
+    {
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetLatestEcrImageUriAsync(containerName, context).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -1273,14 +1506,14 @@ public class TrialMatchEcsStack : Stack
         try
         {
             // Try to import existing repository first
-            var existingRepository = Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
+            var existingRepository = Amazon.CDK.AWS.ECR.Repository.FromRepositoryName(this, $"{constructId}Import", repositoryName);
             Console.WriteLine($"✅ Imported existing ECR repository: {repositoryName}");
             return existingRepository;
         }
         catch (Exception)
         {
             // If import fails, create new repository
-            var repository = new Repository(this, constructId, new RepositoryProps
+            var repository = new Amazon.CDK.AWS.ECR.Repository(this, constructId, new RepositoryProps
             {
                 RepositoryName = repositoryName,
                 ImageScanOnPush = true,
