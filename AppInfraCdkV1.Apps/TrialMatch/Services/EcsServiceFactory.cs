@@ -61,7 +61,7 @@ public class EcsServiceFactory : Construct
     /// <summary>
     /// Create ECS services from configuration
     /// </summary>
-    public void CreateEcsServices(ICluster cluster, AlbStackOutputs albOutputs, DeploymentContext context)
+    public void CreateEcsServices(ICluster cluster, AlbStackOutputs albOutputs, CognitoStackOutputs cognitoOutputs, DeploymentContext context)
     {
         // Load ECS configuration
         var ecsConfig = _configLoader.LoadEcsConfig(context.Environment.Name);
@@ -73,14 +73,14 @@ public class EcsServiceFactory : Construct
 
         foreach (var serviceConfig in ecsConfig.Services)
         {
-            CreateEcsService(cluster, albOutputs, context, serviceConfig);
+            CreateEcsService(cluster, albOutputs, cognitoOutputs, context, serviceConfig);
         }
     }
 
     /// <summary>
     /// Create a single ECS service with containers from configuration
     /// </summary>
-    public void CreateEcsService(ICluster cluster, AlbStackOutputs albOutputs, DeploymentContext context, ServiceConfig serviceConfig)
+    public void CreateEcsService(ICluster cluster, AlbStackOutputs albOutputs, CognitoStackOutputs cognitoOutputs, DeploymentContext context, ServiceConfig serviceConfig)
     {
         // Create log group for the service using LoggingManager
         var logGroup = _loggingManager.CreateLogGroup(serviceConfig.ServiceName);
@@ -95,7 +95,7 @@ public class EcsServiceFactory : Construct
             logGroup);
 
         // Add containers from configuration
-        var containerInfo = AddContainersFromConfiguration(taskDefinition, serviceConfig.TaskDefinition.FirstOrDefault(), logGroup, context);
+        var containerInfo = AddContainersFromConfiguration(taskDefinition, serviceConfig.TaskDefinition.FirstOrDefault(), logGroup, context, cognitoOutputs);
 
         // Create security group for ECS tasks
         var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, $"EcsSecurityGroup-{serviceConfig.ServiceName}", albOutputs.EcsSecurityGroupId);
@@ -150,7 +150,8 @@ public class EcsServiceFactory : Construct
     private ContainerInfo AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,
         TaskDefinitionConfig? taskDefConfig,
         ILogGroup logGroup,
-        DeploymentContext context)
+        DeploymentContext context,
+        CognitoStackOutputs cognitoOutputs)
     {
         var containerDefinitions = taskDefConfig?.ContainerDefinitions ?? new List<ContainerDefinitionConfig>();
         
@@ -167,7 +168,7 @@ public class EcsServiceFactory : Construct
         {
             if (containerConfig.Name == null) continue;
 
-            AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context);
+            AddConfiguredContainer(taskDefinition, containerConfig, logGroup, context, cognitoOutputs);
 
             // Track the main container (first essential container)
             if (mainContainerInfo == null && (containerConfig.Essential ?? _containerDefinitionBuilder.GetDefaultEssential(containerConfig.Name)))
@@ -193,7 +194,8 @@ public class EcsServiceFactory : Construct
     private void AddConfiguredContainer(FargateTaskDefinition taskDefinition,
         ContainerDefinitionConfig containerConfig,
         ILogGroup logGroup,
-        DeploymentContext context)
+        DeploymentContext context,
+        CognitoStackOutputs cognitoOutputs)
     {
         if (containerConfig.Name == null) return;
 
@@ -249,6 +251,14 @@ public class EcsServiceFactory : Construct
             environmentVars,
             _healthCheckBuilder.GetContainerHealthCheck(containerConfig, containerConfig.Name),
             _portMappingBuilder.GetPortMappings(containerConfig, containerConfig.Name));
+
+        // Add secrets if configured
+        if (containerConfig.Secrets?.Count > 0)
+        {
+            var containerSecrets = _secretManager.GetContainerSecrets(containerConfig.Secrets, context, null, cognitoOutputs);
+            containerOptions.Secrets = containerSecrets;
+            Console.WriteLine($"     Added {containerSecrets.Count} secret(s) to container '{containerConfig.Name}'");
+        }
 
         // Add port mappings only if they exist in configuration
         var portMappings = _portMappingBuilder.GetPortMappings(containerConfig, containerConfig.Name);
@@ -318,4 +328,14 @@ public class AlbStackOutputs
     public string ApiTargetGroupArn { get; set; } = "";
     public string FrontendTargetGroupArn { get; set; } = "";
     public string EcsSecurityGroupId { get; set; } = "";
+}
+
+/// <summary>
+/// Cognito stack outputs for frontend environment variables
+/// </summary>
+public class CognitoStackOutputs
+{
+    public string UserPoolId { get; set; } = "";
+    public string UserPoolClientId { get; set; } = "";
+    public string UserPoolDomain { get; set; } = "";
 } 

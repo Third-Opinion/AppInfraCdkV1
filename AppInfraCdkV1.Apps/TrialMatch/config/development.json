@@ -109,5 +109,13 @@
         ]
       }
     ]
+  },
+  "frontendEnvironmentVariables": {
+    "cognitoUserPoolId": "dev-cognito-user-pool-id",
+    "cognitoClientId": "dev-cognito-client-id",
+    "cognitoClientSecret": "dev-cognito-client-secret",
+    "cognitoDomain": "dev-cognito-domain",
+    "apiUrl": "https://dev-api.trialmatch.com",
+    "apiMode": "development"
   }
 } 

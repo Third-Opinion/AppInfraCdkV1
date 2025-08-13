@@ -5,6 +5,7 @@ public class EcsTaskConfigurationWrapper
 {
     public string? VpcNamePattern { get; set; }
     public EcsTaskConfiguration? EcsConfiguration { get; set; }
+    public FrontendEnvironmentVariables? FrontendEnvironmentVariables { get; set; }
 }
 
 public class EcsTaskConfiguration
@@ -60,4 +61,56 @@ public class HealthCheckConfig
     public int? Retries { get; set; }
     public int? StartPeriod { get; set; }
     public bool? Disabled { get; set; }
+}
+
+/// <summary>
+/// Configuration for frontend environment variables that will be stored in Secrets Manager
+/// </summary>
+public class FrontendEnvironmentVariables
+{
+    /// <summary>
+    /// Cognito User Pool ID for authentication
+    /// </summary>
+    public string? CognitoUserPoolId { get; set; }
+    
+    /// <summary>
+    /// Cognito Client ID for authentication
+    /// </summary>
+    public string? CognitoClientId { get; set; }
+    
+    /// <summary>
+    /// Cognito Client Secret for authentication
+    /// </summary>
+    public string? CognitoClientSecret { get; set; }
+    
+    /// <summary>
+    /// Cognito Domain for authentication
+    /// </summary>
+    public string? CognitoDomain { get; set; }
+    
+    /// <summary>
+    /// API URL for backend communication
+    /// </summary>
+    public string? ApiUrl { get; set; }
+    
+    /// <summary>
+    /// API mode (development, staging, production)
+    /// </summary>
+    public string? ApiMode { get; set; }
+    
+    /// <summary>
+    /// Get the list of environment variable names that should be configured
+    /// </summary>
+    public static string[] GetEnvironmentVariableNames()
+    {
+        return new[]
+        {
+            "NEXT_PUBLIC_COGNITO_USER_POOL_ID",
+            "NEXT_PUBLIC_COGNITO_CLIENT_ID",
+            "NEXT_PUBLIC_COGNITO_CLIENT_SECRET",
+            "NEXT_PUBLIC_COGNITO_DOMAIN",
+            "NEXT_PUBLIC_API_URL",
+            "NEXT_PUBLIC_API_MODE"
+        };
+    }
 }

@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using Amazon.CDK;
+using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
+using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Models;
+using AppInfraCdkV1.Apps.TrialMatch.Configuration;
 using Constructs;
 
 namespace AppInfraCdkV1.Apps.TrialMatch.Builders;
@@ -106,6 +109,9 @@ public class IamRoleBuilder : Construct
         }));
 
         // Add KMS permissions for secret decryption
+        // Note: We use "*" for KMS resources but constrain access via the kms:ViaService condition
+        // This ensures the role can only use KMS keys when accessed through Secrets Manager
+        // The condition prevents direct KMS access and ensures the principle of least privilege
         concreteRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
             Sid = "AllowKMSDecrypt",
@@ -183,7 +189,7 @@ public class IamRoleBuilder : Construct
                 )
             ),
             Description = $"Allows ECS to create and manage AWS resources on your behalf for TrialMatch in {_context.Environment.Name} environment",
-            MaxSessionDuration = Duration.Hours(1)
+            MaxSessionDuration = Duration.Hours(ConfigurationConstants.Timeouts.DefaultSessionDurationHours)
         });
 
         // Add ECS permissions

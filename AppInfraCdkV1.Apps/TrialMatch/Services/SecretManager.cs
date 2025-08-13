@@ -4,10 +4,13 @@ using System.Threading.Tasks;
 using Amazon.CDK;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.SecretsManager;
+using Amazon.CDK.AWS.IAM;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using AppInfraCdkV1.Core.Models;
+using AppInfraCdkV1.Apps.TrialMatch.Configuration;
 using Constructs;
+using System.Linq;
 
 namespace AppInfraCdkV1.Apps.TrialMatch.Services;
 
@@ -78,8 +81,45 @@ public class SecretManager : Construct
     }
 
     /// <summary>
-    /// Check if secret exists using AWS SDK
+    /// Check if a secret exists in Secrets Manager using AWS SDK
+    /// This method performs a synchronous check to determine if a secret already exists
+    /// before attempting to create it, preventing accidental overwrites.
     /// </summary>
+    /// <param name="secretName">The full name of the secret to check</param>
+    /// <returns>True if the secret exists, false otherwise</returns>
+    public async Task<bool> SecretExistsAsync(string secretName)
+    {
+        try
+        {
+            using var secretsManagerClient = new AmazonSecretsManagerClient();
+            var describeSecretRequest = new DescribeSecretRequest
+            {
+                SecretId = secretName
+            };
+            
+            var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
+            return response != null;
+        }
+        catch (ResourceNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the deployment
+            Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Check if a secret exists in Secrets Manager using AWS SDK (synchronous version)
+    /// This method performs a synchronous check to determine if a secret already exists
+    /// before attempting to create it, preventing accidental overwrites.
+    /// </summary>
+    /// <param name="secretName">The full name of the secret to check</param>
+    /// <returns>True if the secret exists, false otherwise</returns>
     public bool SecretExists(string secretName)
     {
         try
@@ -90,7 +130,7 @@ public class SecretManager : Construct
                 SecretId = secretName
             };
             
-            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).Result;
+            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).GetAwaiter().GetResult();
             return response != null;
         }
         catch (ResourceNotFoundException)
@@ -148,10 +188,10 @@ public class SecretManager : Construct
                 Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
                 GenerateSecretString = new SecretStringGenerator
                 {
-                    SecretStringTemplate = $"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\"}}",
+                    SecretStringTemplate = string.Format(ConfigurationConstants.SecretGeneration.DefaultSecretTemplate, secretName, context.Environment.Name),
                     GenerateStringKey = "value",
-                    PasswordLength = 32,
-                    ExcludeCharacters = "\"@/\\"
+                    PasswordLength = ConfigurationConstants.SecretGeneration.DefaultPasswordLength,
+                    ExcludeCharacters = ConfigurationConstants.SecretGeneration.ExcludedCharacters
                 }
             });
 
@@ -168,7 +208,7 @@ public class SecretManager : Construct
     /// This method is specifically for handling secrets that contain multiple key-value pairs,
     /// like the tm-frontend-env-vars secret.
     /// </summary>
-    public ISecret GetOrCreateMultiValueSecret(string secretName, string fullSecretName, DeploymentContext context)
+    public ISecret GetOrCreateMultiValueSecret(string secretName, string fullSecretName, DeploymentContext context, FrontendEnvironmentVariables? frontendConfig = null)
     {
         // Check if we already created this secret in this deployment
         if (_createdSecrets.ContainsKey(secretName))
@@ -197,15 +237,8 @@ public class SecretManager : Construct
             // Secret doesn't exist - create it with the proper structure for frontend environment variables
             Console.WriteLine($"          ✨ Creating new multi-value secret '{fullSecretName}' with frontend environment variables");
             
-            // Create the JSON structure for frontend environment variables
-            var frontendEnvVarsJson = $@"{{
-  ""NEXT_PUBLIC_COGNITO_USER_POOL_ID"": ""your_value"",
-  ""NEXT_PUBLIC_COGNITO_CLIENT_ID"": ""your_value"", 
-  ""NEXT_PUBLIC_COGNITO_CLIENT_SECRET"": ""your_value"",
-  ""NEXT_PUBLIC_COGNITO_DOMAIN"": ""your_value"",
-  ""NEXT_PUBLIC_API_URL"": ""your_value"",
-  ""NEXT_PUBLIC_API_MODE"": ""your_value""
-}}";
+            // Create the JSON structure for frontend environment variables using configuration or defaults
+            var frontendEnvVarsJson = CreateFrontendEnvironmentVariablesJson(frontendConfig);
             
             // Multi-value secret with the proper JSON structure
             var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
@@ -228,9 +261,29 @@ public class SecretManager : Construct
     }
 
     /// <summary>
+    /// Create JSON structure for frontend environment variables using configuration or sensible defaults
+    /// </summary>
+    private string CreateFrontendEnvironmentVariablesJson(FrontendEnvironmentVariables? frontendConfig)
+    {
+        var envVars = new Dictionary<string, string>
+        {
+            ["NEXT_PUBLIC_COGNITO_USER_POOL_ID"] = frontendConfig?.CognitoUserPoolId ?? "your_cognito_user_pool_id",
+            ["NEXT_PUBLIC_COGNITO_CLIENT_ID"] = frontendConfig?.CognitoClientId ?? "your_cognito_client_id",
+            ["NEXT_PUBLIC_COGNITO_CLIENT_SECRET"] = frontendConfig?.CognitoClientSecret ?? "your_cognito_client_secret",
+            ["NEXT_PUBLIC_COGNITO_DOMAIN"] = frontendConfig?.CognitoDomain ?? "your_cognito_domain",
+            ["NEXT_PUBLIC_API_URL"] = frontendConfig?.ApiUrl ?? "your_api_url",
+            ["NEXT_PUBLIC_API_MODE"] = frontendConfig?.ApiMode ?? "development"
+        };
+
+        // Convert to JSON format
+        var jsonEntries = envVars.Select(kvp => $"\"{kvp.Key}\": \"{kvp.Value}\"");
+        return "{\n  " + string.Join(",\n  ", jsonEntries) + "\n}";
+    }
+
+    /// <summary>
     /// Get container secrets for ECS task definition
     /// </summary>
-    public Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, DeploymentContext context)
+    public Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, DeploymentContext context, FrontendEnvironmentVariables? frontendConfig = null, CognitoStackOutputs? cognitoOutputs = null)
     {
         var secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>();
 
@@ -249,18 +302,12 @@ public class SecretManager : Construct
                     Console.WriteLine($"        - Multi-value secret '{envVarName}' -> Secret '{secretName}'");
                     Console.WriteLine($"          Full secret path: {fullSecretName}");
                     
-                    var secret = GetOrCreateMultiValueSecret(secretName, fullSecretName, context);
+                    // Create frontend environment variables using Cognito outputs if available
+                    var frontendConfigWithCognito = CreateFrontendConfigWithCognitoOutputs(frontendConfig, cognitoOutputs);
+                    var secret = GetOrCreateMultiValueSecret(secretName, fullSecretName, context, frontendConfigWithCognito);
                     
                     // Create individual secret references for each environment variable
-                    var frontendEnvVars = new[]
-                    {
-                        "NEXT_PUBLIC_COGNITO_USER_POOL_ID",
-                        "NEXT_PUBLIC_COGNITO_CLIENT_ID", 
-                        "NEXT_PUBLIC_COGNITO_CLIENT_SECRET",
-                        "NEXT_PUBLIC_COGNITO_DOMAIN",
-                        "NEXT_PUBLIC_API_URL",
-                        "NEXT_PUBLIC_API_MODE"
-                    };
+                    var frontendEnvVars = FrontendEnvironmentVariables.GetEnvironmentVariableNames();
                     
                     foreach (var envVar in frontendEnvVars)
                     {
@@ -284,6 +331,37 @@ public class SecretManager : Construct
         }
 
         return secrets;
+    }
+
+    /// <summary>
+    /// Create frontend configuration by merging configuration with Cognito stack outputs
+    /// This ensures frontend environment variables use actual Cognito values instead of placeholders
+    /// </summary>
+    private FrontendEnvironmentVariables? CreateFrontendConfigWithCognitoOutputs(FrontendEnvironmentVariables? frontendConfig, CognitoStackOutputs? cognitoOutputs)
+    {
+        if (cognitoOutputs == null)
+        {
+            return frontendConfig;
+        }
+
+        // Create a new configuration that prioritizes Cognito outputs over configuration values
+        var mergedConfig = new FrontendEnvironmentVariables
+        {
+            // Use Cognito outputs if available, otherwise fall back to configuration or defaults
+            CognitoUserPoolId = !string.IsNullOrEmpty(cognitoOutputs.UserPoolId) ? cognitoOutputs.UserPoolId : frontendConfig?.CognitoUserPoolId,
+            CognitoClientId = !string.IsNullOrEmpty(cognitoOutputs.UserPoolClientId) ? cognitoOutputs.UserPoolClientId : frontendConfig?.CognitoClientId,
+            CognitoClientSecret = frontendConfig?.CognitoClientSecret, // Keep from config as this is sensitive
+            CognitoDomain = !string.IsNullOrEmpty(cognitoOutputs.UserPoolDomain) ? cognitoOutputs.UserPoolDomain : frontendConfig?.CognitoDomain,
+            ApiUrl = frontendConfig?.ApiUrl,
+            ApiMode = frontendConfig?.ApiMode
+        };
+
+        Console.WriteLine($"          🔐 Merged Cognito outputs with frontend configuration:");
+        Console.WriteLine($"            - User Pool ID: {mergedConfig.CognitoUserPoolId ?? "not set"}");
+        Console.WriteLine($"            - Client ID: {mergedConfig.CognitoClientId ?? "not set"}");
+        Console.WriteLine($"            - Domain: {mergedConfig.CognitoDomain ?? "not set"}");
+
+        return mergedConfig;
     }
 
     /// <summary>

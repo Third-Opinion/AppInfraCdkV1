@@ -79,6 +79,9 @@ public class TrialMatchEcsStack : Stack
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
 
+        // Import Cognito stack outputs for frontend environment variables
+        var cognitoOutputs = ImportCognitoStackOutputs();
+
         // Create ECR repositories for API and frontend
         _ecrRepositoryManager.CreateEcrRepositories(context);
 
@@ -86,7 +89,7 @@ public class TrialMatchEcsStack : Stack
         _cluster = CreateEcsCluster(vpc, context);
 
         // Create ECS services with containers from configuration
-        _ecsServiceFactory.CreateEcsServices(_cluster, albOutputs, context);
+        _ecsServiceFactory.CreateEcsServices(_cluster, albOutputs, cognitoOutputs, context);
 
         // Export secret ARNs for all created secrets
         _secretManager.ExportSecretArns();
@@ -144,6 +147,19 @@ public class TrialMatchEcsStack : Stack
             ApiTargetGroupArn = Fn.ImportValue($"{_context.Environment.Name}-trial-match-api-target-group-arn"),
             FrontendTargetGroupArn = Fn.ImportValue($"{_context.Environment.Name}-trial-match-frontend-target-group-arn"),
             EcsSecurityGroupId = Fn.ImportValue($"{_context.Environment.Name}-trial-match-ecs-security-group-id")
+        };
+    }
+
+    /// <summary>
+    /// Import Cognito stack outputs for frontend environment variables
+    /// </summary>
+    private CognitoStackOutputs ImportCognitoStackOutputs()
+    {
+        return new CognitoStackOutputs
+        {
+            UserPoolId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-id"),
+            UserPoolClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id"),
+            UserPoolDomain = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name")
         };
     }
 
