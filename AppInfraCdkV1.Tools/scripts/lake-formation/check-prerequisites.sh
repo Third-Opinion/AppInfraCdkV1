@@ -168,29 +168,39 @@ check_identity_center_groups() {
     return 0
 }
 
-# Function to check Lake Formation permissions
-check_lake_formation_permissions() {
+# Function to check Lake Formation configuration
+check_lake_formation_configuration() {
     local profile=${1:-default}
     
-    echo -e "\n${YELLOW}Checking Lake Formation Permissions...${NC}"
-    
-    # Check if user can access Lake Formation
-    if ! aws lakeformation list-data-lake-settings --profile "$profile" &> /dev/null; then
-        print_status "error" "Unable to access Lake Formation. Check IAM permissions."
-        return 1
-    fi
-    
-    print_status "success" "Lake Formation access confirmed"
+    echo -e "\n${YELLOW}Checking Lake Formation Configuration...${NC}"
     
     # Check for existing Identity Center configuration
     local existing_config=$(aws lakeformation describe-lake-formation-identity-center-configuration \
         --profile "$profile" 2>/dev/null || echo "")
     
     if [ -n "$existing_config" ] && [ "$existing_config" != "{}" ]; then
-        print_status "warning" "Lake Formation Identity Center integration already exists"
-        echo "  You may need to update the existing configuration instead of creating a new one"
+        local instance_arn=$(echo "$existing_config" | jq -r '.InstanceArn // empty')
+        if [ -n "$instance_arn" ] && [ "$instance_arn" != "empty" ]; then
+            print_status "warning" "Lake Formation Identity Center integration already exists"
+            echo "  Instance ARN: $instance_arn"
+            echo "  You may need to update the existing configuration instead of creating a new one"
+        fi
     else
         print_status "success" "No existing Lake Formation Identity Center configuration found"
+        print_status "info" "Ready to create new Identity Center integration"
+    fi
+    
+    # Check data lake settings
+    local data_lake_settings=$(aws lakeformation get-data-lake-settings \
+        --profile "$profile" 2>/dev/null || echo "")
+    
+    if [ -n "$data_lake_settings" ]; then
+        local admins=$(echo "$data_lake_settings" | jq -r '.DataLakeSettings.DataLakeAdmins | length' 2>/dev/null || echo "0")
+        if [ "$admins" -gt 0 ]; then
+            print_status "info" "Found $admins Lake Formation admin(s) configured"
+        else
+            print_status "warning" "No Lake Formation admins configured yet"
+        fi
     fi
     
     return 0
@@ -202,23 +212,98 @@ check_iam_permissions() {
     
     echo -e "\n${YELLOW}Checking Required IAM Permissions...${NC}"
     
+    local permissions_ok=true
+    
+    # Test Lake Formation permissions
+    print_status "info" "Testing Lake Formation permissions..."
+    
+    # Try to describe Lake Formation Identity Center configuration
+    if aws lakeformation describe-lake-formation-identity-center-configuration \
+        --profile "$profile" &> /dev/null; then
+        print_status "success" "Can access Lake Formation Identity Center configuration"
+    else
+        # This might fail if not configured yet, try list-data-lake-settings instead
+        if aws lakeformation list-data-lake-settings \
+            --profile "$profile" &> /dev/null; then
+            print_status "success" "Can access Lake Formation settings"
+        else
+            print_status "error" "Cannot access Lake Formation - check IAM permissions"
+            permissions_ok=false
+        fi
+    fi
+    
+    # Test SSO Admin permissions (always check in production for Identity Center)
+    print_status "info" "Testing Identity Center admin permissions..."
+    local sso_profile="$profile"
+    if [[ "$profile" == "to-dev-admin" ]]; then
+        # For dev, we need to check production Identity Center
+        sso_profile="to-prd-admin"
+        print_status "info" "Checking production Identity Center permissions..."
+    fi
+    
+    if aws sso-admin list-instances --profile "$sso_profile" &> /dev/null; then
+        print_status "success" "Can access Identity Center admin APIs"
+    else
+        print_status "error" "Cannot access Identity Center admin APIs"
+        permissions_ok=false
+    fi
+    
+    # Test Identity Store permissions
+    print_status "info" "Testing Identity Store permissions..."
+    if [ -n "${IDENTITY_STORE_ID:-}" ]; then
+        if aws identitystore describe-identity-store \
+            --identity-store-id "$IDENTITY_STORE_ID" \
+            --profile "$sso_profile" &> /dev/null; then
+            print_status "success" "Can access Identity Store APIs"
+        else
+            print_status "error" "Cannot access Identity Store APIs"
+            permissions_ok=false
+        fi
+    else
+        print_status "warning" "Identity Store ID not available, skipping Identity Store permission check"
+    fi
+    
+    # Test ability to simulate policies (optional but helpful)
+    print_status "info" "Testing IAM policy simulation capabilities..."
+    local caller_arn=$(aws sts get-caller-identity --profile "$profile" --query Arn --output text 2>/dev/null)
+    if [ -n "$caller_arn" ]; then
+        # Try to simulate a Lake Formation action
+        if aws iam simulate-principal-policy \
+            --policy-source-arn "$caller_arn" \
+            --action-names "lakeformation:CreateLakeFormationIdentityCenterConfiguration" \
+            --profile "$profile" &> /dev/null; then
+            print_status "success" "IAM policy simulation available"
+        else
+            print_status "warning" "Cannot simulate IAM policies (non-critical)"
+        fi
+    fi
+    
+    # Summary of required permissions
+    echo
+    print_status "info" "Required permissions for Lake Formation Identity Center setup:"
     local required_permissions=(
         "lakeformation:CreateLakeFormationIdentityCenterConfiguration"
         "lakeformation:DescribeLakeFormationIdentityCenterConfiguration"
         "lakeformation:UpdateLakeFormationIdentityCenterConfiguration"
+        "lakeformation:ListDataLakeSettings"
+        "lakeformation:GetDataLakeSettings"
         "sso-admin:ListInstances"
         "identitystore:ListGroups"
+        "identitystore:DescribeIdentityStore"
     )
     
-    # Note: AWS doesn't provide a direct way to check specific permissions
-    # This is a simplified check that attempts to call describe operations
-    
-    print_status "warning" "IAM permission check is limited. Ensure your role has the following permissions:"
     for perm in "${required_permissions[@]}"; do
         echo "  - $perm"
     done
     
-    return 0
+    if [ "$permissions_ok" = false ]; then
+        print_status "error" "Some permission checks failed"
+        print_status "info" "Ensure your IAM role has the required permissions listed above"
+        return 1
+    else
+        print_status "success" "Permission checks passed"
+        return 0
+    fi
 }
 
 # Main execution
@@ -267,11 +352,13 @@ main() {
         check_identity_center_groups "$profile" "$IDENTITY_STORE_ID" "$environment"
     fi
     
-    if ! check_lake_formation_permissions "$profile"; then
+    if ! check_lake_formation_configuration "$profile"; then
         has_errors=true
     fi
     
-    check_iam_permissions "$profile"
+    if ! check_iam_permissions "$profile"; then
+        has_errors=true
+    fi
     
     echo -e "\n================================================"
     
