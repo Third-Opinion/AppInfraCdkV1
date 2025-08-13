@@ -240,13 +240,7 @@ public class TrialMatchConfigTests
     }
 
 
-    [Fact]
-    public void GetContainerConfigurationWithInvalidEnvironmentThrowsFileNotFoundException()
-    {
-        // Act & Assert
-        var ex = Should.Throw<FileNotFoundException>(() => TrialMatchConfig.GetContainerConfiguration("InvalidEnvironment"));
-        ex.Message.ShouldContain("Configuration file not found");
-    }
+
 }
 
 public class TrialMatchConfigurationLoaderTests

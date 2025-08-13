@@ -65,6 +65,34 @@ AppInfraCdkV1/
 3. **WebApplicationStack**: Base stack providing common web application infrastructure (VPC, ECS, RDS, etc.)
 4. **Security Groups**: Modular security group management with proper ingress/egress rules
 
+### Refactored Architecture (TrialMatch ECS Stack)
+
+The TrialMatch ECS stack has been refactored to use a modular, service-oriented architecture:
+
+#### Core Services
+- **SecretManager**: Centralized secret creation and management with existence checking
+- **EcrRepositoryManager**: ECR repository lifecycle management
+- **EcsServiceFactory**: Factory pattern for creating ECS services and tasks
+- **SecurityGroupManager**: Centralized security group operations
+- **OutputExporter**: CloudFormation output management
+- **LoggingManager**: Centralized logging configuration
+
+#### Specialized Builders
+- **ContainerDefinitionBuilder**: Container configuration and validation
+- **TaskDefinitionBuilder**: ECS task definition creation
+- **HealthCheckBuilder**: Health check configuration
+- **PortMappingBuilder**: Port mapping and protocol handling
+- **IamRoleBuilder**: IAM role creation and permission management
+- **ConfigurationValidator**: Configuration validation and error handling
+- **EnvironmentVariableBuilder**: Environment variable creation and management
+
+#### Benefits of Refactoring
+- **Maintainability**: Main stack reduced from 1731 to 174 lines (90% reduction)
+- **Testability**: Each service can be tested independently
+- **Reusability**: Services can be reused across different stacks
+- **Separation of Concerns**: Clear responsibility boundaries
+- **Type Safety**: Strong typing maintained throughout the architecture
+
 ## Prerequisites
 
 - .NET 8.0 SDK or later

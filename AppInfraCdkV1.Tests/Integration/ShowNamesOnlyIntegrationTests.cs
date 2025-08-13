@@ -86,7 +86,18 @@ public class ShowNamesOnlyIntegrationTests
         result.StandardOutput.ShouldContain("Stack:");
         result.StandardOutput.ShouldContain("VPC:");
         result.StandardOutput.ShouldContain("ECS Cluster:");
-        result.StandardOutput.ShouldContain("Web Service:");
+        
+        // Check for appropriate service names based on application
+        if (application == "TrialMatch")
+        {
+            result.StandardOutput.ShouldContain("API Service:");
+            result.StandardOutput.ShouldContain("Frontend Service:");
+        }
+        else
+        {
+            result.StandardOutput.ShouldContain("Web Service:");
+        }
+        
         result.StandardOutput.ShouldContain("Database:");
         result.StandardOutput.ShouldContain("Security Groups:");
         result.StandardOutput.ShouldContain("IAM Roles:");
