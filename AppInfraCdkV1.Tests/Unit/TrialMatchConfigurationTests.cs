@@ -1,6 +1,8 @@
 using AppInfraCdkV1.Apps.TrialMatch.Configuration;
+using AppInfraCdkV1.Apps.TrialMatch.Builders;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
+using Amazon.CDK;
 using Shouldly;
 using Xunit;
 
@@ -155,7 +157,7 @@ public class ConfigurationModelsTests
     }
 
     [Fact]
-    public void HealthCheckConfig_WithDefaultValues_ShouldUseDefaults()
+    public void HealthCheckConfig_WithPartialValues_ShouldSetOnlySpecifiedValues()
     {
         // Arrange & Act
         var healthCheckConfig = new HealthCheckConfig
@@ -167,11 +169,62 @@ public class ConfigurationModelsTests
         healthCheckConfig.ShouldNotBeNull();
         healthCheckConfig.Command.ShouldNotBeNull();
         healthCheckConfig.Command.Count.ShouldBe(2);
-        // Default values should be applied
-        healthCheckConfig.Interval.ShouldBe(30);
-        healthCheckConfig.Timeout.ShouldBe(5);
-        healthCheckConfig.Retries.ShouldBe(3);
-        healthCheckConfig.StartPeriod.ShouldBe(60);
+        // Properties not explicitly set should be null
+        healthCheckConfig.Interval.ShouldBeNull();
+        healthCheckConfig.Timeout.ShouldBeNull();
+        healthCheckConfig.Retries.ShouldBeNull();
+        healthCheckConfig.StartPeriod.ShouldBeNull();
+        healthCheckConfig.Disabled.ShouldBeNull();
+    }
+
+    [Fact]
+    public void HealthCheckBuilder_GetStandardHealthCheck_ShouldApplyDefaultValues()
+    {
+        // Arrange
+        var healthCheckBuilder = new HealthCheckBuilder();
+
+        // Act
+        var healthCheck = healthCheckBuilder.GetStandardHealthCheck();
+
+        // Assert
+        healthCheck.ShouldNotBeNull();
+        healthCheck.Command.ShouldNotBeNull();
+        healthCheck.Command.Length.ShouldBe(2);
+        healthCheck.Command[0].ShouldBe("CMD-SHELL");
+        healthCheck.Command[1].ShouldContain("curl -f http://localhost:8080/health || exit 1");
+        healthCheck.Interval.ShouldNotBeNull();
+        healthCheck.Timeout.ShouldNotBeNull();
+        healthCheck.Retries.ShouldBe(3);
+        healthCheck.StartPeriod.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void HealthCheckBuilder_CreateCustomHealthCheck_ShouldUseProvidedValues()
+    {
+        // Arrange
+        var healthCheckBuilder = new HealthCheckBuilder();
+        var healthCheckConfig = new HealthCheckConfig
+        {
+            Command = new List<string> { "CMD-SHELL", "echo 'healthy'" },
+            Interval = 45,
+            Timeout = 10,
+            Retries = 5,
+            StartPeriod = 90
+        };
+
+        // Act
+        var healthCheck = healthCheckBuilder.CreateCustomHealthCheck(healthCheckConfig, "test-container");
+
+        // Assert
+        healthCheck.ShouldNotBeNull();
+        healthCheck.Command.ShouldNotBeNull();
+        healthCheck.Command.Length.ShouldBe(2);
+        healthCheck.Command[0].ShouldBe("CMD-SHELL");
+        healthCheck.Command[1].ShouldBe("echo 'healthy'");
+        healthCheck.Interval.ShouldNotBeNull();
+        healthCheck.Timeout.ShouldNotBeNull();
+        healthCheck.Retries.ShouldBe(5);
+        healthCheck.StartPeriod.ShouldNotBeNull();
     }
 
     [Fact]
