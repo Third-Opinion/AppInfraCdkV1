@@ -96,13 +96,23 @@
         "enabled": true,
         "sync-frequency-minutes": 30,
         "google-workspace-domain": "example.com",
-        "group-filter-regex": ".*"
+        "group-filter-regex": ".*",
+        "disable-controls": {
+          "eventbridge-rule-enabled": true,
+          "group-filter-disabled": false,
+          "identity-center-disabled": false
+        }
       },
       "production": {
         "enabled": true,
         "sync-frequency-minutes": 15,
         "google-workspace-domain": "example.com",
-        "group-filter-regex": ".*"
+        "group-filter-regex": ".*",
+        "disable-controls": {
+          "eventbridge-rule-enabled": true,
+          "group-filter-disabled": false,
+          "identity-center-disabled": false
+        }
       }
     }
   }

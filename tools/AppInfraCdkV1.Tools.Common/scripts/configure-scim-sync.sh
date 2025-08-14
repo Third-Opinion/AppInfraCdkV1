@@ -138,7 +138,7 @@ check_stack_deployed() {
 configure_parameters() {
     print_status "Configuring SCIM Sync parameters in SSM Parameter Store..."
     
-    local param_prefix="/scim-sync/${ENVIRONMENT,,}"
+    local param_prefix="/scim-sync/$(echo ${ENVIRONMENT} | tr '[:upper:]' '[:lower:]')"
     
     # Prompt for Google Workspace configuration
     echo ""
@@ -322,7 +322,7 @@ show_outputs() {
 enable_sync() {
     print_status "Enabling SCIM synchronization..."
     
-    local param_prefix="/scim-sync/${ENVIRONMENT,,}"
+    local param_prefix="/scim-sync/$(echo ${ENVIRONMENT} | tr '[:upper:]' '[:lower:]')"
     
     aws ssm put-parameter \
         --name "${param_prefix}/sync/enabled" \
@@ -352,7 +352,7 @@ enable_sync() {
 disable_sync() {
     print_status "Disabling SCIM synchronization..."
     
-    local param_prefix="/scim-sync/${ENVIRONMENT,,}"
+    local param_prefix="/scim-sync/$(echo ${ENVIRONMENT} | tr '[:upper:]' '[:lower:]')"
     
     aws ssm put-parameter \
         --name "${param_prefix}/sync/enabled" \

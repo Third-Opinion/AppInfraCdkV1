@@ -29,7 +29,8 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             ConfigureDataLakeSettings();
             CreateGlueDatabases();
             RegisterS3Locations();
-            CreateLakeFormationTags();
+            // Temporarily disabled - requires manual Lake Formation admin setup first
+            // CreateLakeFormationTags();
             
             Amazon.CDK.Tags.Of(this).Add("Component", "LakeFormationSetup");
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
@@ -134,38 +135,61 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void CreateGlueDatabases()
         {
-            // Create single multi-tenant analytics database
-            var databaseName = "healthlake_analytics";
-            var description = $"Multi-tenant HealthLake analytics database for {_config.Environment} environment";
-            
-            var database = new CfnDatabase(this, "HealthLakeAnalyticsDatabase", new CfnDatabaseProps
+            // Create raw database for external FHIR data
+            var rawDatabase = new CfnDatabase(this, "ExternalFhirRawDatabase", new CfnDatabaseProps
             {
                 CatalogId = _config.AccountId,
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
-                    Name = databaseName,
-                    Description = description,
-                    LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/",
+                    Name = "external_fhir_raw",
+                    Description = $"Raw FHIR data from external sources for {_config.Environment} environment",
+                    LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/raw/",
                     Parameters = new Dictionary<string, string>
                     {
-                        ["classification"] = "parquet",
-                        ["compressionType"] = "snappy",
-                        ["partitionKeys"] = _config.BucketConfig.TenantPartitionKey,
+                        ["classification"] = "json",
+                        ["dataFormat"] = "ndjson",
+                        ["partitionKeys"] = $"{_config.BucketConfig.TenantPartitionKey},source_system,import_date",
                         ["multiTenant"] = "true"
                     }
                 }
             });
             
-            Databases.Add(database);
+            Databases.Add(rawDatabase);
             
-            // Create metadata database for tracking exports and ETL jobs
+            // Create curated database for processed FHIR data ready for HealthLake import
+            var curatedDatabase = new CfnDatabase(this, "ExternalFhirCuratedDatabase", new CfnDatabaseProps
+            {
+                CatalogId = _config.AccountId,
+                DatabaseInput = new CfnDatabase.DatabaseInputProperty
+                {
+                    Name = "external_fhir_curated",
+                    Description = $"Processed FHIR data ready for HealthLake import for {_config.Environment} environment",
+                    LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/curated/",
+                    Parameters = new Dictionary<string, string>
+                    {
+                        ["classification"] = "json",
+                        ["dataFormat"] = "ndjson",
+                        ["partitionKeys"] = $"{_config.BucketConfig.TenantPartitionKey},import_date",
+                        ["multiTenant"] = "true",
+                        ["purpose"] = "healthlake-import-staging"
+                    }
+                }
+            });
+            
+            Databases.Add(curatedDatabase);
+            
+            // Note: HealthLake will create its own Glue catalog with Iceberg tables after import
+            // Those databases/tables will be named according to HealthLake's convention
+            // and will support SQL queries via Athena with ACID transactions
+            
+            // Create metadata database for tracking imports and ETL jobs
             var metadataDatabase = new CfnDatabase(this, "MetadataDatabase", new CfnDatabaseProps
             {
                 CatalogId = _config.AccountId,
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
-                    Name = $"healthlake_metadata_{_config.Environment.ToLower()}",
-                    Description = "Metadata database for tracking HealthLake exports and ETL jobs",
+                    Name = $"fhir_import_metadata_{_config.Environment.ToLower()}",
+                    Description = "Metadata database for tracking FHIR imports and ETL jobs",
                     LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/metadata/",
                     Parameters = new Dictionary<string, string>
                     {

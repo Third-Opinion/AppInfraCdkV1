@@ -1,5 +1,4 @@
 using Amazon.CDK;
-using Amazon.CDK.AWS.ECR;
 using Amazon.CDK.AWS.Events;
 using Amazon.CDK.AWS.Events.Targets;
 using Amazon.CDK.AWS.IAM;
@@ -127,6 +126,30 @@ public class ScimSyncStack : Stack
                                 "identitystore:ListGroupMemberships"
                             },
                             Resources = new[] { "*" }
+                        }),
+                        // EventBridge permissions for Tier 1 disable methodology
+                        new PolicyStatement(new PolicyStatementProps
+                        {
+                            Effect = Effect.ALLOW,
+                            Actions = new[] 
+                            { 
+                                "events:EnableRule",
+                                "events:DisableRule",
+                                "events:DescribeRule",
+                                "events:PutRule"
+                            },
+                            Resources = new[] { $"arn:aws:events:{Region}:{Account}:rule/*scim*" }
+                        }),
+                        // SSM Parameter Store write permissions for status updates
+                        new PolicyStatement(new PolicyStatementProps
+                        {
+                            Effect = Effect.ALLOW,
+                            Actions = new[] { "ssm:PutParameter" },
+                            Resources = new[] 
+                            { 
+                                $"arn:aws:ssm:{Region}:{Account}:parameter/scim-sync/{_context.Environment.Name}/status/*",
+                                $"arn:aws:ssm:{Region}:{Account}:parameter/scim-sync/{_context.Environment.Name}/disable-controls/*"
+                            }
                         })
                     }
                 })
@@ -192,6 +215,52 @@ public class ScimSyncStack : Stack
         });
         ScimParameters["GroupFilters"] = groupFiltersParameter;
         
+        // Three-tier disable methodology parameters
+        
+        // Tier 1: EventBridge rule disable control
+        var eventBridgeRuleEnabledParameter = new StringParameter(this, "EventBridgeRuleEnabled", new StringParameterProps
+        {
+            ParameterName = $"{parameterPrefix}/disable-controls/eventbridge-enabled",
+            StringValue = "true",
+            Description = "Enable/disable EventBridge schedule rule - Tier 1 disable control"
+        });
+        ScimParameters["EventBridgeRuleEnabled"] = eventBridgeRuleEnabledParameter;
+        
+        // Tier 2: Group filter disable control
+        var groupFilterDisableParameter = new StringParameter(this, "GroupFilterDisable", new StringParameterProps
+        {
+            ParameterName = $"{parameterPrefix}/disable-controls/group-filter-disabled",
+            StringValue = "false",
+            Description = "Emergency group filter to exclude ALL groups - Tier 2 disable control"
+        });
+        ScimParameters["GroupFilterDisable"] = groupFilterDisableParameter;
+        
+        // Tier 3: Identity Center SCIM endpoint disable control
+        var identityCenterScimDisableParameter = new StringParameter(this, "IdentityCenterScimDisable", new StringParameterProps
+        {
+            ParameterName = $"{parameterPrefix}/disable-controls/identity-center-disabled",
+            StringValue = "false",
+            Description = "Disable Identity Center SCIM operations - Tier 3 disable control"
+        });
+        ScimParameters["IdentityCenterScimDisable"] = identityCenterScimDisableParameter;
+        
+        // Operational status tracking
+        var lastSyncStatusParameter = new StringParameter(this, "LastSyncStatus", new StringParameterProps
+        {
+            ParameterName = $"{parameterPrefix}/status/last-sync-status",
+            StringValue = "never-run",
+            Description = "Status of the last SCIM synchronization run"
+        });
+        ScimParameters["LastSyncStatus"] = lastSyncStatusParameter;
+        
+        var lastSyncTimestampParameter = new StringParameter(this, "LastSyncTimestamp", new StringParameterProps
+        {
+            ParameterName = $"{parameterPrefix}/status/last-sync-timestamp",
+            StringValue = "never",
+            Description = "Timestamp of the last SCIM synchronization attempt"
+        });
+        ScimParameters["LastSyncTimestamp"] = lastSyncTimestampParameter;
+        
         // Environment-specific sync frequency
         var syncFrequencyMinutes = _context.Environment.Name.ToLower() == "production" ? "15" : "30";
         var syncFrequencyParameter = new StringParameter(this, "SyncFrequency", new StringParameterProps
@@ -214,29 +283,47 @@ public class ScimSyncStack : Stack
     {
         var functionName = _context.Namer.Lambda(ResourcePurpose.Internal);
         
-        // Path to the Lambda function code
-        var lambdaPath = System.IO.Path.Combine(
+        // Use slashdevops/idp-scim-sync container image from public ECR
+        var dockerfilePath = System.IO.Path.Combine(
             System.IO.Directory.GetCurrentDirectory(), 
             "..", 
             "tools", 
-            "AppInfraCdkV1.Tools.ScimSync"
+            "AppInfraCdkV1.Tools.Common", 
+            "docker-lambda"
         );
         
         ScimSyncFunction = new Function(this, "ScimSyncFunction", new FunctionProps
         {
             FunctionName = functionName,
-            Runtime = Runtime.DOTNET_8,
-            Code = Code.FromAsset(lambdaPath),
-            Handler = "scim-sync::AppInfraCdkV1.Tools.ScimSync.ScimSyncFunction::FunctionHandler",
+            Runtime = Runtime.FROM_IMAGE,
+            Code = Code.FromDockerBuild(dockerfilePath),
+            Handler = "index.handler", // Required by CDK but overridden by container CMD
             Role = ScimLambdaExecutionRole,
             Timeout = Duration.Minutes(5),
             MemorySize = 512,
             LogGroup = ScimLogGroup,
             Environment = new Dictionary<string, string>
             {
-                ["SCIM_SYNC_CONFIG_PATH"] = $"/scim-sync/{_context.Environment.Name.ToLower()}"
+                // Google Workspace configuration
+                ["GOOGLE_ADMIN"] = "scim-service@thirdopinion.io",
+                ["GOOGLE_CREDENTIALS"] = "/tmp/google-credentials.json", // Will be loaded from SSM
+                
+                // AWS Identity Center SCIM configuration  
+                ["SCIM_ENDPOINT"] = "from-ssm", // Will be loaded from SSM
+                ["SCIM_ACCESS_TOKEN"] = "from-ssm", // Will be loaded from SSM
+                
+                // Sync configuration optimized for Google Workspace
+                ["SYNC_METHOD"] = "groups",
+                ["GROUP_MATCH"] = "data-analysts-.*|data-engineers-.*", // Lake Formation groups
+                ["USER_MATCH"] = ".*",
+                ["INCLUDE_GROUPS"] = "true",
+                ["LOG_LEVEL"] = "info",
+                ["LOG_FORMAT"] = "json",
+                
+                // AWS configuration for parameter loading
+                ["SSM_PARAMETER_PREFIX"] = $"/scim-sync/{_context.Environment.Name}"
             },
-            Description = "SCIM synchronization function for Google Workspace to AWS Identity Center"
+            Description = "SCIM synchronization function for Google Workspace to AWS Identity Center using slashdevops/idp-scim-sync"
         });
         
         Amazon.CDK.Tags.Of(ScimSyncFunction).Add("Purpose", "SCIM-Synchronization");
@@ -247,15 +334,31 @@ public class ScimSyncStack : Stack
     {
         var ruleName = _context.Namer.Custom("events-rule", ResourcePurpose.Internal);
         
-        // Get sync frequency from parameter (default to 30 minutes for dev, 15 for prod)
+        // Get sync frequency from CDK context or use environment defaults
+        var contextKey = $"scim-sync.{_context.Environment.Name.ToLower()}";
+        var syncConfig = Node.TryGetContext(contextKey) as Dictionary<string, object>;
+        
         var syncFrequencyMinutes = _context.Environment.Name.ToLower() == "production" ? 15 : 30;
+        var ruleEnabled = true;
+        
+        if (syncConfig != null)
+        {
+            if (syncConfig.TryGetValue("sync-frequency-minutes", out var frequency))
+            {
+                syncFrequencyMinutes = Convert.ToInt32(frequency);
+            }
+            if (syncConfig.TryGetValue("enabled", out var enabled))
+            {
+                ruleEnabled = Convert.ToBoolean(enabled);
+            }
+        }
         
         SyncScheduleRule = new Rule(this, "SyncScheduleRule", new RuleProps
         {
             RuleName = ruleName,
             Description = $"Scheduled trigger for SCIM synchronization every {syncFrequencyMinutes} minutes",
             Schedule = Schedule.Rate(Duration.Minutes(syncFrequencyMinutes)),
-            Enabled = true,
+            Enabled = ruleEnabled, // Support for Tier 1 disable methodology
             Targets = new IRuleTarget[]
             {
                 new LambdaFunction(ScimSyncFunction, new LambdaFunctionProps
@@ -264,7 +367,9 @@ public class ScimSyncStack : Stack
                     {
                         ["source"] = "aws.events",
                         ["action"] = "sync",
-                        ["environment"] = _context.Environment.Name
+                        ["environment"] = _context.Environment.Name,
+                        ["syncFrequencyMinutes"] = syncFrequencyMinutes,
+                        ["tier1DisableSupport"] = true
                     })
                 })
             }
@@ -272,6 +377,7 @@ public class ScimSyncStack : Stack
         
         Amazon.CDK.Tags.Of(SyncScheduleRule).Add("Purpose", "SCIM-Synchronization");
         Amazon.CDK.Tags.Of(SyncScheduleRule).Add("Environment", _context.Environment.Name);
+        Amazon.CDK.Tags.Of(SyncScheduleRule).Add("DisableMethodology", "Three-Tier");
     }
 
     private void CreateStackOutputs()
@@ -309,6 +415,28 @@ public class ScimSyncStack : Stack
             Value = $"/scim-sync/{_context.Environment.Name}",
             Description = "SSM parameter prefix for SCIM configuration",
             ExportName = $"{_context.Environment.Name}-scim-parameter-prefix"
+        });
+        
+        // Three-tier disable methodology outputs
+        new CfnOutput(this, "Tier1DisableParameter", new CfnOutputProps
+        {
+            Value = $"/scim-sync/{_context.Environment.Name}/disable-controls/eventbridge-enabled",
+            Description = "SSM parameter for Tier 1 disable control (EventBridge rule)",
+            ExportName = $"{_context.Environment.Name}-scim-tier1-disable-param"
+        });
+        
+        new CfnOutput(this, "Tier2DisableParameter", new CfnOutputProps
+        {
+            Value = $"/scim-sync/{_context.Environment.Name}/disable-controls/group-filter-disabled",
+            Description = "SSM parameter for Tier 2 disable control (Group filter)",
+            ExportName = $"{_context.Environment.Name}-scim-tier2-disable-param"
+        });
+        
+        new CfnOutput(this, "Tier3DisableParameter", new CfnOutputProps
+        {
+            Value = $"/scim-sync/{_context.Environment.Name}/disable-controls/identity-center-disabled",
+            Description = "SSM parameter for Tier 3 disable control (Identity Center)",
+            ExportName = $"{_context.Environment.Name}-scim-tier3-disable-param"
         });
     }
 }
