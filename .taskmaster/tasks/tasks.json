@@ -367,12 +367,25 @@
       {
         "id": 35,
         "title": "Complete SCIM Lambda Implementation and Deployment",
-        "description": "Finalize the implementation of the SCIM synchronization Lambda function for Google Workspace to AWS IAM Identity Center integration, including code fixes, deployment automation, and operational validation.",
-        "details": "Complete the SCIM Lambda implementation by addressing remaining issues in the slashdevops/idp-scim-sync integration. Key implementation areas: 1) Fix Lambda function code deployment and configuration in ScimSyncStack.cs, ensuring proper handler mapping and runtime configuration. 2) Implement comprehensive error handling and logging for SCIM API operations including user/group provisioning, deprovisioning, and updates. 3) Add Lambda environment variables for Google Workspace API credentials, AWS Identity Center configuration, and operational parameters. 4) Implement proper IAM permissions for Lambda execution role to access Identity Center APIs and CloudWatch logging. 5) Add Lambda function monitoring with CloudWatch alarms for execution failures, timeout issues, and API rate limiting. 6) Implement dead letter queue configuration for failed SCIM operations and retry logic. 7) Add comprehensive unit tests and integration tests for SCIM operations. 8) Create operational runbooks for troubleshooting common SCIM sync issues. 9) Implement Lambda function versioning and alias management for blue-green deployments. 10) Add proper secret management using AWS Secrets Manager for Google Workspace service account credentials.",
-        "testStrategy": "Deploy Lambda function to development environment and verify successful deployment. Test SCIM synchronization by triggering manual sync operations and validating users/groups are correctly provisioned in Identity Center. Verify error handling by testing with invalid credentials and malformed requests. Test Lambda monitoring by triggering failures and confirming CloudWatch alarms fire correctly. Validate operational procedures by running through troubleshooting scenarios. Test deployment automation by running full CDK deployment pipeline. Verify production deployment readiness by conducting end-to-end testing in staging environment with production-like data volumes.",
-        "status": "pending",
+        "description": "This task is no longer needed as the SCIM synchronization system will be removed directly without completing the implementation.",
+        "status": "cancelled",
         "dependencies": [
           34
+        ],
+        "priority": "medium",
+        "details": "Task cancelled - proceeding directly to removal of SCIM infrastructure as specified in task 36. The SCIM Lambda implementation will not be completed as the entire SCIM synchronization system is being removed from the project.",
+        "testStrategy": "No testing required - task cancelled in favor of direct removal.",
+        "subtasks": []
+      },
+      {
+        "id": 36,
+        "title": "Remove SCIM Synchronization Infrastructure and Code",
+        "description": "Completely remove all SCIM-related code, CDK stacks, AWS resources, and configuration files from the project, including cleanup of deployed infrastructure.",
+        "details": "This task involves comprehensive removal of the SCIM synchronization system: 1) Delete all deployed AWS CloudFormation stacks using CDK destroy commands for both dev and prod environments (dev-scim-sync-ue2, prod-scim-sync-ue2). 2) Remove the ScimSync CDK application code from AppInfraCdkV1.Apps directory including ScimSyncStack.cs, ScimSyncApp.cs, and related configuration files. 3) Delete SCIM-related Lambda function code from tools/AppInfraCdkV1.Tools.Common/docker-lambda/ directory. 4) Remove SCIM configuration scripts from tools/AppInfraCdkV1.Tools.Common/scripts/scim-sync/ directory. 5) Clean up any SCIM-related environment variables, secrets, or configuration references in deployment scripts. 6) Remove SCIM dependencies from project files, solution files, and CDK configuration. 7) Update deployment documentation to remove SCIM references. 8) Verify no orphaned AWS resources remain after stack deletion including Lambda functions, IAM roles, CloudWatch logs, and any associated resources.",
+        "testStrategy": "Verify AWS CloudFormation stacks are completely deleted using AWS CLI stack describe commands. Confirm no SCIM-related code exists in the codebase using grep searches for 'scim', 'ScimSync', and related terms. Validate project builds successfully after code removal. Check AWS console to ensure no orphaned Lambda functions, IAM roles, or other SCIM-related resources remain. Run full deployment pipeline to confirm removal doesn't break existing functionality. Verify GitHub Actions workflows no longer reference SCIM components.",
+        "status": "done",
+        "dependencies": [
+          35
         ],
         "priority": "medium",
         "subtasks": []
@@ -380,7 +393,7 @@
     ],
     "metadata": {
       "created": "2025-01-12T00:21:00.000Z",
-      "updated": "2025-08-14T20:51:42.331Z",
+      "updated": "2025-08-14T21:51:23.059Z",
       "description": "Tasks for master context"
     }
   }
