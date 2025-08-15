@@ -178,7 +178,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                         },
                         Resource = new CfnPermissions.ResourceProperty
                         {
-                            LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                            LFTag = new CfnPermissions.LFTagKeyResourceProperty
                             {
                                 TagKey = "PHI",
                                 TagValues = phiValues
@@ -208,7 +208,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                         },
                         Resource = new CfnPermissions.ResourceProperty
                         {
-                            LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                            LFTag = new CfnPermissions.LFTagKeyResourceProperty
                             {
                                 TagKey = tagAccess.Key,
                                 TagValues = tagAccess.Value
@@ -247,7 +247,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                     },
                     Resource = new CfnPermissions.ResourceProperty
                     {
-                        LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                        LFTag = new CfnPermissions.LFTagKeyResourceProperty
                         {
                             TagKey = "DataType",
                             TagValues = new[] { "clinical", "research", "operational", "administrative", "reference" }
@@ -297,7 +297,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                 },
                 Resource = new CfnPermissions.ResourceProperty
                 {
-                    LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                    LFTag = new CfnPermissions.LFTagKeyResourceProperty
                     {
                         TagKey = "Environment",
                         TagValues = new[] { "development" }
@@ -323,7 +323,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                 },
                 Resource = new CfnPermissions.ResourceProperty
                 {
-                    LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                    LFTag = new CfnPermissions.LFTagKeyResourceProperty
                     {
                         TagKey = "Sensitivity",
                         TagValues = new[] { "public", "internal" } // No confidential/restricted for audit
@@ -346,7 +346,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                 },
                 Resource = new CfnPermissions.ResourceProperty
                 {
-                    LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                    LFTag = new CfnPermissions.LFTagKeyResourceProperty
                     {
                         TagKey = "Environment",
                         TagValues = new[] { "staging" }
@@ -374,7 +374,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                 },
                 Resource = new CfnPermissions.ResourceProperty
                 {
-                    LfTag = new CfnPermissions.LfTagKeyResourceProperty
+                    LFTag = new CfnPermissions.LFTagKeyResourceProperty
                     {
                         TagKey = tagKey,
                         TagValues = tagValues

@@ -245,11 +245,11 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
             string tableName, 
             Dictionary<string, string> tagValues)
         {
-            var lfTagPairs = new List<CfnTagAssociation.LfTagPairProperty>();
+            var lfTagPairs = new List<CfnTagAssociation.LFTagPairProperty>();
 
             foreach (var tagValue in tagValues)
             {
-                lfTagPairs.Add(new CfnTagAssociation.LfTagPairProperty
+                lfTagPairs.Add(new CfnTagAssociation.LFTagPairProperty
                 {
                     Key = tagValue.Key,
                     Value = tagValue.Value
@@ -260,9 +260,9 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
             {
                 Resource = new CfnTagAssociation.ResourceProperty
                 {
-                    TableResource = new CfnTagAssociation.TableResourceProperty
+                    Table = new CfnTagAssociation.TableResourceProperty
                     {
-                        CatalogId = this.Stack.Account,
+                        CatalogId = Stack.Of(this).Account,
                         DatabaseName = databaseName,
                         Name = tableName
                     }
@@ -279,11 +279,11 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
             string databaseName,
             Dictionary<string, string> tagValues)
         {
-            var lfTagPairs = new List<CfnTagAssociation.LfTagPairProperty>();
+            var lfTagPairs = new List<CfnTagAssociation.LFTagPairProperty>();
 
             foreach (var tagValue in tagValues)
             {
-                lfTagPairs.Add(new CfnTagAssociation.LfTagPairProperty
+                lfTagPairs.Add(new CfnTagAssociation.LFTagPairProperty
                 {
                     Key = tagValue.Key,
                     Value = tagValue.Value
@@ -294,9 +294,9 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
             {
                 Resource = new CfnTagAssociation.ResourceProperty
                 {
-                    DatabaseResource = new CfnTagAssociation.DatabaseResourceProperty
+                    Database = new CfnTagAssociation.DatabaseResourceProperty
                     {
-                        CatalogId = this.Stack.Account,
+                        CatalogId = Stack.Of(this).Account,
                         Name = databaseName
                     }
                 },
