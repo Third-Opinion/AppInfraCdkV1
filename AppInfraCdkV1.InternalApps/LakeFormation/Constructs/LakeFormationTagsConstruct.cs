@@ -3,7 +3,7 @@ using Amazon.CDK.AWS.LakeFormation;
 using Constructs;
 using System.Collections.Generic;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
 {
     public interface ILakeFormationTagsConstructProps
     {
@@ -251,8 +251,9 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
             {
                 lfTagPairs.Add(new CfnTagAssociation.LFTagPairProperty
                 {
-                    Key = tagValue.Key,
-                    Value = tagValue.Value
+                    CatalogId = Stack.Of(this).Account,
+                    TagKey = tagValue.Key,
+                    TagValues = new[] { tagValue.Value }
                 });
             }
 
@@ -285,8 +286,9 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
             {
                 lfTagPairs.Add(new CfnTagAssociation.LFTagPairProperty
                 {
-                    Key = tagValue.Key,
-                    Value = tagValue.Value
+                    CatalogId = Stack.Of(this).Account,
+                    TagKey = tagValue.Key,
+                    TagValues = new[] { tagValue.Value }
                 });
             }
 

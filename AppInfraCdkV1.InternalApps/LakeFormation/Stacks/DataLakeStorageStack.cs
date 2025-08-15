@@ -4,7 +4,7 @@ using Amazon.CDK.AWS.KMS;
 using Constructs;
 using System.Collections.Generic;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
 {
     public class DataLakeStorageStack : Stack
     {

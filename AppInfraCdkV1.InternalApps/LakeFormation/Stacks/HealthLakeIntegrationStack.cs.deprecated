@@ -11,7 +11,7 @@ using Constructs;
 using System.Collections.Generic;
 using System.IO;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
 {
     public class HealthLakeIntegrationStack : Stack
     {

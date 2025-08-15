@@ -1,7 +1,7 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
-using AppInfraCdkV1.Apps.LakeFormation;
-using AppInfraCdkV1.Apps.LakeFormation.Stacks;
+using AppInfraCdkV1.InternalApps.LakeFormation;
+using AppInfraCdkV1.InternalApps.LakeFormation.Stacks;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;

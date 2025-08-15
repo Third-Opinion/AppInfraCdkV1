@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
 {
     public interface ITenantManagementConstructProps
     {
@@ -273,8 +273,8 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                                 },
                                 Resources = new[]
                                 {
-                                    $"arn:aws:ssm:{this.Stack.Region}:{_props.AccountId}:parameter/lake-formation/{_props.Environment.ToLower()}/tenants/*",
-                                    $"arn:aws:ssm:{this.Stack.Region}:{_props.AccountId}:parameter/lake-formation/{_props.Environment.ToLower()}/tenant-registry"
+                                    $"arn:aws:ssm:{Stack.Of(this).Region}:{_props.AccountId}:parameter/lake-formation/{_props.Environment.ToLower()}/tenants/*",
+                                    $"arn:aws:ssm:{Stack.Of(this).Region}:{_props.AccountId}:parameter/lake-formation/{_props.Environment.ToLower()}/tenant-registry"
                                 }
                             }),
                             // Lake Formation permissions for tag management
@@ -332,7 +332,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
                 {
                     ["ENVIRONMENT"] = _props.Environment,
                     ["ACCOUNT_ID"] = _props.AccountId,
-                    ["REGION"] = this.Stack.Region
+                    ["REGION"] = Stack.Of(this).Region
                 },
                 Description = "Manages tenant lifecycle and operations"
             });

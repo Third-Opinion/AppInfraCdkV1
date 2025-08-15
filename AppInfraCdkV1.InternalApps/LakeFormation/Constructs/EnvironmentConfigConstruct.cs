@@ -4,7 +4,7 @@ using Constructs;
 using System.Collections.Generic;
 using System.Text.Json;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Constructs
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
 {
     public interface IEnvironmentConfigConstructProps
     {

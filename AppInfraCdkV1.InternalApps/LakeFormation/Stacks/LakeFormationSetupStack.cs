@@ -6,7 +6,7 @@ using Constructs;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
 {
     public class LakeFormationSetupStack : Stack
     {
@@ -134,21 +134,27 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void CreateGlueDatabases()
         {
-            // Create raw database for external FHIR data
+            // Get tenant ID from configuration (first 8 chars for database naming)
+            var tenantId = _config.BucketConfig.SingleTenantId;
+            var shortTenantId = tenantId.Length > 8 ? tenantId.Substring(0, 8) : tenantId;
+            var tenantName = _config.HealthLake.TenantName;
+            
+            // Create raw database for single tenant FHIR data
             var rawDatabase = new CfnDatabase(this, "ExternalFhirRawDatabase", new CfnDatabaseProps
             {
                 CatalogId = _config.AccountId,
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
-                    Name = "external_fhir_raw",
-                    Description = $"Raw FHIR data from external sources for {_config.Environment} environment",
-                    LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/raw/",
+                    Name = $"fhir_raw_{shortTenantId}_{_config.Environment.ToLower()}",
+                    Description = $"Raw FHIR data for tenant {tenantName} ({tenantId}) in {_config.Environment}",
+                    LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/tenant_{tenantId}/raw/",
                     Parameters = new Dictionary<string, string>
                     {
                         ["classification"] = "json",
                         ["dataFormat"] = "ndjson",
-                        ["partitionKeys"] = $"{_config.BucketConfig.TenantPartitionKey},source_system,import_date",
-                        ["multiTenant"] = "true"
+                        ["tenantId"] = tenantId,
+                        ["tenantName"] = tenantName,
+                        ["partitionKeys"] = "source_system,import_date"
                     }
                 }
             });
@@ -161,16 +167,18 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
                 CatalogId = _config.AccountId,
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
-                    Name = "external_fhir_curated",
-                    Description = $"Processed FHIR data ready for HealthLake import for {_config.Environment} environment",
-                    LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/curated/",
+                    Name = $"fhir_curated_{shortTenantId}_{_config.Environment.ToLower()}",
+                    Description = $"Processed FHIR data for tenant {tenantName} ({tenantId}) ready for HealthLake import",
+                    LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/tenant_{tenantId}/curated/",
                     Parameters = new Dictionary<string, string>
                     {
                         ["classification"] = "json",
                         ["dataFormat"] = "ndjson",
-                        ["partitionKeys"] = $"{_config.BucketConfig.TenantPartitionKey},import_date",
-                        ["multiTenant"] = "true",
-                        ["purpose"] = "healthlake-import-staging"
+                        ["tenantId"] = tenantId,
+                        ["tenantName"] = tenantName,
+                        ["partitionKeys"] = "import_date",
+                        ["purpose"] = "healthlake-import-staging",
+                        ["healthLakeDatastoreId"] = _config.HealthLake.DatastoreId
                     }
                 }
             });
@@ -181,19 +189,21 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             // Those databases/tables will be named according to HealthLake's convention
             // and will support SQL queries via Athena with ACID transactions
             
-            // Create metadata database for tracking imports and ETL jobs
+            // Create metadata database for tracking imports and ETL jobs for this tenant
             var metadataDatabase = new CfnDatabase(this, "MetadataDatabase", new CfnDatabaseProps
             {
                 CatalogId = _config.AccountId,
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
-                    Name = $"fhir_import_metadata_{_config.Environment.ToLower()}",
-                    Description = "Metadata database for tracking FHIR imports and ETL jobs",
-                    LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/metadata/",
+                    Name = $"fhir_metadata_{shortTenantId}_{_config.Environment.ToLower()}",
+                    Description = $"Metadata for tenant {tenantName} ({tenantId}) FHIR imports and ETL jobs",
+                    LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/tenant_{tenantId}/metadata/",
                     Parameters = new Dictionary<string, string>
                     {
                         ["classification"] = "parquet",
-                        ["compressionType"] = "snappy"
+                        ["compressionType"] = "snappy",
+                        ["tenantId"] = tenantId,
+                        ["tenantName"] = tenantName
                     }
                 }
             });
@@ -230,15 +240,21 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void CreateLakeFormationTags()
         {
+            // Single tenant ID from configuration
+            var tenantId = _config.BucketConfig.SingleTenantId;
+            var tenantName = _config.HealthLake.TenantName;
+            
             var tags = new Dictionary<string, string[]>
             {
                 ["Environment"] = new[] { _config.Environment },
                 ["DataClassification"] = new[] { "Public", "Internal", "Confidential" },
                 ["PHI"] = new[] { "true", "false" },
-                ["TenantID"] = new[] { "tenant-a", "tenant-b", "tenant-c", "shared", "multi-tenant" },
+                ["TenantID"] = new[] { tenantId }, // Single tenant GUID
+                ["TenantName"] = new[] { tenantName }, // Human-readable tenant name
                 ["DataType"] = new[] { "clinical", "research", "operational", "administrative", "reference" },
                 ["Sensitivity"] = new[] { "public", "internal", "confidential", "restricted" },
-                ["SourceSystem"] = new[] { "epic", "cerner", "allscripts", "healthlake", "external-api" }
+                ["SourceSystem"] = new[] { "epic", "cerner", "allscripts", "healthlake", "external-api" },
+                ["HealthLakeDatastore"] = new[] { _config.HealthLake.DatastoreId }
             };
             
             if (_config.Environment.ToLower() == "prod" || _config.Environment.ToLower() == "production")

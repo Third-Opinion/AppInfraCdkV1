@@ -5,7 +5,7 @@ using Constructs;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
+namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
 {
     public class LakeFormationPermissionsStack : Stack
     {
@@ -89,29 +89,25 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
         
         private void GrantAllDatabasePermissions(string groupName, string principalIdentifier, string[] permissions)
         {
-            // Grant permissions to all databases including multi-tenant analytics database
+            // Grant permissions to all databases for this single tenant
             foreach (var database in _lakeFormationStack.Databases)
             {
                 var databaseName = (database.DatabaseInput as CfnDatabase.DatabaseInputProperty)?.Name;
                 if (databaseName != null)
                 {
                     GrantDatabasePermissions(groupName, databaseName, principalIdentifier, permissions);
-                    
-                    // For the healthlake_analytics database, ensure access to all tenant partitions
-                    if (databaseName == "healthlake_analytics")
-                    {
-                        GrantMultiTenantTablePermissions(groupName, databaseName, principalIdentifier, permissions);
-                    }
                 }
             }
         }
         
-        private void GrantMultiTenantTablePermissions(string groupName, string databaseName, 
+        private void GrantSingleTenantTablePermissions(string groupName, string databaseName, 
             string principalIdentifier, string[] permissions)
         {
-            // Grant permissions on all tables in the multi-tenant database
-            // This allows access to all tenant data partitions
-            new CfnPrincipalPermissions(this, $"MultiTenantPermissions-{groupName}", new CfnPrincipalPermissionsProps
+            // Grant permissions on all tables for this single tenant's database
+            // All data in the database belongs to the same tenant
+            var tenantId = _config.BucketConfig.SingleTenantId;
+            
+            new CfnPrincipalPermissions(this, $"SingleTenantPermissions-{groupName}", new CfnPrincipalPermissionsProps
             {
                 Principal = new CfnPrincipalPermissions.DataLakePrincipalProperty
                 {
@@ -132,6 +128,9 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
                     : permissions,
                 PermissionsWithGrantOption = new string[] { }
             });
+            
+            // Add tag-based permission for this specific tenant
+            ApplyTenantTagPermissions(groupName, principalIdentifier, tenantId);
         }
         
         private void GrantDatabasePermissions(string groupName, string databaseName, 
@@ -179,24 +178,43 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             });
         }
         
-        // Tag-based permissions will be added later when groups are synced
-        // private void ApplyLakeFormationTags(string groupName, string principalIdentifier, GroupPermissions groupConfig)
+        private void ApplyTenantTagPermissions(string groupName, string principalIdentifier, string tenantId)
+        {
+            // Grant permissions based on TenantID tag for single-tenant isolation
+            new CfnPrincipalPermissions(this, $"TenantTagPermissions-{groupName}", new CfnPrincipalPermissionsProps
+            {
+                Principal = new CfnPrincipalPermissions.DataLakePrincipalProperty
+                {
+                    DataLakePrincipalIdentifier = principalIdentifier
+                },
+                Resource = new CfnPrincipalPermissions.ResourceProperty
+                {
+                    LfTag = new CfnPrincipalPermissions.LFTagKeyResourceProperty
+                    {
+                        CatalogId = _config.AccountId,
+                        TagKey = "TenantID",
+                        TagValues = new[] { tenantId }
+                    }
+                },
+                Permissions = new[] { "DESCRIBE" },
+                PermissionsWithGrantOption = new string[] { }
+            });
+        }
+        
+        // Apply PHI tag permissions based on group configuration
+        // private void ApplyPhiTagPermissions(string groupName, string principalIdentifier, GroupPermissions groupConfig)
         // {
         //     if (groupConfig.ExcludePHI)
         //     {
-        //         new CfnTagAssociation(this, $"TagAssoc-{groupName}-NoPHI", new CfnTagAssociationProps
+        //         new CfnPrincipalPermissions(this, $"PhiTagPermissions-{groupName}", new CfnPrincipalPermissionsProps
         //         {
-        //             LfTags = new[]
+        //             Principal = new CfnPrincipalPermissions.DataLakePrincipalProperty
         //             {
-        //                 new CfnTagAssociation.LFTagPairProperty
-        //                 {
-        //                     TagKey = "PHI",
-        //                     TagValues = new[] { "false" }
-        //                 }
+        //                 DataLakePrincipalIdentifier = principalIdentifier
         //             },
-        //             Resource = new CfnTagAssociation.ResourceProperty
+        //             Resource = new CfnPrincipalPermissions.ResourceProperty
         //             {
-        //                 Table = new CfnTagAssociation.TableResourceProperty
+        //                 LfTag = new CfnPrincipalPermissions.LFTagKeyResourceProperty
         //                 {
         //                     DatabaseName = "*",
         //                     TableWildcard = new Dictionary<string, object>()

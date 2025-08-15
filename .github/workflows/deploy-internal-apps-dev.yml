@@ -1,0 +1,357 @@
+name: Deploy Internal Apps to Development
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'AppInfraCdkV1.InternalApps/**'
+      - '.github/workflows/deploy-internal-apps-dev.yml'
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Internal App to deploy'
+        required: true
+        default: 'LakeFormation'
+        type: choice
+        options:
+        - LakeFormation
+        # Add other internal apps here as they are created
+
+env:
+  CDK_ENVIRONMENT: Development
+  AWS_REGION: us-east-2
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+jobs:
+  validate-internal-app:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.app)) || fromJson('["LakeFormation"]') }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    
+    - name: Validate Internal App Naming
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Validating naming for internal app ${{ matrix.app }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📝 Resource names that will be created for internal app ${{ matrix.app }}:"
+        dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+
+  deploy-lakeformation-storage:
+    needs: validate-internal-app
+    if: contains(github.event.inputs.app, 'LakeFormation') || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-InternalApps-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Bootstrap (if needed)
+      run: |
+        cd AppInfraCdkV1.Deploy
+        cdk bootstrap --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                      --require-approval never || true
+    
+    - name: List available stacks
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📋 Available Lake Formation stacks:"
+        cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Diff for Lake Formation Storage Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for Lake Formation Storage stack..."
+        cdk diff dev-lf-storage-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Storage Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Storage stack to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy dev-lf-storage-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-storage-outputs.json
+        echo "✅ Lake Formation Storage stack deployment completed!"
+    
+    - name: Display Storage Stack Outputs
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f lf-storage-outputs.json ]; then
+          echo "📋 Storage stack resources created:"
+          cat lf-storage-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat lf-storage-outputs.json
+        fi
+    
+    - name: Upload storage outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-storage-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-storage-outputs.json
+
+  deploy-lakeformation-setup:
+    needs: deploy-lakeformation-storage
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-InternalApps-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for Lake Formation Setup Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for Lake Formation Setup stack..."
+        cdk diff dev-lf-setup-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Setup Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Setup stack to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy dev-lf-setup-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-setup-outputs.json
+        echo "✅ Lake Formation Setup stack deployment completed!"
+    
+    - name: Display Setup Stack Outputs
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f lf-setup-outputs.json ]; then
+          echo "📋 Setup stack resources created:"
+          cat lf-setup-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat lf-setup-outputs.json
+        fi
+    
+    - name: Upload setup outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-setup-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-setup-outputs.json
+
+  deploy-lakeformation-permissions:
+    needs: deploy-lakeformation-setup
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-InternalApps-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for Lake Formation Permissions Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for Lake Formation Permissions stack..."
+        cdk diff dev-lf-permissions-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Permissions Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Permissions stack to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy dev-lf-permissions-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-permissions-outputs.json
+        echo "✅ Lake Formation Permissions stack deployment completed!"
+    
+    - name: Display Permissions Stack Outputs
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f lf-permissions-outputs.json ]; then
+          echo "📋 Permissions stack resources created:"
+          cat lf-permissions-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat lf-permissions-outputs.json
+        fi
+    
+    - name: Upload permissions outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-permissions-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-permissions-outputs.json
+
+  deploy-lakeformation-healthlake-test:
+    needs: deploy-lakeformation-permissions
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-InternalApps-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Check if HealthLake Test Instance Stack exists
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📋 Checking available stacks..."
+        cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" | grep -q "dev-lf-healthlake-test-ue2" && echo "HealthLake test stack found" || echo "HealthLake test stack not configured"
+    
+    - name: CDK Diff for HealthLake Test Instance Stack
+      continue-on-error: true
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for HealthLake Test Instance stack..."
+        cdk diff dev-lf-healthlake-test-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy HealthLake Test Instance Stack (if configured)
+      continue-on-error: true
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Attempting to deploy HealthLake Test Instance stack to ${{ env.CDK_ENVIRONMENT }}..."
+        if cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" | grep -q "dev-lf-healthlake-test-ue2"; then
+          cdk deploy dev-lf-healthlake-test-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file lf-healthlake-test-outputs.json
+          echo "✅ HealthLake Test Instance stack deployment completed!"
+        else
+          echo "⚠️ HealthLake Test Instance stack not configured for deployment"
+        fi
+    
+    - name: Display HealthLake Test Instance Outputs
+      continue-on-error: true
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f lf-healthlake-test-outputs.json ]; then
+          echo "📋 HealthLake test instance resources created:"
+          cat lf-healthlake-test-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat lf-healthlake-test-outputs.json
+        fi
+    
+    - name: Upload HealthLake test outputs
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-healthlake-test-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-healthlake-test-outputs.json
+
+  deployment-summary:
+    needs: [deploy-lakeformation-healthlake-test]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deployment Summary
+      run: |
+        echo "🎉 Internal Apps Deployment Summary for Development Environment"
+        echo "================================================"
+        echo "✅ Deployment workflow completed"
+        echo ""
+        echo "📋 Check the artifacts for detailed outputs from each stack"
+        echo "🔍 Review CloudFormation console for stack status"
+        echo "📊 Monitor CloudWatch for any runtime issues"

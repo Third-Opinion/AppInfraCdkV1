@@ -10,22 +10,23 @@
         "identityCenterAccountId": "442042533707"
       },
       "healthLake": {
-        "datastoreId": "",
+        "datastoreId": "test-dev-healthlake-store",
         "datastoreArn": "",
-        "enableMultiTenancy": true,
-        "tenantClaimSystem": "http://thirdopinion.io/identity/claims/tenant"
+        "tenantId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "tenantName": "TestCustomerDev",
+        "enableSampleData": true,
+        "markAsPHI": false
       },
       "bucketConfig": {
         "bucketPrefix": "thirdopinion",
         "enableVersioning": true,
         "enableEncryption": true,
         "enableAccessLogging": true,
-        "enableMultiTenantStructure": true,
-        "tenantPartitionKey": "tenantGuid",
+        "singleTenantId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
         "lifecycle": {
-          "transitionToIADays": 30,
-          "transitionToGlacierDays": 90,
-          "expirationDays": 90,
+          "transitionToIADays": 90,
+          "transitionToGlacierDays": 180,
+          "expirationDays": 0,
           "enableIntelligentTiering": true
         }
       },
@@ -35,7 +36,7 @@
           "groupEmail": "data-analysts-dev@thirdopinion.io",
           "description": "Development data analysts with non-PHI access",
           "permissions": ["SELECT", "DESCRIBE"],
-          "allowedDatabases": ["thirdopinion_dev", "thirdopinion_staging"],
+          "allowedDatabases": ["thirdopinion_dev_a1b2c3d4"],
           "allowedTables": ["*"],
           "excludePHI": true,
           "isDataLakeAdmin": false
@@ -45,7 +46,7 @@
           "groupEmail": "data-engineers-dev@thirdopinion.io",
           "description": "Development data engineers",
           "permissions": ["ALL"],
-          "allowedDatabases": ["thirdopinion_dev", "thirdopinion_staging"],
+          "allowedDatabases": ["thirdopinion_dev_a1b2c3d4"],
           "allowedTables": ["*"],
           "excludePHI": false,
           "isDataLakeAdmin": true
@@ -68,21 +69,22 @@
         "identityCenterAccountId": "442042533707"
       },
       "healthLake": {
-        "datastoreId": "",
+        "datastoreId": "test-prod-healthlake-store",
         "datastoreArn": "",
-        "enableMultiTenancy": true,
-        "tenantClaimSystem": "http://thirdopinion.io/identity/claims/tenant"
+        "tenantId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "tenantName": "TestCustomerProd",
+        "enableSampleData": true,
+        "markAsPHI": true
       },
       "bucketConfig": {
         "bucketPrefix": "thirdopinion",
         "enableVersioning": true,
         "enableEncryption": true,
         "enableAccessLogging": true,
-        "enableMultiTenantStructure": true,
-        "tenantPartitionKey": "tenantGuid",
+        "singleTenantId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
         "lifecycle": {
-          "transitionToIADays": 30,
-          "transitionToGlacierDays": 90,
+          "transitionToIADays": 90,
+          "transitionToGlacierDays": 180,
           "expirationDays": 0,
           "enableIntelligentTiering": true
         }
@@ -93,7 +95,7 @@
           "groupEmail": "data-analysts-phi@thirdopinion.io",
           "description": "Data analysts with PHI access",
           "permissions": ["SELECT", "DESCRIBE"],
-          "allowedDatabases": ["thirdopinion_prod", "thirdopinion_phi"],
+          "allowedDatabases": ["thirdopinion_prod_b2c3d4e5"],
           "allowedTables": ["*"],
           "excludePHI": false,
           "isDataLakeAdmin": false
@@ -103,7 +105,7 @@
           "groupEmail": "data-engineers-phi@thirdopinion.io",
           "description": "Data engineers with full PHI access",
           "permissions": ["ALL"],
-          "allowedDatabases": ["*"],
+          "allowedDatabases": ["thirdopinion_prod_b2c3d4e5"],
           "allowedTables": ["*"],
           "excludePHI": false,
           "isDataLakeAdmin": true

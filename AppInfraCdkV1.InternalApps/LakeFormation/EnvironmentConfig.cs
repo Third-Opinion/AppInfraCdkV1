@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace AppInfraCdkV1.Apps.LakeFormation
+namespace AppInfraCdkV1.InternalApps.LakeFormation
 {
     public class LakeFormationEnvironmentConfig
     {
@@ -41,11 +41,17 @@ namespace AppInfraCdkV1.Apps.LakeFormation
         [JsonPropertyName("datastoreArn")]
         public string DatastoreArn { get; set; } = string.Empty;
         
-        [JsonPropertyName("enableMultiTenancy")]
-        public bool EnableMultiTenancy { get; set; } = true;
+        [JsonPropertyName("tenantId")]
+        public string TenantId { get; set; } = string.Empty; // GUID for this single tenant
         
-        [JsonPropertyName("tenantClaimSystem")]
-        public string TenantClaimSystem { get; set; } = "http://thirdopinion.io/identity/claims/tenant";
+        [JsonPropertyName("tenantName")]
+        public string TenantName { get; set; } = string.Empty; // Human-readable tenant/customer name
+        
+        [JsonPropertyName("enableSampleData")]
+        public bool EnableSampleData { get; set; } = false; // For test instances
+        
+        [JsonPropertyName("markAsPHI")]
+        public bool MarkAsPHI { get; set; } = false; // Mark sample data as PHI
     }
     
     public class IdentityCenterConfig
@@ -104,11 +110,8 @@ namespace AppInfraCdkV1.Apps.LakeFormation
         [JsonPropertyName("lifecycle")]
         public DataLifecycleConfig Lifecycle { get; set; } = new();
         
-        [JsonPropertyName("enableMultiTenantStructure")]
-        public bool EnableMultiTenantStructure { get; set; } = true;
-        
-        [JsonPropertyName("tenantPartitionKey")]
-        public string TenantPartitionKey { get; set; } = "tenantGuid";
+        [JsonPropertyName("singleTenantId")]
+        public string SingleTenantId { get; set; } = string.Empty; // GUID for single tenant mode
     }
     
     public class DataLifecycleConfig

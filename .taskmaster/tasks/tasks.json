@@ -189,7 +189,7 @@
         "id": 31,
         "title": "Create Permissions Management Scripts",
         "description": "Develop CDK constructs and infrastructure-as-code for Lake Formation permissions management and table tagging",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           30
         ],
@@ -201,7 +201,7 @@
             "id": 1,
             "title": "Create LF-Tag management CDK construct",
             "description": "Develop CDK construct to create and manage Lake Formation tags for data classification (PHI, sensitivity levels, data types, tenant IDs)",
-            "status": "in-progress",
+            "status": "done",
             "dependencies": [],
             "details": "Create CDK construct that handles LF-Tag creation for PHI classification (true/false), sensitivity levels (public, internal, confidential, restricted), data types (clinical, research, operational), and tenant IDs for tenant-based querying. Use CDK context and props for environment-specific tag values with proper error handling for existing tags. Integrate with existing Lake Formation stack structure.",
             "testStrategy": "Deploy construct to dev environment, verify tags appear in Lake Formation console through CDK deployment, validate tag values match configuration including tenant ID tags"
@@ -210,7 +210,7 @@
             "id": 2,
             "title": "Develop table permission granting CDK construct",
             "description": "Create CDK construct to grant table-level permissions based on PHI status, group membership, and tenant access patterns",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               1
             ],
@@ -221,7 +221,7 @@
             "id": 3,
             "title": "Create sample table setup CDK construct",
             "description": "Develop CDK construct to create sample Glue tables with various PHI classifications and tenant ID tags for testing",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               1
             ],
@@ -232,7 +232,7 @@
             "id": 4,
             "title": "Implement environment-specific permission patterns in CDK",
             "description": "Create CDK logic to handle different permission patterns between dev and prod environments with tenant considerations",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               2
             ],
@@ -243,7 +243,7 @@
             "id": 5,
             "title": "Create PHI access control validation through CDK deployment",
             "description": "Develop CDK-based validation to verify PHI access controls and tenant-based querying are properly implemented",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               2,
               3,
@@ -256,7 +256,7 @@
             "id": 6,
             "title": "Implement tenant ID tag management CDK construct for comprehensive data classification",
             "description": "Extend CDK LF-Tag management to include tenant ID tags for enabling tenant-based data querying and filtering",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               1
             ],
@@ -275,7 +275,7 @@
         "dependencies": [
           31
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -288,7 +288,7 @@
         "dependencies": [
           32
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -456,11 +456,82 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 37,
+        "title": "Update Lake Formation Stack to Implement Single-Tenant-per-HealthLake-Instance Architecture",
+        "description": "Refactor Lake Formation infrastructure to support dedicated HealthLake instances per tenant with GUID-based tenant identification, removing multi-tenant complexity and implementing simplified single-tenant data import model.",
+        "details": "This task involves major architectural changes to the Lake Formation implementation: 1) Modify LakeFormationSetupConstruct.cs to support single-tenant configuration with GUID-based tenant identification. 2) Update S3 bucket structure to organize data by tenant GUID rather than multi-tenant schemas. 3) Refactor Glue database creation to use tenant-specific naming convention (thirdopinion_{environment}_{tenantGuid}). 4) Update LF-Tags to include TenantId tag alongside existing Environment, DataClassification, and PHI tags. 5) Configure test HealthLake instances for dev and prod environments with dedicated tenant GUIDs. 6) Create sample PHI-marked data for prod test instance following healthcare data compliance requirements. 7) Update permission constructs to grant access based on tenant-specific resources rather than shared multi-tenant resources. 8) Modify data import processes to target single tenant per HealthLake instance. 9) Update environment configuration to map each HealthLake instance to a specific tenant GUID. 10) Remove any multi-tenant logic and shared resource dependencies from the CDK constructs.",
+        "testStrategy": "Verify tenant-specific Glue databases are created with correct naming convention. Test that LF-Tags include TenantId and are properly applied to tenant-specific resources. Validate HealthLake instances are configured with dedicated tenant GUIDs in both dev and prod. Confirm sample PHI data is properly marked and accessible only through correct tenant context. Test data import process targets correct single tenant. Verify permission isolation between different tenant instances. Execute validation scripts to ensure no cross-tenant data access is possible. Test end-to-end data flow from HealthLake instance through Lake Formation to verify single-tenant architecture works correctly.",
+        "status": "done",
+        "dependencies": [
+          28,
+          26,
+          30,
+          32
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Update Configuration and Environment Models to Support Single-Tenant Architecture",
+            "description": "Modify lakeformation-config.json and EnvironmentConfig.cs to remove multi-tenancy flags and add tenant GUID configuration for single-tenant-per-HealthLake-instance architecture",
+            "dependencies": [],
+            "details": "1. Update lakeformation-config.json to set enableMultiTenancy=false and enableMultiTenantStructure=false for both dev and prod environments. 2. Add dedicated tenantGuid fields for dev (test GUID) and prod (production tenant GUID) environments. 3. Update HealthLakeConfig class in EnvironmentConfig.cs to include TenantGuid property and remove multi-tenancy support. 4. Remove tenantClaimSystem property as it's no longer needed for single-tenant architecture. 5. Update DataLakeBucketConfig to replace TenantPartitionKey with specific tenant GUID configuration.",
+            "status": "done",
+            "testStrategy": "Verify configuration loads correctly with new single-tenant structure, confirm tenant GUIDs are properly set for each environment"
+          },
+          {
+            "id": 2,
+            "title": "Refactor Glue Database Creation for Single-Tenant Naming Convention",
+            "description": "Update LakeFormationSetupStack.cs to create tenant-specific Glue databases using thirdopinion_{environment}_{tenantGuid} naming pattern",
+            "dependencies": [
+              "37.1"
+            ],
+            "details": "1. Modify CreateGlueDatabases() method in LakeFormationSetupStack.cs to use tenant-specific naming: thirdopinion_{environment}_{tenantGuid}. 2. Remove multi-tenant parameters from database configuration (remove multiTenant=true parameter). 3. Update S3 location URIs to use tenant-specific paths (s3://bucket/tenantGuid/raw/ instead of partitioned structure). 4. Simplify partition keys to remove tenantGuid partitioning since each database serves a single tenant. 5. Update database descriptions to reflect single-tenant usage.",
+            "status": "done",
+            "testStrategy": "Verify databases created with correct tenant-specific naming convention, confirm S3 paths point to tenant-specific locations"
+          },
+          {
+            "id": 3,
+            "title": "Update Lake Formation Tags to Include TenantId Support",
+            "description": "Enhance LakeFormationTagsConstruct.cs to include TenantId as a required tag alongside existing Environment, DataClassification, and PHI tags",
+            "dependencies": [
+              "37.1"
+            ],
+            "details": "1. Add TenantId tag creation to LakeFormationTagsConstruct.cs with values sourced from configuration tenant GUIDs. 2. Update tag creation in LakeFormationSetupStack.cs to include TenantId tag values from environment config. 3. Replace hardcoded tenant values ('tenant-a', 'tenant-b', etc.) with actual tenant GUIDs from configuration. 4. Ensure TenantId tag is applied to all databases and resources created. 5. Update GetAllTags() method to include TenantId tag in returned dictionary.",
+            "status": "done",
+            "testStrategy": "Confirm TenantId LF-Tags are created with correct GUID values, verify tags are properly associated with tenant-specific resources"
+          },
+          {
+            "id": 4,
+            "title": "Configure Test HealthLake Instances with Dedicated Tenant GUIDs",
+            "description": "Update configuration to map dedicated HealthLake instances to specific tenant GUIDs for both dev and prod environments",
+            "dependencies": [
+              "37.1"
+            ],
+            "details": "1. Update lakeformation-config.json to include specific HealthLake datastore IDs and ARNs for each environment's dedicated tenant. 2. Assign test tenant GUID (e.g., 00000000-0000-0000-0000-000000000001) for dev environment. 3. Assign production tenant GUID for prod environment HealthLake instance. 4. Remove enableMultiTenancy flags and tenantClaimSystem references from HealthLake configuration. 5. Document the mapping between HealthLake instances and tenant GUIDs in configuration comments.",
+            "status": "done",
+            "testStrategy": "Verify HealthLake datastore configuration loads correctly with tenant-specific GUIDs, confirm single-tenant mapping is established"
+          },
+          {
+            "id": 5,
+            "title": "Update Permission Constructs for Single-Tenant Resource Access",
+            "description": "Modify LakeFormationPermissionsConstruct.cs to grant access based on tenant-specific resources rather than shared multi-tenant resources",
+            "dependencies": [
+              "37.2",
+              "37.3"
+            ],
+            "details": "1. Update LakeFormationPermissionsConstruct.cs to reference tenant-specific database names (thirdopinion_{environment}_{tenantGuid}). 2. Modify group permissions to target single-tenant databases instead of multi-tenant shared resources. 3. Update allowedDatabases in group mappings configuration to use tenant-specific database names. 4. Remove multi-tenant filtering logic since each instance serves only one tenant. 5. Simplify permission validation to work with single-tenant architecture. 6. Update any table-level permissions to reflect tenant-specific database structure.",
+            "status": "done",
+            "testStrategy": "Verify permissions are correctly applied to tenant-specific databases, confirm access controls work for single-tenant resources, test that groups cannot access other tenants' data"
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-01-12T00:21:00.000Z",
-      "updated": "2025-08-15T04:14:56.683Z",
+      "updated": "2025-08-15T22:58:40.375Z",
       "description": "Tasks for master context"
     }
   }

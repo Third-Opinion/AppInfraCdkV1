@@ -13,6 +13,7 @@
       </Content>
     </ItemGroup>
 
+
     <ItemGroup>
       <None Include="scripts\**\*">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
