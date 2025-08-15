@@ -29,8 +29,7 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             ConfigureDataLakeSettings();
             CreateGlueDatabases();
             RegisterS3Locations();
-            // Temporarily disabled - requires manual Lake Formation admin setup first
-            // CreateLakeFormationTags();
+            CreateLakeFormationTags();
             
             Amazon.CDK.Tags.Of(this).Add("Component", "LakeFormationSetup");
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
@@ -235,7 +234,11 @@ namespace AppInfraCdkV1.Apps.LakeFormation.Stacks
             {
                 ["Environment"] = new[] { _config.Environment },
                 ["DataClassification"] = new[] { "Public", "Internal", "Confidential" },
-                ["PHI"] = new[] { "true", "false" }
+                ["PHI"] = new[] { "true", "false" },
+                ["TenantID"] = new[] { "tenant-a", "tenant-b", "tenant-c", "shared", "multi-tenant" },
+                ["DataType"] = new[] { "clinical", "research", "operational", "administrative", "reference" },
+                ["Sensitivity"] = new[] { "public", "internal", "confidential", "restricted" },
+                ["SourceSystem"] = new[] { "epic", "cerner", "allscripts", "healthlake", "external-api" }
             };
             
             if (_config.Environment.ToLower() == "prod" || _config.Environment.ToLower() == "production")
