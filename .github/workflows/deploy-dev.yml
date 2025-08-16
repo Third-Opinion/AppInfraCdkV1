@@ -36,9 +36,9 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
 
-  # CDK Diff jobs run for feature branches only - grouped by application for efficiency
+  # CDK Diff jobs run for develop and feature branches - grouped by application for efficiency
   cdk-diff-trialfinder:
-    if: startsWith(github.ref, 'refs/heads/feature/')
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
     needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
@@ -101,7 +101,7 @@ jobs:
         cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
 
   cdk-diff-trialmatch:
-    if: startsWith(github.ref, 'refs/heads/feature/')
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
     needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
@@ -164,7 +164,7 @@ jobs:
         cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
 
   cdk-diff-lakeformation:
-    if: startsWith(github.ref, 'refs/heads/feature/')
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
     needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
