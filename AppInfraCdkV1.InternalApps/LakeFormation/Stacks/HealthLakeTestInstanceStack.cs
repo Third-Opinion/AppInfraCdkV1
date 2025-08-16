@@ -1,6 +1,8 @@
 using Amazon.CDK;
 using Constructs;
 using AppInfraCdkV1.InternalApps.LakeFormation.Constructs;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
 {
@@ -10,7 +12,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
     /// </summary>
     public class HealthLakeTestInstanceStack : Stack
     {
-        public HealthLakeTestInstanceConstruct HealthLakeInstance { get; private set; }
+        public List<HealthLakeTestInstanceConstruct> HealthLakeInstances { get; private set; } = new();
         
         public HealthLakeTestInstanceStack(Construct scope, string id, IStackProps props,
             LakeFormationEnvironmentConfig config, DataLakeStorageStack storageStack)
@@ -19,19 +21,27 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             // Add explicit dependency on storage stack (needs S3 buckets)
             AddDependency(storageStack);
             
-            // Create the test HealthLake instance for this tenant
-            HealthLakeInstance = new HealthLakeTestInstanceConstruct(this, "TestHealthLakeInstance",
-                config, storageStack.CuratedDataBucket);
+            // Create test HealthLake instances for each tenant
+            for (int i = 0; i < config.HealthLake.Count; i++)
+            {
+                var healthLakeConfig = config.HealthLake[i];
+                var instanceId = $"TestHealthLakeInstance{i + 1}";
+                
+                var instance = new HealthLakeTestInstanceConstruct(this, instanceId,
+                    config, healthLakeConfig, storageStack.CuratedDataBucket);
+                
+                HealthLakeInstances.Add(instance);
+            }
             
             // Add stack-level tags
             Amazon.CDK.Tags.Of(this).Add("Component", "HealthLakeTestInstance");
-            Amazon.CDK.Tags.Of(this).Add("TenantId", config.HealthLake.TenantId);
-            Amazon.CDK.Tags.Of(this).Add("TenantName", config.HealthLake.TenantName);
-            Amazon.CDK.Tags.Of(this).Add("Architecture", "SingleTenant");
+            Amazon.CDK.Tags.Of(this).Add("Architecture", "MultiTenant");
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
+            Amazon.CDK.Tags.Of(this).Add("InstanceCount", config.HealthLake.Count.ToString());
             
             // Stack description
-            this.TemplateOptions.Description = $"HealthLake test instance for tenant {config.HealthLake.TenantName} ({config.HealthLake.TenantId}) in {config.Environment}";
+            var tenantNames = string.Join(", ", config.HealthLake.Select(h => h.TenantName));
+            this.TemplateOptions.Description = $"HealthLake test instances for tenants: {tenantNames} in {config.Environment}";
         }
     }
 }

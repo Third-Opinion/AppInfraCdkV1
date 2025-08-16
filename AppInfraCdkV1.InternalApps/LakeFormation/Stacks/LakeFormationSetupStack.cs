@@ -140,7 +140,6 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             // Get tenant ID from configuration (first 8 chars for database naming)
             var tenantId = _config.BucketConfig.SingleTenantId;
             var shortTenantId = tenantId.Length > 8 ? tenantId.Substring(0, 8) : tenantId;
-            var tenantName = _config.HealthLake.TenantName;
             
             // Create raw database for single tenant FHIR data
             var rawDatabase = new CfnDatabase(this, "ExternalFhirRawDatabase", new CfnDatabaseProps
@@ -149,14 +148,13 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
                     Name = $"fhir_raw_{shortTenantId}_{_config.Environment.ToLower()}",
-                    Description = $"Raw FHIR data for tenant {tenantName} ({tenantId}) in {_config.Environment}",
+                    Description = $"Raw FHIR data for tenant ({tenantId}) in {_config.Environment}",
                     LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/tenant_{tenantId}/raw/",
                     Parameters = new Dictionary<string, string>
                     {
                         ["classification"] = "json",
                         ["dataFormat"] = "ndjson",
                         ["tenantId"] = tenantId,
-                        ["tenantName"] = tenantName,
                         ["partitionKeys"] = "source_system,import_date"
                     }
                 }
@@ -171,17 +169,16 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
                     Name = $"fhir_curated_{shortTenantId}_{_config.Environment.ToLower()}",
-                    Description = $"Processed FHIR data for tenant {tenantName} ({tenantId}) ready for HealthLake import",
+                    Description = $"Processed FHIR data for tenant ({tenantId}) ready for HealthLake import",
                     LocationUri = $"s3://{_storageStack.CuratedDataBucket.BucketName}/tenant_{tenantId}/curated/",
                     Parameters = new Dictionary<string, string>
                     {
                         ["classification"] = "json",
                         ["dataFormat"] = "ndjson",
                         ["tenantId"] = tenantId,
-                        ["tenantName"] = tenantName,
                         ["partitionKeys"] = "import_date",
                         ["purpose"] = "healthlake-import-staging",
-                        ["healthLakeDatastoreId"] = _config.HealthLake.DatastoreId
+                        ["healthLakeDatastoreIds"] = string.Join(",", _config.HealthLake.Select(h => h.DatastoreId))
                     }
                 }
             });
@@ -199,14 +196,13 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 DatabaseInput = new CfnDatabase.DatabaseInputProperty
                 {
                     Name = $"fhir_metadata_{shortTenantId}_{_config.Environment.ToLower()}",
-                    Description = $"Metadata for tenant {tenantName} ({tenantId}) FHIR imports and ETL jobs",
+                    Description = $"Metadata for tenant ({tenantId}) FHIR imports and ETL jobs",
                     LocationUri = $"s3://{_storageStack.RawDataBucket.BucketName}/tenant_{tenantId}/metadata/",
                     Parameters = new Dictionary<string, string>
                     {
                         ["classification"] = "parquet",
                         ["compressionType"] = "snappy",
-                        ["tenantId"] = tenantId,
-                        ["tenantName"] = tenantName
+                        ["tenantId"] = tenantId
                     }
                 }
             });
@@ -245,7 +241,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
         {
             // Single tenant ID from configuration
             var tenantId = _config.BucketConfig.SingleTenantId;
-            var tenantName = _config.HealthLake.TenantName;
+            var tenantNames = _config.HealthLake.Select(h => h.TenantName).ToArray();
             
             var tags = new Dictionary<string, string[]>
             {
@@ -253,11 +249,11 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 ["DataClassification"] = new[] { "Public", "Internal", "Confidential" },
                 ["PHI"] = new[] { "true", "false" },
                 ["TenantID"] = new[] { tenantId }, // Single tenant GUID
-                ["TenantName"] = new[] { tenantName }, // Human-readable tenant name
+                ["TenantName"] = tenantNames, // Human-readable tenant names
                 ["DataType"] = new[] { "clinical", "research", "operational", "administrative", "reference" },
                 ["Sensitivity"] = new[] { "public", "internal", "confidential", "restricted" },
                 ["SourceSystem"] = new[] { "epic", "cerner", "allscripts", "healthlake", "external-api" },
-                ["HealthLakeDatastore"] = new[] { _config.HealthLake.DatastoreId }
+                ["HealthLakeDatastore"] = _config.HealthLake.Select(h => h.DatastoreId).ToArray()
             };
             
             if (_config.Environment.ToLower() == "prod" || _config.Environment.ToLower() == "production")
