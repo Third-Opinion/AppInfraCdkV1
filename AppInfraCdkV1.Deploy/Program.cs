@@ -1,6 +1,8 @@
 ﻿using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Apps.TrialMatch;
+using AppInfraCdkV1.InternalApps.LakeFormation;
+using AppInfraCdkV1.InternalApps.LakeFormation.Stacks;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
@@ -98,6 +100,15 @@ public abstract class Program
                     $"{appName} requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: {supportedTypes}");
             }
 
+            // Handle Lake Formation application
+            if (appName.ToLower() == "lakeformation")
+            {
+                DeployLakeFormationStacks(app, context, environmentConfig, environmentName);
+                Console.WriteLine($"✅ Lake Formation Stacks configured successfully");
+                app.Synth();
+                return;
+            }
+
             // Default behavior for other applications (if any)
             throw new ArgumentException(
                 $"Unknown application: {appName}. Register new applications in NamingConvention.cs");
@@ -134,8 +145,10 @@ public abstract class Program
                 return CreateTrialFinderV2Stack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode);
             case "trialmatch":
                 return CreateTrialMatchStack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode);
+            case "lakeformation":
+                throw new ArgumentException("Lake Formation does not use stack types. Run without CDK_STACK_TYPE environment variable.");
             default:
-                throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch");
+                throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch, LakeFormation");
         }
     }
 
@@ -268,6 +281,58 @@ public abstract class Program
                 }
             default:
                 throw new ArgumentException($"Unknown TrialMatch stack type: {stackType}. Supported types: ALB, ECS, DATA, COGNITO");
+        }
+    }
+
+    private static void DeployLakeFormationStacks(
+        App app,
+        DeploymentContext context,
+        EnvironmentConfig environmentConfig,
+        string environmentName)
+    {
+        var lakeFormationConfig = LakeFormationEnvironmentConfigFactory.CreateConfig(environmentName, environmentConfig.AccountId);
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+
+        // Create the stacks in dependency order
+        var storageStackName = $"{envPrefix}-lf-storage-{regionCode}";
+        var storageStack = new DataLakeStorageStack(app, storageStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"Lake Formation Storage infrastructure for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = storageStackName
+        }, lakeFormationConfig);
+
+        var setupStackName = $"{envPrefix}-lf-setup-{regionCode}";
+        var setupStack = new LakeFormationSetupStack(app, setupStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"Lake Formation Setup infrastructure for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = setupStackName
+        }, lakeFormationConfig, storageStack);
+
+        var permissionsStackName = $"{envPrefix}-lf-permissions-{regionCode}";
+        var permissionsStack = new LakeFormationPermissionsStack(app, permissionsStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"Lake Formation Permissions infrastructure for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = permissionsStackName
+        }, lakeFormationConfig, setupStack);
+
+        // Optional: Create HealthLake test instance stack if configured
+        if (lakeFormationConfig.HealthLake?.EnableSampleData == true)
+        {
+            var healthLakeStackName = $"{envPrefix}-lf-healthlake-test-{regionCode}";
+            var healthLakeStack = new HealthLakeTestInstanceStack(app, healthLakeStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"HealthLake Test Instance for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = healthLakeStackName
+            }, lakeFormationConfig, storageStack);
         }
     }
 
@@ -558,7 +623,7 @@ public abstract class Program
         Console.Error.WriteLine("Available environments:");
         Console.Error.WriteLine("  Non-Production Account: Development, Integration");
         Console.Error.WriteLine("  Production Account: Staging, Production, PreProduction, UAT");
-        Console.Error.WriteLine("Available applications: TrialFinderV2, TrialMatch");
+        Console.Error.WriteLine("Available applications: TrialFinderV2, TrialMatch, LakeFormation");
         Console.Error.WriteLine(
             "Available regions: us-east-1, us-east-2, us-west-1, us-west-2");
         Console.Error.WriteLine("\nTo add new applications or regions, update NamingConvention.cs");
@@ -575,6 +640,8 @@ public abstract class Program
             "  dotnet run -- --app=TrialMatch --environment=Staging --validate-only");
         Console.Error.WriteLine(
             "  dotnet run -- --app=TrialMatch --environment=Production --show-names-only");
+        Console.Error.WriteLine("  dotnet run -- --app=LakeFormation --environment=Development");
+        Console.Error.WriteLine("  dotnet run -- --app=LakeFormation --environment=Production");
         Console.Error.WriteLine("  dotnet run -- --list-environments");
     }
 
@@ -709,6 +776,7 @@ public abstract class Program
         {
             "trialfinderv2" => TrialFinderV2Config.GetConfig(environmentName),
             "trialmatch" => TrialMatchConfig.GetConfig(environmentName),
+            "lakeformation" => new ApplicationConfig { Name = "LakeFormation" }, // Lake Formation uses its own config loading
             _ => throw new ArgumentException($"Unknown application configuration: {appName}")
         };
     }

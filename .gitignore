@@ -19,13 +19,15 @@ node_modules/
 # Environment variables
 .env
 # Editor directories and files
-.idea
+.idea/
 .vscode
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.DotSettings.user
+*.DotSettings.personal
 # OS specific
 .DS_Store
 

@@ -1,0 +1,10 @@
+{
+  "CatalogId": "442042533707",
+  "InstanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+  "ApplicationArn": "arn:aws:sso::442042533707:application/ssoins-66849025a110d385/apl-0e7fe41ee757c6a7",
+  "ExternalFiltering": {
+    "Status": "ENABLED",
+    "AuthorizedTargets": []
+  },
+  "ShareRecipients": []
+}

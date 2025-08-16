@@ -423,3 +423,182 @@ jobs:
       with:
         name: deployment-outputs-${{ matrix.app }}-DATA-prod
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-DATA-outputs.json
+
+  # Lake Formation deployment - Storage Stack
+  deploy-lakeformation-storage-prod:
+    needs: [validate-input, validate-naming, deploy-data-prod]
+    if: always() && (needs.validate-input.result == 'success' || github.event_name == 'push') && needs.validate-naming.result == 'success' && needs.deploy-data-prod.result == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    
+    - name: List available Lake Formation stacks
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📋 Available Lake Formation stacks for production:"
+        cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Diff for Lake Formation Storage Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking production changes for Lake Formation Storage stack..."
+        cdk diff prod-lf-storage-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Storage Stack to Production
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Storage stack to PRODUCTION environment..."
+        echo "⚠️  This is a PRODUCTION deployment!"
+        cdk deploy prod-lf-storage-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-storage-outputs.json
+        echo "✅ Lake Formation Storage stack deployment completed!"
+    
+    - name: Upload storage outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-storage-outputs-prod
+        path: AppInfraCdkV1.Deploy/lf-storage-outputs.json
+
+  # Lake Formation deployment - Setup Stack
+  deploy-lakeformation-setup-prod:
+    needs: deploy-lakeformation-storage-prod
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for Lake Formation Setup Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking production changes for Lake Formation Setup stack..."
+        cdk diff prod-lf-setup-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Setup Stack to Production
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Setup stack to PRODUCTION environment..."
+        cdk deploy prod-lf-setup-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-setup-outputs.json
+        echo "✅ Lake Formation Setup stack deployment completed!"
+    
+    - name: Upload setup outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-setup-outputs-prod
+        path: AppInfraCdkV1.Deploy/lf-setup-outputs.json
+
+  # Lake Formation deployment - Permissions Stack
+  deploy-lakeformation-permissions-prod:
+    needs: deploy-lakeformation-setup-prod
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for Lake Formation Permissions Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking production changes for Lake Formation Permissions stack..."
+        cdk diff prod-lf-permissions-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Permissions Stack to Production
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Permissions stack to PRODUCTION environment..."
+        cdk deploy prod-lf-permissions-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-permissions-outputs.json
+        echo "✅ Lake Formation Permissions stack deployment completed!"
+    
+    - name: Upload permissions outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-permissions-outputs-prod
+        path: AppInfraCdkV1.Deploy/lf-permissions-outputs.json

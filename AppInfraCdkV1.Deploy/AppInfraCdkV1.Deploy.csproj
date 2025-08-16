@@ -19,7 +19,14 @@
 
     <ItemGroup>
       <ProjectReference Include="..\AppInfraCdkV1.Apps\AppInfraCdkV1.Apps.csproj" />
+      <ProjectReference Include="..\AppInfraCdkV1.InternalApps\AppInfraCdkV1.InternalApps.csproj" />
       <ProjectReference Include="..\AppInfraCdkV1.Core\AppInfraCdkV1.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

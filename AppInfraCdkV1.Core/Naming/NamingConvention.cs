@@ -34,6 +34,7 @@ public static class NamingConvention
         [ApplicationType.TrialFinderV2] = "tfv2",
         [ApplicationType.TrialMatch] = "tm",
         [ApplicationType.Cdk] = "cdk",
+        [ApplicationType.LakeFormation] = "lf",
     };
 
     // Region codes
@@ -64,7 +65,7 @@ public static class NamingConvention
 
     public static string GetEnvironmentPrefix(string environmentName)
     {
-        if (Enum.TryParse<EnvironmentType>(environmentName, out var environment))
+        if (Enum.TryParse<EnvironmentType>(environmentName, true, out var environment))
             return GetEnvironmentPrefix(environment);
         throw new ArgumentException(
             $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", Enum.GetNames<EnvironmentType>())}");
@@ -80,7 +81,7 @@ public static class NamingConvention
 
     public static AccountType GetAccountType(string environmentName)
     {
-        if (Enum.TryParse<EnvironmentType>(environmentName, out var environment))
+        if (Enum.TryParse<EnvironmentType>(environmentName, true, out var environment))
             return GetAccountType(environment);
         throw new ArgumentException(
             $"Unknown environment: {environmentName}. Supported environments: {string.Join(", ", Enum.GetNames<EnvironmentType>())}");
@@ -96,7 +97,7 @@ public static class NamingConvention
 
     public static string GetApplicationCode(string applicationName)
     {
-        if (Enum.TryParse<ApplicationType>(applicationName, out var application))
+        if (Enum.TryParse<ApplicationType>(applicationName, true, out var application))
             return GetApplicationCode(application);
         throw new ArgumentException(
             $"Unknown application: {applicationName}. Supported applications: {string.Join(", ", Enum.GetNames<ApplicationType>())}");

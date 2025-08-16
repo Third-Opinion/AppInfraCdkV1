@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Content Include="..\..\.dockerignore">
+        <Link>TestContainer\.dockerignore</Link>
+      </Content>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <None Include="scripts\**\*">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="scripts\README.md" />
+      <Content Include="scripts\lake-formation\README.md" />
+      <Content Include="scripts\lake-formation\CROSS_ACCOUNT_ARCHITECTURE.md" />
+    </ItemGroup>
+
+</Project>

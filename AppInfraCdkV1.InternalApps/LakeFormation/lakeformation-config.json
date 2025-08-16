@@ -1,0 +1,123 @@
+{
+  "environments": {
+    "development": {
+      "environment": "Development",
+      "accountId": "615299752206",
+      "region": "us-east-2",
+      "identityCenter": {
+        "instanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+        "identityStoreId": "d-9a677c3adb",
+        "identityCenterAccountId": "442042533707"
+      },
+      "healthLake": {
+        "datastoreId": "test-dev-healthlake-store",
+        "datastoreArn": "",
+        "tenantId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "tenantName": "TestCustomerDev",
+        "enableSampleData": true,
+        "markAsPHI": false
+      },
+      "bucketConfig": {
+        "bucketPrefix": "thirdopinion",
+        "enableVersioning": true,
+        "enableEncryption": true,
+        "enableAccessLogging": true,
+        "singleTenantId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "lifecycle": {
+          "transitionToIADays": 90,
+          "transitionToGlacierDays": 180,
+          "expirationDays": 0,
+          "enableIntelligentTiering": true
+        }
+      },
+      "groupMappings": {
+        "data-analysts-dev": {
+          "groupName": "data-analysts-dev",
+          "groupEmail": "data-analysts-dev@thirdopinion.io",
+          "description": "Development data analysts with non-PHI access",
+          "permissions": ["SELECT", "DESCRIBE"],
+          "allowedDatabases": ["thirdopinion_dev_a1b2c3d4"],
+          "allowedTables": ["*"],
+          "excludePHI": true,
+          "isDataLakeAdmin": false
+        },
+        "data-engineers-dev": {
+          "groupName": "data-engineers-dev",
+          "groupEmail": "data-engineers-dev@thirdopinion.io",
+          "description": "Development data engineers",
+          "permissions": ["ALL"],
+          "allowedDatabases": ["thirdopinion_dev_a1b2c3d4"],
+          "allowedTables": ["*"],
+          "excludePHI": false,
+          "isDataLakeAdmin": true
+        }
+      },
+      "tags": {
+        "Environment": "Development",
+        "Project": "ThirdOpinionDataLake",
+        "ManagedBy": "CDK",
+        "Owner": "DataEngineering"
+      }
+    },
+    "production": {
+      "environment": "Production",
+      "accountId": "442042533707",
+      "region": "us-east-2",
+      "identityCenter": {
+        "instanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+        "identityStoreId": "d-9a677c3adb",
+        "identityCenterAccountId": "442042533707"
+      },
+      "healthLake": {
+        "datastoreId": "test-prod-healthlake-store",
+        "datastoreArn": "",
+        "tenantId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "tenantName": "TestCustomerProd",
+        "enableSampleData": true,
+        "markAsPHI": true
+      },
+      "bucketConfig": {
+        "bucketPrefix": "thirdopinion",
+        "enableVersioning": true,
+        "enableEncryption": true,
+        "enableAccessLogging": true,
+        "singleTenantId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "lifecycle": {
+          "transitionToIADays": 90,
+          "transitionToGlacierDays": 180,
+          "expirationDays": 0,
+          "enableIntelligentTiering": true
+        }
+      },
+      "groupMappings": {
+        "data-analysts-phi": {
+          "groupName": "data-analysts-phi",
+          "groupEmail": "data-analysts-phi@thirdopinion.io",
+          "description": "Data analysts with PHI access",
+          "permissions": ["SELECT", "DESCRIBE"],
+          "allowedDatabases": ["thirdopinion_prod_b2c3d4e5"],
+          "allowedTables": ["*"],
+          "excludePHI": false,
+          "isDataLakeAdmin": false
+        },
+        "data-engineers-phi": {
+          "groupName": "data-engineers-phi",
+          "groupEmail": "data-engineers-phi@thirdopinion.io",
+          "description": "Data engineers with full PHI access",
+          "permissions": ["ALL"],
+          "allowedDatabases": ["thirdopinion_prod_b2c3d4e5"],
+          "allowedTables": ["*"],
+          "excludePHI": false,
+          "isDataLakeAdmin": true
+        }
+      },
+      "tags": {
+        "Environment": "Production",
+        "Project": "ThirdOpinionDataLake",
+        "ManagedBy": "CDK",
+        "Owner": "DataEngineering",
+        "Compliance": "HIPAA"
+      }
+    }
+  }
+}

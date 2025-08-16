@@ -20,6 +20,16 @@
     </ItemGroup>
 
     <ItemGroup>
+      <!-- Temporarily exclude Lake Formation constructs due to CDK API compatibility issues -->
+      <Compile Remove="LakeFormation/Constructs/LakeFormationTagsConstruct.cs" />
+      <Compile Remove="LakeFormation/Constructs/LakeFormationPermissionsConstruct.cs" />
+      <Compile Remove="LakeFormation/Constructs/LakeFormationValidationConstruct.cs" />
+      <Compile Remove="LakeFormation/Constructs/SampleTablesConstruct.cs" />
+      <Compile Remove="LakeFormation/Constructs/TenantManagementConstruct.cs" />
+      <Compile Remove="LakeFormation/Constructs/EnvironmentConfigConstruct.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
       <None Update="TrialFinderV2\config\development.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
@@ -30,6 +40,9 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <None Update="TrialFinderV2\config\staging.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="LakeFormation\lakeformation-config.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
