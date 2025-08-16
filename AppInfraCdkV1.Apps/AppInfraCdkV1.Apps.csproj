@@ -47,4 +47,23 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="TrialMatch\config\development.json" />
+      <Content Include="TrialMatch\config\development.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="TrialMatch\config\production.json" />
+      <Content Include="TrialMatch\config\production.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="TrialMatch\config\integration.json" />
+      <Content Include="TrialMatch\config\integration.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="TrialMatch\config\staging.json" />
+      <Content Include="TrialMatch\config\staging.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>

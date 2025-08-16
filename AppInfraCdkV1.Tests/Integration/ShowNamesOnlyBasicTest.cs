@@ -10,8 +10,10 @@ namespace AppInfraCdkV1.Tests.Integration;
 /// </summary>
 public class ShowNamesOnlyBasicTest
 {
-    [Fact]
-    public async Task ShowNamesOnly_BasicExecution_ReturnsExpectedOutput()
+    [Theory]
+    [InlineData("TrialFinderV2")]
+    [InlineData("TrialMatch")]
+    public async Task ShowNamesOnly_BasicExecution_ReturnsExpectedOutput(string application)
     {
         // Arrange - Use built executable for reliable execution
         var solutionRoot = GetSolutionRoot();
@@ -25,7 +27,7 @@ public class ShowNamesOnlyBasicTest
         var processStartInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"\"{executablePath}\" --environment=Development --app=TrialFinderV2 --show-names-only",
+            Arguments = $"\"{executablePath}\" --environment=Development --app={application} --show-names-only",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -43,7 +45,7 @@ public class ShowNamesOnlyBasicTest
 
         // Assert
         process.ExitCode.ShouldBe(0, $"Command should succeed.\nOutput: {output}\nError: {error}");
-        output.ShouldContain("Starting CDK deployment for TrialFinderV2 in Development");
+        output.ShouldContain($"Starting CDK deployment for {application} in Development");
         output.ShouldContain("Resource names that will be created:");
         output.ShouldContain("VPC:");
         output.ShouldContain("ECS Cluster:");

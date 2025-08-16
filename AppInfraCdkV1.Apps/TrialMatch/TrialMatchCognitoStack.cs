@@ -1,15 +1,15 @@
 using Amazon.CDK;
 using Amazon.CDK.AWS.Cognito;
 using Amazon.CDK.AWS.IAM;
-using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
+using AppInfraCdkV1.Apps.TrialMatch.Configuration;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using Constructs;
 
-namespace AppInfraCdkV1.Apps.TrialFinderV2;
+namespace AppInfraCdkV1.Apps.TrialMatch;
 
 /// <summary>
-/// Cognito Stack for TrialFinder V2 application
+/// Cognito Stack for TrialMatch application
 /// 
 /// This stack manages Cognito User Pool and App Client with the following features:
 /// - User Pool with email-based authentication
@@ -18,12 +18,12 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2;
 /// - Environment-specific configuration
 /// - Comprehensive IAM roles and permissions
 /// </summary>
-public class TrialFinderV2CognitoStack : Stack
+public class TrialMatchCognitoStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
     
-    public TrialFinderV2CognitoStack(Construct scope,
+    public TrialMatchCognitoStack(Construct scope,
         string id,
         IStackProps props,
         DeploymentContext context)
@@ -53,13 +53,13 @@ public class TrialFinderV2CognitoStack : Stack
     /// </summary>
     private IUserPool CreateUserPool(DeploymentContext context)
     {
-        var userPool = new UserPool(this, "TrialFinderUserPool", new UserPoolProps
+        var userPool = new UserPool(this, "TrialMatchUserPool", new UserPoolProps
         {
             UserPoolName = context.Namer.CognitoUserPool(ResourcePurpose.Auth),
             SelfSignUpEnabled = true,
             UserVerification = new UserVerificationConfig
             {
-                EmailSubject = "Verify your email for TrialFinder",
+                EmailSubject = "Verify your email for TrialMatch",
                 EmailBody = "Thanks for signing up! Your verification code is {####}",
                 EmailStyle = VerificationEmailStyle.CODE
             },
@@ -132,7 +132,7 @@ public class TrialFinderV2CognitoStack : Stack
     /// </summary>
     private IUserPoolClient CreateAppClient(IUserPool userPool, DeploymentContext context)
     {
-        var appClient = new UserPoolClient(this, "TrialFinderAppClient", new UserPoolClientProps
+        var appClient = new UserPoolClient(this, "TrialMatchAppClient", new UserPoolClientProps
         {
             UserPool = userPool,
             UserPoolClientName = context.Namer.CognitoAppClient(ResourcePurpose.Auth),
@@ -170,7 +170,7 @@ public class TrialFinderV2CognitoStack : Stack
     /// </summary>
     private IUserPoolDomain CreateManagedDomain(IUserPool userPool, DeploymentContext context)
     {
-        var domain = userPool.AddDomain("TrialFinderManagedDomain", new UserPoolDomainOptions
+        var domain = userPool.AddDomain("TrialMatchManagedDomain", new UserPoolDomainOptions
         {
             CognitoDomain = new CognitoDomainOptions
             {
@@ -191,21 +191,21 @@ public class TrialFinderV2CognitoStack : Stack
         {
             "production" => new[]
             {
-                "https://tf.thirdopinion.io/signin-oidc"
+                "https://tm.thirdopinion.io/signin-oidc"
             },
             "staging" => new[]
             {
-                "https://stg-tf.thirdopinion.io/signin-oidc"
+                "https://stg-tm.thirdopinion.io/signin-oidc"
             },
             "development" => new[]
             {
-                "https://dev-tf.thirdopinion.io/signin-oidc",
+                "https://dev-tm.thirdopinion.io/signin-oidc",
                 "https://localhost:7015/signin-oidc",
                 "https://localhost:7243/signin-oidc"
             },
             "integration" => new[]
             {
-                "https://int-tf.thirdopinion.io/signin-oidc",
+                "https://int-tm.thirdopinion.io/signin-oidc",
                 "https://localhost:7015/signin-oidc",
                 "https://localhost:7243/signin-oidc"
             },
@@ -226,18 +226,18 @@ public class TrialFinderV2CognitoStack : Stack
         {
             "production" => new[]
             {
-                "https://tf.thirdopinion.io",
-                "https://tf.thirdopinion.io/logout"
+                "https://tm.thirdopinion.io",
+                "https://tm.thirdopinion.io/logout"
             },
             "staging" => new[]
             {
-                "https://stg-tf.thirdopinion.io",
-                "https://stg-tf.thirdopinion.io/logout"
+                "https://stg-tm.thirdopinion.io",
+                "https://stg-tm.thirdopinion.io/logout"
             },
             "development" => new[]
             {
-                "https://dev-tf.thirdopinion.io",
-                "https://dev-tf.thirdopinion.io/logout",
+                "https://dev-tm.thirdopinion.io",
+                "https://dev-tm.thirdopinion.io/logout",
                 "https://localhost:7015",
                 "https://localhost:7015/logout",
                 "https://localhost:7243",
@@ -245,8 +245,8 @@ public class TrialFinderV2CognitoStack : Stack
             },
             "integration" => new[]
             {
-                "https://int-tf.thirdopinion.io",
-                "https://int-tf.thirdopinion.io/logout",
+                "https://int-tm.thirdopinion.io",
+                "https://int-tm.thirdopinion.io/logout",
                 "https://localhost:7015",
                 "https://localhost:7015/logout",
                 "https://localhost:7243",
