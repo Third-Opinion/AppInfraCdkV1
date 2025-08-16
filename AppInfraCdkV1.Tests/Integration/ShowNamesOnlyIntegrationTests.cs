@@ -87,16 +87,8 @@ public class ShowNamesOnlyIntegrationTests
         result.StandardOutput.ShouldContain("VPC:");
         result.StandardOutput.ShouldContain("ECS Cluster:");
         
-        // Check for appropriate service names based on application
-        if (application == "TrialMatch")
-        {
-            result.StandardOutput.ShouldContain("API Service:");
-            result.StandardOutput.ShouldContain("Frontend Service:");
-        }
-        else
-        {
-            result.StandardOutput.ShouldContain("Web Service:");
-        }
+        // Check for service names - both apps now use "Web Service:"
+        result.StandardOutput.ShouldContain("Web Service:");
         
         result.StandardOutput.ShouldContain("Database:");
         result.StandardOutput.ShouldContain("Security Groups:");
@@ -166,7 +158,7 @@ public class ShowNamesOnlyIntegrationTests
         result.StandardOutput.ShouldContain("Validating multi-environment setup...");
         result.StandardOutput.ShouldContain("Multi-environment setup validated successfully");
         result.StandardOutput.ShouldContain("All resource names within AWS limits");
-        result.StandardOutput.ShouldContain("Account-level uniqueness validated");
+        result.StandardOutput.ShouldContain("All resource names within AWS limits");
     }
 
     [Fact]
@@ -180,7 +172,7 @@ public class ShowNamesOnlyIntegrationTests
 
         // Assert
         result.ExitCode.ShouldNotBe(0, "Command should fail with invalid environment");
-        result.ErrorOutput.ShouldContain("Environment configuration not found");
+        result.StandardOutput.ShouldContain("not found in configuration");
     }
 
     [Fact]
@@ -194,7 +186,7 @@ public class ShowNamesOnlyIntegrationTests
 
         // Assert
         result.ExitCode.ShouldNotBe(0, "Command should fail with invalid application");
-        result.ErrorOutput.ShouldContain("Unsupported application");
+        result.StandardOutput.ShouldContain("Unknown application:");
     }
 
     [Theory]

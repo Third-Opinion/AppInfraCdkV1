@@ -19,6 +19,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             _config = config;
             _lakeFormationStack = lakeFormationStack;
             
+            // Add explicit dependency on setup stack  
+            AddDependency(lakeFormationStack);
+            
             GrantGroupPermissions();
             
             Amazon.CDK.Tags.Of(this).Add("Component", "LakeFormationPermissions");

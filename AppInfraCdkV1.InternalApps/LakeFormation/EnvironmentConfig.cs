@@ -30,7 +30,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation
         public Dictionary<string, string> Tags { get; set; } = new();
         
         [JsonPropertyName("healthLake")]
-        public HealthLakeConfig HealthLake { get; set; } = new();
+        public List<HealthLakeConfig> HealthLake { get; set; } = new();
     }
     
     public class HealthLakeConfig

@@ -4,6 +4,7 @@ using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.Lambda;
 using Constructs;
+using System;
 using System.Collections.Generic;
 
 namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
@@ -22,28 +23,28 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
         private readonly Bucket _importBucket;
         
         public HealthLakeTestInstanceConstruct(Construct scope, string id, 
-            LakeFormationEnvironmentConfig config, Bucket importBucket) 
+            LakeFormationEnvironmentConfig config, HealthLakeConfig healthLakeConfig, Bucket importBucket) 
             : base(scope, id)
         {
             _config = config;
             _importBucket = importBucket;
             
-            CreateDatastoreRole();
-            CreateHealthLakeDatastore();
+            CreateDatastoreRole(healthLakeConfig);
+            CreateHealthLakeDatastore(healthLakeConfig);
             
-            if (_config.HealthLake.EnableSampleData)
+            if (healthLakeConfig.EnableSampleData)
             {
-                CreateSampleDataLoader();
+                CreateSampleDataLoader(healthLakeConfig);
             }
         }
         
-        private void CreateDatastoreRole()
+        private void CreateDatastoreRole(HealthLakeConfig healthLakeConfig)
         {
             DatastoreRole = new Role(this, "DatastoreRole", new RoleProps
             {
                 AssumedBy = new ServicePrincipal("healthlake.amazonaws.com"),
-                Description = $"Role for HealthLake datastore {_config.HealthLake.DatastoreId}",
-                RoleName = $"HealthLakeRole-{_config.HealthLake.TenantId.Substring(0, 8)}-{_config.Environment}"
+                Description = $"Role for HealthLake datastore {healthLakeConfig.DatastoreId}",
+                RoleName = $"HealthLakeRole-{healthLakeConfig.TenantId.Substring(0, 8)}-{_config.Environment}"
             });
             
             // Grant access to the import bucket for this tenant only
@@ -58,7 +59,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 Resources = new[]
                 {
                     _importBucket.BucketArn,
-                    $"{_importBucket.BucketArn}/tenant_{_config.HealthLake.TenantId}/*"
+                    $"{_importBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/*"
                 }
             }));
             
@@ -73,7 +74,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 },
                 Resources = new[]
                 {
-                    $"{_importBucket.BucketArn}/tenant_{_config.HealthLake.TenantId}/exports/*"
+                    $"{_importBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/exports/*"
                 }
             }));
             
@@ -91,9 +92,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
             }));
         }
         
-        private void CreateHealthLakeDatastore()
+        private void CreateHealthLakeDatastore(HealthLakeConfig healthLakeConfig)
         {
-            var datastoreName = $"{_config.HealthLake.TenantName}-{_config.Environment}".ToLower()
+            var datastoreName = $"{healthLakeConfig.TenantName}-{_config.Environment}".ToLower()
                 .Replace(" ", "-")
                 .Replace("_", "-");
             
@@ -101,7 +102,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
             {
                 DatastoreName = datastoreName,
                 DatastoreTypeVersion = "R4",
-                PreloadDataConfig = _config.HealthLake.EnableSampleData ? 
+                PreloadDataConfig = healthLakeConfig.EnableSampleData ? 
                     new CfnFHIRDatastore.PreloadDataConfigProperty
                     {
                         PreloadDataType = "SYNTHEA"
@@ -116,10 +117,10 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 Tags = new[]
                 {
                     new CfnTag { Key = "Environment", Value = _config.Environment },
-                    new CfnTag { Key = "TenantId", Value = _config.HealthLake.TenantId },
-                    new CfnTag { Key = "TenantName", Value = _config.HealthLake.TenantName },
+                    new CfnTag { Key = "TenantId", Value = healthLakeConfig.TenantId },
+                    new CfnTag { Key = "TenantName", Value = healthLakeConfig.TenantName },
                     new CfnTag { Key = "Purpose", Value = "SingleTenantFHIR" },
-                    new CfnTag { Key = "PHI", Value = _config.HealthLake.MarkAsPHI.ToString().ToLower() },
+                    new CfnTag { Key = "PHI", Value = healthLakeConfig.MarkAsPHI.ToString().ToLower() },
                     new CfnTag { Key = "ManagedBy", Value = "CDK" }
                 }
             });
@@ -128,26 +129,26 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
             new CfnOutput(this, "DatastoreId", new CfnOutputProps
             {
                 Value = Datastore.AttrDatastoreId,
-                Description = $"HealthLake Datastore ID for tenant {_config.HealthLake.TenantName}",
-                ExportName = $"HealthLake-{_config.HealthLake.TenantId.Substring(0, 8)}-DatastoreId"
+                Description = $"HealthLake Datastore ID for tenant {healthLakeConfig.TenantName}",
+                ExportName = $"HealthLake-{healthLakeConfig.TenantId.Substring(0, 8)}-DatastoreId"
             });
             
             new CfnOutput(this, "DatastoreArn", new CfnOutputProps
             {
                 Value = Datastore.AttrDatastoreArn,
-                Description = $"HealthLake Datastore ARN for tenant {_config.HealthLake.TenantName}",
-                ExportName = $"HealthLake-{_config.HealthLake.TenantId.Substring(0, 8)}-DatastoreArn"
+                Description = $"HealthLake Datastore ARN for tenant {healthLakeConfig.TenantName}",
+                ExportName = $"HealthLake-{healthLakeConfig.TenantId.Substring(0, 8)}-DatastoreArn"
             });
             
             new CfnOutput(this, "DatastoreEndpoint", new CfnOutputProps
             {
                 Value = Datastore.AttrDatastoreEndpoint,
-                Description = $"HealthLake FHIR API endpoint for tenant {_config.HealthLake.TenantName}",
-                ExportName = $"HealthLake-{_config.HealthLake.TenantId.Substring(0, 8)}-Endpoint"
+                Description = $"HealthLake FHIR API endpoint for tenant {healthLakeConfig.TenantName}",
+                ExportName = $"HealthLake-{healthLakeConfig.TenantId.Substring(0, 8)}-Endpoint"
             });
         }
         
-        private void CreateSampleDataLoader()
+        private void CreateSampleDataLoader(HealthLakeConfig healthLakeConfig)
         {
             // Lambda function to load sample FHIR data and mark as PHI if configured
             var lambdaRole = new Role(this, "SampleDataLoaderRole", new RoleProps
@@ -184,7 +185,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 },
                 Resources = new[]
                 {
-                    $"{_importBucket.BucketArn}/tenant_{_config.HealthLake.TenantId}/sample-data/*"
+                    $"{_importBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/sample-data/*"
                 }
             }));
             
@@ -267,8 +268,8 @@ def handler(event, context):
                 Environment = new Dictionary<string, string>
                 {
                     ["DATASTORE_ID"] = Datastore.AttrDatastoreId,
-                    ["TENANT_ID"] = _config.HealthLake.TenantId,
-                    ["TENANT_NAME"] = _config.HealthLake.TenantName
+                    ["TENANT_ID"] = healthLakeConfig.TenantId,
+                    ["TENANT_NAME"] = healthLakeConfig.TenantName
                 },
                 Role = lambdaRole,
                 Timeout = Duration.Minutes(5),
@@ -276,8 +277,8 @@ def handler(event, context):
             });
             
             // Add tags to the Lambda function
-            Amazon.CDK.Tags.Of(SampleDataLoader).Add("TenantId", _config.HealthLake.TenantId);
-            Amazon.CDK.Tags.Of(SampleDataLoader).Add("TenantName", _config.HealthLake.TenantName);
+            Amazon.CDK.Tags.Of(SampleDataLoader).Add("TenantId", healthLakeConfig.TenantId);
+            Amazon.CDK.Tags.Of(SampleDataLoader).Add("TenantName", healthLakeConfig.TenantName);
             Amazon.CDK.Tags.Of(SampleDataLoader).Add("Purpose", "SampleDataLoader");
         }
     }
