@@ -62,7 +62,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-tfv2-role-ue2-github-actions
         role-session-name: GitHubActions-Diff-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -149,7 +149,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-tfv2-role-ue2-github-actions
         role-session-name: GitHubActions-Deploy-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -218,20 +218,38 @@ jobs:
       id: deploy-tfv2
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying TrialFinderV2 stacks..."
+        echo "🚀 Deploying TrialFinderV2 stacks in dependency order..."
         
-        # Deploy all TrialFinderV2 stacks with proper dependency ordering
-        # ALB and Cognito can deploy in parallel, then Data, then ECS
-        cdk deploy "dev-tfv2-*" \
+        # Deploy ALB stack first
+        echo "📦 Deploying TrialFinderV2 ALB stack..."
+        CDK_STACK_TYPE=ALB cdk deploy dev-tfv2-alb-ue2 \
           --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
-          --concurrency 2 \
-          --exclusively \
-          --outputs-file tfv2-outputs.json || {
-            echo "⚠️ Some stacks may have been skipped (no changes) or failed"
-            # Don't fail the job if --exclusively skips stacks
-            true
-          }
+          --outputs-file tfv2-alb-outputs.json || true
+        
+        # Deploy Cognito stack (can be parallel with ALB, but deploy separately for clarity)
+        echo "📦 Deploying TrialFinderV2 Cognito stack..."
+        CDK_STACK_TYPE=COGNITO cdk deploy dev-tfv2-cognito-ue2 \
+          --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
+          --require-approval never \
+          --outputs-file tfv2-cognito-outputs.json || true
+        
+        # Deploy Data stack (depends on Base only)
+        echo "📦 Deploying TrialFinderV2 Data stack..."
+        CDK_STACK_TYPE=DATA cdk deploy dev-tfv2-data-ue2 \
+          --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
+          --require-approval never \
+          --outputs-file tfv2-data-outputs.json || true
+        
+        # Deploy ECS stack last (depends on ALB and Data)
+        echo "📦 Deploying TrialFinderV2 ECS stack..."
+        CDK_STACK_TYPE=ECS cdk deploy dev-tfv2-ecs-ue2 \
+          --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
+          --require-approval never \
+          --outputs-file tfv2-ecs-outputs.json || true
+        
+        # Merge all outputs
+        jq -s 'add // {}' tfv2-alb-outputs.json tfv2-cognito-outputs.json tfv2-data-outputs.json tfv2-ecs-outputs.json > tfv2-outputs.json 2>/dev/null || echo "{}" > tfv2-outputs.json
         
         echo "✅ TrialFinderV2 deployment completed!"
     
@@ -257,20 +275,38 @@ jobs:
       id: deploy-tm
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying TrialMatch stacks..."
+        echo "🚀 Deploying TrialMatch stacks in dependency order..."
         
-        # Deploy all TrialMatch stacks with proper dependency ordering
-        # ALB and Cognito can deploy in parallel, then Data, then ECS
-        cdk deploy "dev-tm-*" \
+        # Deploy ALB stack first
+        echo "📦 Deploying TrialMatch ALB stack..."
+        CDK_STACK_TYPE=ALB cdk deploy dev-tm-alb-ue2 \
           --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
-          --concurrency 2 \
-          --exclusively \
-          --outputs-file tm-outputs.json || {
-            echo "⚠️ Some stacks may have been skipped (no changes) or failed"
-            # Don't fail the job if --exclusively skips stacks
-            true
-          }
+          --outputs-file tm-alb-outputs.json || true
+        
+        # Deploy Cognito stack (can be parallel with ALB, but deploy separately for clarity)
+        echo "📦 Deploying TrialMatch Cognito stack..."
+        CDK_STACK_TYPE=COGNITO cdk deploy dev-tm-cognito-ue2 \
+          --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
+          --require-approval never \
+          --outputs-file tm-cognito-outputs.json || true
+        
+        # Deploy Data stack (depends on Base only)
+        echo "📦 Deploying TrialMatch Data stack..."
+        CDK_STACK_TYPE=DATA cdk deploy dev-tm-data-ue2 \
+          --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
+          --require-approval never \
+          --outputs-file tm-data-outputs.json || true
+        
+        # Deploy ECS stack last (depends on ALB and Data)
+        echo "📦 Deploying TrialMatch ECS stack..."
+        CDK_STACK_TYPE=ECS cdk deploy dev-tm-ecs-ue2 \
+          --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
+          --require-approval never \
+          --outputs-file tm-ecs-outputs.json || true
+        
+        # Merge all outputs
+        jq -s 'add // {}' tm-alb-outputs.json tm-cognito-outputs.json tm-data-outputs.json tm-ecs-outputs.json > tm-outputs.json 2>/dev/null || echo "{}" > tm-outputs.json
         
         echo "✅ TrialMatch deployment completed!"
     
@@ -306,8 +342,8 @@ jobs:
         path: |
           AppInfraCdkV1.Deploy/all-outputs.json
           AppInfraCdkV1.Deploy/base-outputs.json
-          AppInfraCdkV1.Deploy/tfv2-outputs.json
-          AppInfraCdkV1.Deploy/tm-outputs.json
+          AppInfraCdkV1.Deploy/tfv2-*.json
+          AppInfraCdkV1.Deploy/tm-*.json
 
   # Optimized LakeFormation deployment
   deploy-lakeformation:
@@ -335,7 +371,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-tfv2-role-ue2-github-actions
         role-session-name: GitHubActions-Deploy-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
