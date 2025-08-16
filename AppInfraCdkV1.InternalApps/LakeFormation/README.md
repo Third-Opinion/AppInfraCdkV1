@@ -6,6 +6,7 @@ The Lake Formation stack provides a comprehensive data lake infrastructure for m
 
 ## Architecture
 
+### Current State
 ```mermaid
 graph TB
     subgraph "External Sources"
@@ -35,6 +36,132 @@ graph TB
     G -.->|Controls Access| F
     H -.->|Assumes| G
 ```
+
+### Future State (Analytics Platform)
+```mermaid
+graph TB
+    subgraph "External Sources"
+        A[External FHIR Servers]
+        A2[HL7v2 Sources]
+        A3[Clinical APIs]
+    end
+    
+    subgraph "Lake Formation Data Lake"
+        B[Raw S3 Bucket] --> C[Glue Catalog - Raw DB]
+        D[ETL Processing] --> E[Curated S3 Bucket]
+        E --> F[Glue Catalog - Curated DB]
+        G[Lake Formation Permissions]
+        H[IAM Roles]
+    end
+    
+    subgraph "HealthLake"
+        I[Import Jobs]
+        J[HealthLake Datastore]
+        K[Auto-Generated Iceberg Tables]
+        L[Glue Data Catalog Integration]
+    end
+    
+    subgraph "Analytics Layer"
+        M[Amazon Athena]
+        N[Amazon Redshift Serverless]
+        O[Redshift Data Warehouse]
+        P[BI Tools/QuickSight]
+    end
+    
+    subgraph "Applications"
+        Q[TrialMatch Application]
+        R[Analytics Dashboard]
+        S[Clinical Research Tools]
+    end
+    
+    A --> B
+    A2 --> B
+    A3 --> B
+    C --> D
+    F --> I
+    I --> J
+    J --> K
+    K --> L
+    
+    L --> M
+    L --> N
+    K --> N
+    N --> O
+    
+    M --> P
+    O --> P
+    O --> Q
+    P --> R
+    P --> S
+    
+    G -.->|Controls Access| C
+    G -.->|Controls Access| F
+    G -.->|Controls Access| L
+    G -.->|Controls Access| M
+    G -.->|Controls Access| N
+    H -.->|Assumes| G
+    
+    style M fill:#f9f,stroke:#333,stroke-width:4px
+    style N fill:#f9f,stroke:#333,stroke-width:4px
+    style O fill:#f9f,stroke:#333,stroke-width:4px
+    style Q fill:#9f9,stroke:#333,stroke-width:4px
+```
+
+### Future State Components
+
+#### Analytics Services (Coming Soon)
+
+##### Amazon Athena
+- **Purpose**: Serverless SQL queries directly on HealthLake Iceberg tables
+- **Use Cases**: 
+  - Ad-hoc analysis of FHIR data
+  - Quick exploratory data analysis
+  - Direct queries on auto-generated Iceberg tables from HealthLake
+- **Benefits**:
+  - No infrastructure to manage
+  - Pay only for queries run
+  - Direct integration with Lake Formation permissions
+
+##### Amazon Redshift Serverless
+- **Purpose**: ETL processing and data transformation from HealthLake
+- **Capabilities**:
+  - Read directly from HealthLake Iceberg tables via Glue Data Catalog
+  - Transform FHIR data into analytical formats
+  - Create materialized views for performance
+- **Integration**: Native support for Apache Iceberg format
+
+##### Redshift Data Warehouse
+- **Purpose**: Central analytics warehouse for TrialMatch and other applications
+- **Features**:
+  - Optimized analytical schemas (star/snowflake)
+  - Pre-aggregated data for fast queries
+  - Historical data retention
+  - Cross-tenant analytics (with proper isolation)
+- **Data Sources**:
+  - ETL from HealthLake via Redshift Serverless
+  - Direct loads from curated S3 buckets
+  - Real-time streams from clinical systems
+
+#### Data Flow in Future Architecture
+
+1. **Ingestion**: Multiple data sources (FHIR, HL7v2, APIs) → Raw S3
+2. **Processing**: ETL via Glue/Lambda → Curated S3
+3. **HealthLake Import**: Curated data → HealthLake datastore
+4. **Catalog Generation**: HealthLake automatically creates Iceberg tables in Glue Catalog
+5. **Analytics Access**:
+   - Athena queries Iceberg tables directly for ad-hoc analysis
+   - Redshift Serverless reads Iceberg tables for ETL
+   - Redshift DW stores transformed data for applications
+6. **Application Layer**: TrialMatch and other apps query Redshift DW
+
+#### Benefits of Future Architecture
+
+1. **Unified Data Platform**: Single source of truth with HealthLake
+2. **Flexible Analytics**: Choose the right tool for each use case
+3. **Cost Optimization**: Serverless options reduce idle costs
+4. **Performance**: Redshift provides sub-second queries for applications
+5. **Governance**: Lake Formation provides unified access control
+6. **Scalability**: Each component scales independently
 
 ## Stack Components
 
