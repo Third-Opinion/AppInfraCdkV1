@@ -186,9 +186,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation
             var possiblePaths = new[]
             {
                 Path.Combine(Directory.GetCurrentDirectory(), "lakeformation-config.json"),
-                Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.Apps", "LakeFormation", "lakeformation-config.json"),
+                Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.InternalApps", "LakeFormation", "lakeformation-config.json"),
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lakeformation-config.json"),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "AppInfraCdkV1.Apps", "LakeFormation", "lakeformation-config.json")
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "AppInfraCdkV1.InternalApps", "LakeFormation", "lakeformation-config.json")
             };
             
             foreach (var path in possiblePaths)
@@ -201,7 +201,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation
             }
             
             // Default location
-            return Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.Apps", "LakeFormation", "lakeformation-config.json");
+            return Path.Combine(Directory.GetCurrentDirectory(), "..", "AppInfraCdkV1.InternalApps", "LakeFormation", "lakeformation-config.json");
         }
     }
 }
