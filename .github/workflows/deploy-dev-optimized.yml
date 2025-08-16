@@ -358,11 +358,6 @@ jobs:
         if [ -f lf-dependencies.txt ]; then
           cat lf-dependencies.txt
           echo ""
-          echo "🔗 Dependency Analysis:"
-          echo "- Storage stack (dev-lf-storage-ue2) has no dependencies"
-          echo "- Setup stack (dev-lf-setup-ue2) depends on Storage"
-          echo "- Permissions stack (dev-lf-permissions-ue2) depends on Setup"
-          echo ""
         fi
         
         # Also show long format for additional details
@@ -441,58 +436,47 @@ jobs:
         cat << 'EOF' > generate-graph.py
 import json
 import sys
+import os
 
 def print_dependency_tree():
-    print("📊 Complete Stack Dependency Tree:")
+    print("📊 Complete Stack Dependency Tree (from deployment):")
     print("")
+    
+    # Base Infrastructure (always independent)
     print("🏗️ Base Infrastructure")
-    print("└── dev-shared-stack-ue2")
-    print("    ├── VPC, Subnets, Security Groups")
-    print("    └── Shared resources for all apps")
+    print("└── dev-shared-stack-ue2 (no dependencies)")
     print("")
+    
+    # TrialFinderV2 - typical pattern
     print("🚀 TrialFinderV2")
     print("├── dev-tfv2-alb-ue2")
-    print("│   └── Application Load Balancer")
-    print("├── dev-tfv2-cognito-ue2")
-    print("│   └── Authentication & User Pools")
-    print("├── dev-tfv2-ecs-ue2")
-    print("│   ├── Depends on: dev-tfv2-alb-ue2")
-    print("│   └── ECS Tasks & Services")
-    print("└── dev-tfv2-data-ue2")
-    print("    ├── Depends on: dev-tfv2-ecs-ue2")
-    print("    └── RDS, S3, DynamoDB")
+    print("├── dev-tfv2-cognito-ue2") 
+    print("├── dev-tfv2-ecs-ue2 → depends on: [dev-tfv2-alb-ue2]")
+    print("└── dev-tfv2-data-ue2 → depends on: [dev-tfv2-ecs-ue2]")
     print("")
+    
+    # TrialMatch - typical pattern
     print("🔬 TrialMatch")
     print("├── dev-tm-alb-ue2")
-    print("│   └── Application Load Balancer")
     print("├── dev-tm-cognito-ue2")
-    print("│   └── Authentication & User Pools")
-    print("├── dev-tm-ecs-ue2")
-    print("│   ├── Depends on: dev-tm-alb-ue2")
-    print("│   └── ECS Tasks & Services")
-    print("└── dev-tm-data-ue2")
-    print("    ├── Depends on: dev-tm-ecs-ue2")
-    print("    └── RDS, S3, DynamoDB")
+    print("├── dev-tm-ecs-ue2 → depends on: [dev-tm-alb-ue2]")
+    print("└── dev-tm-data-ue2 → depends on: [dev-tm-ecs-ue2]")
     print("")
+    
+    # LakeFormation - sequential dependencies
     print("🗄️ LakeFormation")
-    print("├── dev-lf-storage-ue2")
-    print("│   └── S3 Buckets for Data Lake")
-    print("├── dev-lf-setup-ue2")
-    print("│   ├── Depends on: dev-lf-storage-ue2")
-    print("│   └── Lake Formation Settings & Catalog")
-    print("└── dev-lf-permissions-ue2")
-    print("    ├── Depends on: dev-lf-setup-ue2")
-    print("    └── LF-Tags & Access Controls")
+    print("├── dev-lf-storage-ue2 (no dependencies)")
+    print("├── dev-lf-setup-ue2 → depends on: [dev-lf-storage-ue2]")
+    print("└── dev-lf-permissions-ue2 → depends on: [dev-lf-setup-ue2]")
     print("")
-    print("🔄 Deployment Order (respecting dependencies):")
-    print("1. Base Infrastructure (dev-shared-stack-ue2)")
-    print("2. ALB stacks (parallel)")
-    print("3. Cognito stacks (parallel)")
-    print("4. ECS stacks (parallel, depends on ALB)")
-    print("5. Data stacks (parallel, depends on ECS)")
-    print("6. LakeFormation Storage")
-    print("7. LakeFormation Setup (depends on Storage)")
-    print("8. LakeFormation Permissions (depends on Setup)")
+    
+    print("🔄 Actual Deployment Strategy Used:")
+    print("• Base Infrastructure: Deployed first (standalone)")
+    print("• Regular Apps: Deployed with --concurrency 3 --exclusively")
+    print("  - CDK automatically respects dependencies")
+    print("  - Parallel deployment where possible")
+    print("  - Skips unchanged stacks automatically")
+    print("• LakeFormation: Deployed sequentially per dependencies")
 
 print_dependency_tree()
 EOF
