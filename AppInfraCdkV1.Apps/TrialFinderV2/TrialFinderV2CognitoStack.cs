@@ -14,7 +14,7 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2;
 /// This stack manages Cognito User Pool and App Client with the following features:
 /// - User Pool with email-based authentication
 /// - App Client with OAuth 2.0 configuration
-/// - Managed login domain with branding version for sign-in/sign-out
+/// - Hosted UI domain for sign-in/sign-out
 /// - Environment-specific configuration
 /// - Comprehensive IAM roles and permissions
 /// </summary>
@@ -41,8 +41,8 @@ public class TrialFinderV2CognitoStack : Stack
         // Create Cognito App Client
         var appClient = CreateAppClient(userPool, context);
         
-        // Create managed login domain
-        var domain = CreateManagedDomain(userPool, context);
+        // Create hosted UI domain
+        var domain = CreateHostedDomain(userPool, context);
         
         // Export outputs for other stacks
         ExportStackOutputs(userPool, appClient, domain, context);
@@ -166,17 +166,16 @@ public class TrialFinderV2CognitoStack : Stack
     }
 
     /// <summary>
-    /// Create managed login domain for Cognito User Pool with branding version
+    /// Create hosted UI domain for Cognito User Pool
     /// </summary>
-    private IUserPoolDomain CreateManagedDomain(IUserPool userPool, DeploymentContext context)
+    private IUserPoolDomain CreateHostedDomain(IUserPool userPool, DeploymentContext context)
     {
-        var domain = userPool.AddDomain("TrialFinderManagedDomain", new UserPoolDomainOptions
+        var domain = userPool.AddDomain("TrialFinderHostedDomain", new UserPoolDomainOptions
         {
             CognitoDomain = new CognitoDomainOptions
             {
                 DomainPrefix = GetDomainPrefix(context)
-            },
-            ManagedLoginVersion = ManagedLoginVersion.NEWER_MANAGED_LOGIN
+            }
         });
 
         return domain;
@@ -315,7 +314,7 @@ public class TrialFinderV2CognitoStack : Stack
         {
             Value = $"https://{domain.DomainName}.auth.{context.Environment.Region}.amazoncognito.com",
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-cognito-domain-url",
-            Description = "URL of the Cognito managed login domain"
+            Description = "URL of the Cognito hosted UI domain"
         });
 
         // Export Domain Name
@@ -323,7 +322,7 @@ public class TrialFinderV2CognitoStack : Stack
         {
             Value = domain.DomainName,
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-cognito-domain-name",
-            Description = "Name of the Cognito managed login domain"
+            Description = "Name of the Cognito hosted UI domain"
         });
     }
 } 

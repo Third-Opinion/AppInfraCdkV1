@@ -1,5 +1,4 @@
 using AppInfraCdkV1.Apps.TrialFinderV2;
-using AppInfraCdkV1.Apps.TrialMatch;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
@@ -19,8 +18,6 @@ public class NamingValidationIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public void ValidateNamingConventions_WithValidEnvironmentAndApp_ShouldSucceed(string environment, string application)
     {
         // Arrange
@@ -33,8 +30,6 @@ public class NamingValidationIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public void GenerateResourceNames_WithValidEnvironmentAndApp_ShouldProduceCorrectNames(string environment, string application)
     {
         // Arrange
@@ -49,12 +44,11 @@ public class NamingValidationIntegrationTests
         var databaseName = context.Namer.RdsInstance(ResourcePurpose.Main);
 
         // Assert
-        var expectedAppPrefix = application == "TrialFinderV2" ? "tfv2" : "tm";
-        stackName.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-");
-        vpcName.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-");
-        ecsClusterName.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-");
-        webServiceName.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-");
-        databaseName.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-");
+        stackName.ShouldStartWith($"{expectedPrefix}-tfv2-");
+        vpcName.ShouldStartWith($"{expectedPrefix}-tfv2-");
+        ecsClusterName.ShouldStartWith($"{expectedPrefix}-tfv2-");
+        webServiceName.ShouldStartWith($"{expectedPrefix}-tfv2-");
+        databaseName.ShouldStartWith($"{expectedPrefix}-tfv2-");
 
         // Verify all names follow the expected pattern
         stackName.ShouldContain("stack");
@@ -67,8 +61,6 @@ public class NamingValidationIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public void ValidateAwsLimits_WithValidEnvironmentAndApp_ShouldRespectLimits(string environment, string application)
     {
         // Arrange
@@ -89,14 +81,12 @@ public class NamingValidationIntegrationTests
     }
 
     [Theory]
-    [InlineData("Development", "TrialFinderV2")]
-    [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
-    public void ValidateMultiEnvironmentSetup_WithValidEnvironment_ShouldDetectCorrectContext(string environment, string application)
+    [InlineData("Development")]
+    [InlineData("Production")]
+    public void ValidateMultiEnvironmentSetup_WithValidEnvironment_ShouldDetectCorrectContext(string environment)
     {
         // Arrange
-        var context = CreateDeploymentContext(environment, application);
+        var context = CreateDeploymentContext(environment, "TrialFinderV2");
 
         // Act
         var siblingEnvironments = context.Environment.GetAccountSiblingEnvironments();
@@ -137,8 +127,6 @@ public class NamingValidationIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public void GenerateSecurityGroupNames_WithValidEnvironmentAndApp_ShouldFollowConventions(string environment, string application)
     {
         // Arrange
@@ -151,10 +139,9 @@ public class NamingValidationIntegrationTests
         var rdsSecurityGroup = context.Namer.SecurityGroupForRds(ResourcePurpose.Main);
 
         // Assert
-        var expectedAppPrefix = application == "TrialFinderV2" ? "tfv2" : "tm";
-        albSecurityGroup.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-sg-alb-");
-        ecsSecurityGroup.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-sg-ecs-");
-        rdsSecurityGroup.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-sg-rds-");
+        albSecurityGroup.ShouldStartWith($"{expectedPrefix}-tfv2-sg-alb-");
+        ecsSecurityGroup.ShouldStartWith($"{expectedPrefix}-tfv2-sg-ecs-");
+        rdsSecurityGroup.ShouldStartWith($"{expectedPrefix}-tfv2-sg-rds-");
 
         // Verify all contain the region code
         albSecurityGroup.ShouldContain("ue2"); // us-east-2 region code
@@ -165,8 +152,6 @@ public class NamingValidationIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public void GenerateIamRoleNames_WithValidEnvironmentAndApp_ShouldFollowConventions(string environment, string application)
     {
         // Arrange
@@ -178,9 +163,8 @@ public class NamingValidationIntegrationTests
         var ecsExecutionRole = context.Namer.IamRole(IamPurpose.EcsExecution);
 
         // Assert
-        var expectedAppPrefix = application == "TrialFinderV2" ? "tfv2" : "tm";
-        ecsTaskRole.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-role-");
-        ecsExecutionRole.ShouldStartWith($"{expectedPrefix}-{expectedAppPrefix}-role-");
+        ecsTaskRole.ShouldStartWith($"{expectedPrefix}-tfv2-role-");
+        ecsExecutionRole.ShouldStartWith($"{expectedPrefix}-tfv2-role-");
 
         ecsTaskRole.ShouldContain("ecs-task");
         ecsExecutionRole.ShouldContain("ecs-exec");
@@ -189,8 +173,6 @@ public class NamingValidationIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public void GenerateLogGroupNames_WithValidEnvironmentAndApp_ShouldFollowAwsConventions(string environment, string application)
     {
         // Arrange
@@ -202,8 +184,7 @@ public class NamingValidationIntegrationTests
 
         // Assert
         logGroup.ShouldStartWith("/aws/ecs/");
-        var expectedAppPrefix = application == "TrialFinderV2" ? "tfv2" : "tm";
-        logGroup.ShouldContain($"{expectedPrefix}-{expectedAppPrefix}-");
+        logGroup.ShouldContain($"{expectedPrefix}-tfv2-");
     }
 
     private static DeploymentContext CreateDeploymentContext(string environment, string application)
@@ -265,7 +246,6 @@ public class NamingValidationIntegrationTests
         return appName.ToLower() switch
         {
             "trialfinderv2" => TrialFinderV2Config.GetConfig(environmentName),
-            "trialmatch" => TrialMatchConfig.GetConfig(environmentName),
             _ => throw new ArgumentException($"Unknown application configuration: {appName}")
         };
     }

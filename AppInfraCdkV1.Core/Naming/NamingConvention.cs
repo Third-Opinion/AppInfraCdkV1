@@ -32,7 +32,6 @@ public static class NamingConvention
     private static readonly Dictionary<ApplicationType, string> ApplicationCodes = new()
     {
         [ApplicationType.TrialFinderV2] = "tfv2",
-        [ApplicationType.TrialMatch] = "tm",
         [ApplicationType.Cdk] = "cdk",
         [ApplicationType.LakeFormation] = "lf",
     };

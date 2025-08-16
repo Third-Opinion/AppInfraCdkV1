@@ -50,8 +50,6 @@ public class ShowNamesOnlyIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public async Task ShowNamesOnly_WithValidEnvironmentAndApp_ExecutesSuccessfully(string environment, string application)
     {
         // Arrange
@@ -68,8 +66,6 @@ public class ShowNamesOnlyIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public async Task ShowNamesOnly_WithValidEnvironmentAndApp_ContainsExpectedResourceNames(string environment, string application)
     {
         // Arrange
@@ -86,18 +82,7 @@ public class ShowNamesOnlyIntegrationTests
         result.StandardOutput.ShouldContain("Stack:");
         result.StandardOutput.ShouldContain("VPC:");
         result.StandardOutput.ShouldContain("ECS Cluster:");
-        
-        // Check for appropriate service names based on application
-        if (application == "TrialMatch")
-        {
-            result.StandardOutput.ShouldContain("API Service:");
-            result.StandardOutput.ShouldContain("Frontend Service:");
-        }
-        else
-        {
-            result.StandardOutput.ShouldContain("Web Service:");
-        }
-        
+        result.StandardOutput.ShouldContain("Web Service:");
         result.StandardOutput.ShouldContain("Database:");
         result.StandardOutput.ShouldContain("Security Groups:");
         result.StandardOutput.ShouldContain("IAM Roles:");
@@ -105,12 +90,12 @@ public class ShowNamesOnlyIntegrationTests
     }
 
     [Theory]
-    [InlineData("Development", "TrialFinderV2")]
-    [InlineData("Production", "TrialFinderV2")]
-    public async Task ShowNamesOnly_ForTrialFinderV2_ContainsTrialFinderSpecificResources(string environment, string application)
+    [InlineData("Development")]
+    [InlineData("Production")]
+    public async Task ShowNamesOnly_ForTrialFinderV2_ContainsTrialFinderSpecificResources(string environment)
     {
         // Arrange
-        var arguments = $"--environment={environment} --app={application} --show-names-only";
+        var arguments = $"--environment={environment} --app=TrialFinderV2 --show-names-only";
 
         // Act
         var result = await ExecuteDeployCommand(arguments);
@@ -123,8 +108,6 @@ public class ShowNamesOnlyIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public async Task ShowNamesOnly_WithValidEnvironmentAndApp_ContainsAccountContext(string environment, string application)
     {
         // Arrange
@@ -147,8 +130,6 @@ public class ShowNamesOnlyIntegrationTests
     [Theory]
     [InlineData("Development", "TrialFinderV2")]
     [InlineData("Production", "TrialFinderV2")]
-    [InlineData("Development", "TrialMatch")]
-    [InlineData("Production", "TrialMatch")]
     public async Task ShowNamesOnly_WithValidEnvironmentAndApp_PassesValidation(string environment, string application)
     {
         // Arrange
@@ -198,14 +179,12 @@ public class ShowNamesOnlyIntegrationTests
     }
 
     [Theory]
-    [InlineData("Development", "TrialFinderV2", "dev")]
-    [InlineData("Production", "TrialFinderV2", "prod")]
-    [InlineData("Development", "TrialMatch", "dev")]
-    [InlineData("Production", "TrialMatch", "prod")]
-    public async Task ShowNamesOnly_GeneratesCorrectNamingPrefix(string environment, string application, string expectedPrefix)
+    [InlineData("Development", "dev")]
+    [InlineData("Production", "prod")]
+    public async Task ShowNamesOnly_GeneratesCorrectNamingPrefix(string environment, string expectedPrefix)
     {
         // Arrange
-        var arguments = $"--environment={environment} --app={application} --show-names-only";
+        var arguments = $"--environment={environment} --app=TrialFinderV2 --show-names-only";
 
         // Act
         var result = await ExecuteDeployCommand(arguments);
@@ -214,8 +193,7 @@ public class ShowNamesOnlyIntegrationTests
         result.ExitCode.ShouldBe(0);
 
         // Validate that resource names use the correct environment prefix
-        var expectedAppPrefix = application == "TrialFinderV2" ? "tfv2" : "tm";
-        result.StandardOutput.ShouldContain($"{expectedPrefix}-{expectedAppPrefix}-");
+        result.StandardOutput.ShouldContain($"{expectedPrefix}-tfv2-");
     }
 
     [Fact]
