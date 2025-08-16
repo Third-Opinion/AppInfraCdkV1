@@ -82,9 +82,8 @@ jobs:
         # Show simplified dependency tree
         echo "📊 Stack Dependency Overview:"
         echo ""
-        echo "Base → ALB → ECS → Data"
-        echo "         ↓"
-        echo "      Cognito"
+        echo "Base → ALB/Cognito → Data → ECS"
+        echo "  (Infrastructure) (Storage) (Services)"
         echo ""
         echo "LakeFormation: Storage → Setup → Permissions"
         echo ""
@@ -98,26 +97,26 @@ jobs:
         echo "📦 Base Infrastructure:"
         cdk diff --app="dotnet run -- --deploy-base --environment=${{ env.CDK_ENVIRONMENT }}" || true
         
-        # Diff TrialFinderV2 stacks
+        # Diff TrialFinderV2 stacks (in dependency order: ALB/Cognito → Data → ECS)
         echo "📦 TrialFinderV2 Application:"
         export CDK_STACK_TYPE=ALB
         cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
         export CDK_STACK_TYPE=COGNITO
         cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
-        export CDK_STACK_TYPE=ECS
-        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
         export CDK_STACK_TYPE=DATA
         cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        export CDK_STACK_TYPE=ECS
+        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
         
-        # Diff TrialMatch stacks
+        # Diff TrialMatch stacks (in dependency order: ALB/Cognito → Data → ECS)
         echo "📦 TrialMatch Application:"
         export CDK_STACK_TYPE=ALB
         cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
         export CDK_STACK_TYPE=COGNITO
         cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
-        export CDK_STACK_TYPE=ECS
-        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
         export CDK_STACK_TYPE=DATA
+        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        export CDK_STACK_TYPE=ECS
         cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
         
         # Diff LakeFormation stacks
@@ -203,10 +202,9 @@ jobs:
         echo "🔍 Generating dependency graph for TrialFinderV2..."
         
         # Generate graph for all stack types
-        for STACK_TYPE in ALB COGNITO ECS DATA; do
+        for STACK_TYPE in ALB COGNITO DATA ECS; do
           echo "📊 TrialFinderV2 $STACK_TYPE Dependencies:"
-          export CDK_STACK_TYPE=$STACK_TYPE
-          npx cdk list --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies || true
+          CDK_STACK_TYPE=$STACK_TYPE npx cdk list --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies || true
         done
         
         # Generate comprehensive view
@@ -222,11 +220,12 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying TrialFinderV2 stacks..."
         
-        # Deploy all TrialFinderV2 stacks with concurrency and change detection
+        # Deploy all TrialFinderV2 stacks with proper dependency ordering
+        # ALB and Cognito can deploy in parallel, then Data, then ECS
         cdk deploy "dev-tfv2-*" \
           --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
-          --concurrency 3 \
+          --concurrency 2 \
           --exclusively \
           --outputs-file tfv2-outputs.json || {
             echo "⚠️ Some stacks may have been skipped (no changes) or failed"
@@ -242,10 +241,9 @@ jobs:
         echo "🔍 Generating dependency graph for TrialMatch..."
         
         # Generate graph for all stack types
-        for STACK_TYPE in ALB COGNITO ECS DATA; do
+        for STACK_TYPE in ALB COGNITO DATA ECS; do
           echo "📊 TrialMatch $STACK_TYPE Dependencies:"
-          export CDK_STACK_TYPE=$STACK_TYPE
-          npx cdk list --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies || true
+          CDK_STACK_TYPE=$STACK_TYPE npx cdk list --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies || true
         done
         
         # Generate comprehensive view
@@ -261,11 +259,12 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying TrialMatch stacks..."
         
-        # Deploy all TrialMatch stacks with concurrency and change detection
+        # Deploy all TrialMatch stacks with proper dependency ordering
+        # ALB and Cognito can deploy in parallel, then Data, then ECS
         cdk deploy "dev-tm-*" \
           --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
-          --concurrency 3 \
+          --concurrency 2 \
           --exclusively \
           --outputs-file tm-outputs.json || {
             echo "⚠️ Some stacks may have been skipped (no changes) or failed"
@@ -414,10 +413,9 @@ jobs:
 
   # Final deployment summary
   deployment-summary:
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' && always()
     needs: [deploy-regular-apps, deploy-lakeformation]
     runs-on: ubuntu-latest
-    if: always()
     
     steps:
     - name: Download all outputs
@@ -447,20 +445,20 @@ def print_dependency_tree():
     print("└── dev-shared-stack-ue2 (no dependencies)")
     print("")
     
-    # TrialFinderV2 - typical pattern
+    # TrialFinderV2 - correct dependency pattern
     print("🚀 TrialFinderV2")
-    print("├── dev-tfv2-alb-ue2")
-    print("├── dev-tfv2-cognito-ue2") 
-    print("├── dev-tfv2-ecs-ue2 → depends on: [dev-tfv2-alb-ue2]")
-    print("└── dev-tfv2-data-ue2 → depends on: [dev-tfv2-ecs-ue2]")
+    print("├── dev-tfv2-alb-ue2 → depends on: [dev-shared-stack-ue2]")
+    print("├── dev-tfv2-cognito-ue2 → depends on: [dev-shared-stack-ue2]") 
+    print("├── dev-tfv2-data-ue2 → depends on: [dev-shared-stack-ue2]")
+    print("└── dev-tfv2-ecs-ue2 → depends on: [dev-tfv2-alb-ue2, dev-tfv2-data-ue2]")
     print("")
     
-    # TrialMatch - typical pattern
+    # TrialMatch - correct dependency pattern
     print("🔬 TrialMatch")
-    print("├── dev-tm-alb-ue2")
-    print("├── dev-tm-cognito-ue2")
-    print("├── dev-tm-ecs-ue2 → depends on: [dev-tm-alb-ue2]")
-    print("└── dev-tm-data-ue2 → depends on: [dev-tm-ecs-ue2]")
+    print("├── dev-tm-alb-ue2 → depends on: [dev-shared-stack-ue2]")
+    print("├── dev-tm-cognito-ue2 → depends on: [dev-shared-stack-ue2]")
+    print("├── dev-tm-data-ue2 → depends on: [dev-shared-stack-ue2]")
+    print("└── dev-tm-ecs-ue2 → depends on: [dev-tm-alb-ue2, dev-tm-data-ue2]")
     print("")
     
     # LakeFormation - sequential dependencies
@@ -472,9 +470,9 @@ def print_dependency_tree():
     
     print("🔄 Actual Deployment Strategy Used:")
     print("• Base Infrastructure: Deployed first (standalone)")
-    print("• Regular Apps: Deployed with --concurrency 3 --exclusively")
+    print("• Regular Apps: Deployed with --concurrency 2 --exclusively")
     print("  - CDK automatically respects dependencies")
-    print("  - Parallel deployment where possible")
+    print("  - Parallel deployment where dependencies allow")
     print("  - Skips unchanged stacks automatically")
     print("• LakeFormation: Deployed sequentially per dependencies")
 
@@ -515,7 +513,7 @@ EOF
         echo ""
         echo "📊 Deployment Metrics:"
         echo "  - Workflow duration: ${{ github.run_number }} minutes (estimated)"
-        echo "  - Parallel deployments: Enabled (concurrency=3)"
+        echo "  - Parallel deployments: Enabled (concurrency=2)"
         echo "  - Change detection: Enabled (--exclusively)"
         echo ""
         echo "📋 Next Steps:"
