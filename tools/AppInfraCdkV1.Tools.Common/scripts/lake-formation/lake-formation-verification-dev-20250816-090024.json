@@ -1,0 +1,32 @@
+{
+  "timestamp": "2025-08-16T16:00:24Z",
+  "environment": "dev",
+  "account_id": "615299752206",
+  "profile": "to-dev-admin",
+  "verification_results": {
+    "lake_formation_config": 
+    {
+      "CatalogId": "615299752206",
+      "InstanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+      "ApplicationArn": "arn:aws:sso::442042533707:application/ssoins-66849025a110d385/apl-e871d4da591994ec",
+      "ExternalFiltering": {
+        "Status": "ENABLED",
+        "AuthorizedTargets": []
+      },
+      "ShareRecipients": []
+    }
+,
+    "identity_center": 
+    {
+      "Instances": [
+        {
+          "InstanceArn": "arn:aws:sso:::instance/ssoins-66849025a110d385",
+          "IdentityStoreId": "d-9a677c3adb",
+          "OwnerAccountId": "442042533707",
+          "CreatedDate": "2024-11-23T07:40:35.842000-08:00",
+          "Status": "ACTIVE"
+        }
+      ]
+    }
+  }
+}
