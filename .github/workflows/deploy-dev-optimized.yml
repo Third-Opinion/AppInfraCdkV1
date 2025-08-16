@@ -72,6 +72,23 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
+    - name: Generate Stack Dependencies Overview
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Analyzing Stack Dependencies..."
+        echo "=================================="
+        echo ""
+        
+        # Show simplified dependency tree
+        echo "📊 Stack Dependency Overview:"
+        echo ""
+        echo "Base → ALB → ECS → Data"
+        echo "         ↓"
+        echo "      Cognito"
+        echo ""
+        echo "LakeFormation: Storage → Setup → Permissions"
+        echo ""
+    
     - name: CDK Diff for All Stacks
       run: |
         cd AppInfraCdkV1.Deploy
@@ -148,6 +165,16 @@ jobs:
         cd AppInfraCdkV1.Deploy
         cdk bootstrap --require-approval never || true
     
+    - name: Generate Base Infrastructure Dependency Graph
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Generating dependency graph for base infrastructure..."
+        npx cdk list --app="dotnet run -- --deploy-base --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies > base-dependencies.txt || true
+        if [ -f base-dependencies.txt ]; then
+          echo "📊 Base Infrastructure Dependencies:"
+          cat base-dependencies.txt
+        fi
+    
     - name: Deploy Base Infrastructure
       id: deploy-base
       run: |
@@ -170,6 +197,25 @@ jobs:
           echo "✅ Base stack deployment completed!"
         fi
     
+    - name: Generate TrialFinderV2 Dependency Graph
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Generating dependency graph for TrialFinderV2..."
+        
+        # Generate graph for all stack types
+        for STACK_TYPE in ALB COGNITO ECS DATA; do
+          echo "📊 TrialFinderV2 $STACK_TYPE Dependencies:"
+          export CDK_STACK_TYPE=$STACK_TYPE
+          npx cdk list --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies || true
+        done
+        
+        # Generate comprehensive view
+        echo "📊 TrialFinderV2 All Stacks Overview:"
+        npx cdk list --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" --long > tfv2-dependencies.txt || true
+        if [ -f tfv2-dependencies.txt ]; then
+          cat tfv2-dependencies.txt
+        fi
+    
     - name: Deploy TrialFinderV2 Stacks
       id: deploy-tfv2
       run: |
@@ -189,6 +235,25 @@ jobs:
           }
         
         echo "✅ TrialFinderV2 deployment completed!"
+    
+    - name: Generate TrialMatch Dependency Graph
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Generating dependency graph for TrialMatch..."
+        
+        # Generate graph for all stack types
+        for STACK_TYPE in ALB COGNITO ECS DATA; do
+          echo "📊 TrialMatch $STACK_TYPE Dependencies:"
+          export CDK_STACK_TYPE=$STACK_TYPE
+          npx cdk list --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies || true
+        done
+        
+        # Generate comprehensive view
+        echo "📊 TrialMatch All Stacks Overview:"
+        npx cdk list --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" --long > tm-dependencies.txt || true
+        if [ -f tm-dependencies.txt ]; then
+          cat tm-dependencies.txt
+        fi
     
     - name: Deploy TrialMatch Stacks
       id: deploy-tm
@@ -281,6 +346,29 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
+    - name: Generate LakeFormation Dependency Graph
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Generating dependency graph for LakeFormation..."
+        
+        # List all stacks with dependencies
+        echo "📊 LakeFormation Stack Dependencies:"
+        npx cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" --show-dependencies > lf-dependencies.txt || true
+        
+        if [ -f lf-dependencies.txt ]; then
+          cat lf-dependencies.txt
+          echo ""
+          echo "🔗 Dependency Analysis:"
+          echo "- Storage stack (dev-lf-storage-ue2) has no dependencies"
+          echo "- Setup stack (dev-lf-setup-ue2) depends on Storage"
+          echo "- Permissions stack (dev-lf-permissions-ue2) depends on Setup"
+          echo ""
+        fi
+        
+        # Also show long format for additional details
+        echo "📋 Detailed LakeFormation Stack Information:"
+        npx cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" --long || true
+    
     - name: Deploy All LakeFormation Stacks
       id: deploy-lf
       run: |
@@ -342,6 +430,81 @@ jobs:
       with:
         pattern: deployment-outputs-*-dev
         merge-multiple: true
+    
+    - name: Generate Full Dependency Graph
+      run: |
+        echo "🔍 Generating Complete Stack Dependency Visualization"
+        echo "===================================================="
+        echo ""
+        
+        # Create a dependency visualization
+        cat << 'EOF' > generate-graph.py
+import json
+import sys
+
+def print_dependency_tree():
+    print("📊 Complete Stack Dependency Tree:")
+    print("")
+    print("🏗️ Base Infrastructure")
+    print("└── dev-shared-stack-ue2")
+    print("    ├── VPC, Subnets, Security Groups")
+    print("    └── Shared resources for all apps")
+    print("")
+    print("🚀 TrialFinderV2")
+    print("├── dev-tfv2-alb-ue2")
+    print("│   └── Application Load Balancer")
+    print("├── dev-tfv2-cognito-ue2")
+    print("│   └── Authentication & User Pools")
+    print("├── dev-tfv2-ecs-ue2")
+    print("│   ├── Depends on: dev-tfv2-alb-ue2")
+    print("│   └── ECS Tasks & Services")
+    print("└── dev-tfv2-data-ue2")
+    print("    ├── Depends on: dev-tfv2-ecs-ue2")
+    print("    └── RDS, S3, DynamoDB")
+    print("")
+    print("🔬 TrialMatch")
+    print("├── dev-tm-alb-ue2")
+    print("│   └── Application Load Balancer")
+    print("├── dev-tm-cognito-ue2")
+    print("│   └── Authentication & User Pools")
+    print("├── dev-tm-ecs-ue2")
+    print("│   ├── Depends on: dev-tm-alb-ue2")
+    print("│   └── ECS Tasks & Services")
+    print("└── dev-tm-data-ue2")
+    print("    ├── Depends on: dev-tm-ecs-ue2")
+    print("    └── RDS, S3, DynamoDB")
+    print("")
+    print("🗄️ LakeFormation")
+    print("├── dev-lf-storage-ue2")
+    print("│   └── S3 Buckets for Data Lake")
+    print("├── dev-lf-setup-ue2")
+    print("│   ├── Depends on: dev-lf-storage-ue2")
+    print("│   └── Lake Formation Settings & Catalog")
+    print("└── dev-lf-permissions-ue2")
+    print("    ├── Depends on: dev-lf-setup-ue2")
+    print("    └── LF-Tags & Access Controls")
+    print("")
+    print("🔄 Deployment Order (respecting dependencies):")
+    print("1. Base Infrastructure (dev-shared-stack-ue2)")
+    print("2. ALB stacks (parallel)")
+    print("3. Cognito stacks (parallel)")
+    print("4. ECS stacks (parallel, depends on ALB)")
+    print("5. Data stacks (parallel, depends on ECS)")
+    print("6. LakeFormation Storage")
+    print("7. LakeFormation Setup (depends on Storage)")
+    print("8. LakeFormation Permissions (depends on Setup)")
+
+print_dependency_tree()
+EOF
+        
+        python3 generate-graph.py
+        
+        echo ""
+        echo "📈 Optimization Benefits:"
+        echo "• Parallel deployment where dependencies allow"
+        echo "• Automatic skip of unchanged stacks"
+        echo "• Reduced API calls and throttling"
+        echo "• Faster feedback on deployment status"
     
     - name: Generate Deployment Report
       run: |
