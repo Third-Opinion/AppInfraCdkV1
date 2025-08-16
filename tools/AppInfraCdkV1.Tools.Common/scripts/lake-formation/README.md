@@ -15,84 +15,40 @@ This directory (`AppInfraCdkV1.Tools/scripts/lake-formation/`) contains scripts 
 
 These scripts enable automated identity synchronization between Google Workspace and AWS IAM Identity Center, specifically for Lake Formation access control. The setup handles the cross-account Identity Center architecture where development uses production's Identity Center.
 
+## Directory Structure
+
+```
+lake-formation/
+├── run-once/                    # One-time setup scripts
+│   ├── check-prerequisites.sh
+│   ├── setup-lakeformation-identity-center-dev.sh
+│   ├── setup-lakeformation-identity-center-prod.sh
+│   ├── deploy-data-lake.sh
+│   ├── lake-formation-identity-center-config-dev.json
+│   ├── lake-formation-identity-center-config-prod.json
+│   └── README.md
+├── verify-integration.sh        # Regular validation script
+├── test-integration.sh         # Testing script
+├── backups/                    # Backup directory
+├── SCRIPTS_STATUS.md          # Script status documentation
+├── CROSS_ACCOUNT_ARCHITECTURE.md
+└── README.md                   # This file
+```
+
 ## Scripts
 
-### 1. Prerequisites Validation (`check-prerequisites.sh`)
+### One-Time Setup Scripts (in `run-once/` directory)
 
-Validates all prerequisites before attempting Lake Formation Identity Center integration.
+These scripts are for initial setup only. See [run-once/README.md](run-once/README.md) for details.
 
-**Usage:**
-```bash
-./check-prerequisites.sh [dev|prod]
-```
+1. **check-prerequisites.sh** - Validates prerequisites before setup
+2. **setup-lakeformation-identity-center-dev.sh** - Development Identity Center setup
+3. **setup-lakeformation-identity-center-prod.sh** - Production Identity Center setup
+4. **deploy-data-lake.sh** - CDK deployment orchestration (consider using GitHub Actions instead)
 
-**Features:**
-- Verifies AWS CLI installation and version
-- Checks AWS credentials and account access
-- Validates Identity Center instance configuration
-- Searches for required groups in Identity Center
-- Checks Lake Formation permissions
-- Saves Identity Center configuration to `.identity-center-env`
+### Regular Use Scripts
 
-**Required Groups:**
-- `data-analysts-dev` - Development data analysts (non-PHI access)
-- `data-analysts-phi` - PHI data analysts (protected health information access)
-- `data-engineers-phi` - Data engineers with PHI access
-
-### 2. Development Setup (`setup-lakeformation-identity-center-dev.sh`)
-
-Sets up Lake Formation Identity Center integration for the development environment, linking to the production Identity Center.
-
-**Usage:**
-```bash
-./setup-lakeformation-identity-center-dev.sh
-```
-
-**Configuration:**
-- Account: 615299752206 (Development)
-- Identity Center Account: 442042533707 (Production)
-- Profile: `to-dev-admin`
-- Region: us-east-2 (default)
-
-**Features:**
-- Links development Lake Formation to production Identity Center
-- Automatic prerequisites validation (checks production Identity Center)
-- Creates or updates Lake Formation Identity Center configuration
-- Generates rollback snapshots
-- Comprehensive logging
-- Saves configuration to `lake-formation-identity-center-config-dev.json`
-
-**Note:** This script configures the development account to use the Identity Center instance from the production account for authentication.
-
-### 3. Production Setup (`setup-lakeformation-identity-center-prod.sh`)
-
-Sets up Lake Formation Identity Center integration for the production environment with enhanced safety measures.
-
-**Usage:**
-```bash
-./setup-lakeformation-identity-center-prod.sh
-```
-
-**Configuration:**
-- Account: 442042533707
-- Profile: `to-prd-admin`
-- Region: us-east-2 (default)
-
-**Features:**
-- **Double confirmation prompts** for production changes
-- Comprehensive backup creation before changes
-- Production readiness validation
-- Enhanced logging and notifications
-- Rollback capability
-- Saves configuration to `lake-formation-identity-center-config-prod.json`
-
-**Safety Measures:**
-- Requires typing "yes" and "PRODUCTION" to confirm
-- Creates full backup in `backups/prod-{timestamp}/`
-- Validates dev environment setup first (recommended)
-- Sends notifications for critical operations
-
-### 4. Integration Verification (`verify-integration.sh`)
+#### Integration Verification (`verify-integration.sh`)
 
 Verifies that Lake Formation Identity Center integration is properly configured.
 

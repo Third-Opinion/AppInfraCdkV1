@@ -2,6 +2,78 @@
 
 This directory contains comprehensive validation tools for Lake Formation permissions, PHI access controls, and compliance verification.
 
+## 🎯 Why Run These Scripts?
+
+These validation scripts are critical for ensuring your Lake Formation data lake operates securely and compliantly. They verify that:
+
+1. **HIPAA Compliance**: PHI (Protected Health Information) is properly protected
+2. **Access Controls**: Only authorized groups can access sensitive data
+3. **Tenant Isolation**: Multi-tenant data is properly segregated
+4. **Security Boundaries**: Infrastructure roles (DevOps/CDK) cannot access data
+5. **Audit Readiness**: All permissions are properly configured for compliance audits
+
+## ⏰ When to Run These Scripts
+
+### Before Deployment (Pre-Deployment Validation)
+**When:** Before any CDK deployment or infrastructure change
+**Why:** Catch configuration errors before they reach production
+```bash
+./validate-lakeformation-permissions.sh Development to-dev-admin
+```
+
+### After Deployment (Post-Deployment Verification)
+**When:** Immediately after deploying Lake Formation stacks
+**Why:** Confirm all resources were created correctly with proper permissions
+```bash
+./validate-lakeformation-permissions.sh Production to-prd-admin
+```
+
+### During Compliance Audits
+**When:** Monthly, quarterly, or before regulatory audits
+**Why:** Generate compliance reports showing HIPAA and security compliance
+```bash
+GENERATE_COMPLIANCE_REPORT=true ./validate-lakeformation-permissions.sh Production to-prd-admin
+```
+
+### After Security Incidents
+**When:** After any suspected security breach or misconfiguration
+**Why:** Verify permissions haven't been compromised or incorrectly modified
+```bash
+./validate-lakeformation-permissions.sh Production to-prd-admin --detailed
+```
+
+### When Adding New Groups or Users
+**When:** After modifying Identity Center groups or permissions
+**Why:** Ensure new groups have correct permissions and don't violate security policies
+```bash
+./validate-lakeformation-permissions.sh Development to-dev-admin
+```
+
+### As Part of CI/CD Pipeline
+**When:** On every pull request or deployment
+**Why:** Automated validation prevents security misconfigurations from being deployed
+```yaml
+# In GitHub Actions
+- name: Validate Lake Formation Security
+  run: ./validate-lakeformation-permissions.sh ${{ env.ENVIRONMENT }} ${{ env.AWS_PROFILE }}
+```
+
+### During Development
+**When:** While developing new Lake Formation features
+**Why:** Test permission changes in real-time during development
+```bash
+# Run with verbose output for debugging
+./validate-lakeformation-permissions.sh Development to-dev-admin --verbose
+```
+
+### Scheduled Health Checks
+**When:** Daily or weekly via cron job
+**Why:** Proactive monitoring catches drift or unauthorized changes
+```bash
+# Daily at 9 AM
+0 9 * * * /path/to/validate-lakeformation-permissions.sh Production to-prd-admin
+```
+
 ## 🛠️ Available Tools
 
 ### 1. Bash Script (Cross-Platform)
