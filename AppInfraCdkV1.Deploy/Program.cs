@@ -290,7 +290,7 @@ public abstract class Program
         EnvironmentConfig environmentConfig,
         string environmentName)
     {
-        var lakeFormationConfig = LakeFormationEnvironmentConfig.LoadFromFile(environmentName);
+        var lakeFormationConfig = LakeFormationEnvironmentConfigFactory.CreateConfig(environmentName, environmentConfig.AccountId);
         var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
         var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
 
@@ -323,7 +323,7 @@ public abstract class Program
         }, lakeFormationConfig, setupStack);
 
         // Optional: Create HealthLake test instance stack if configured
-        if (lakeFormationConfig.HealthLake?.EnableTestInstance == true)
+        if (lakeFormationConfig.HealthLake?.EnableSampleData == true)
         {
             var healthLakeStackName = $"{envPrefix}-lf-healthlake-test-{regionCode}";
             var healthLakeStack = new HealthLakeTestInstanceStack(app, healthLakeStackName, new StackProps
