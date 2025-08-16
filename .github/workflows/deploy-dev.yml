@@ -2,7 +2,9 @@ name: Deploy to Development
 
 on:
   push:
-    branches: [develop]
+    branches: 
+      - develop
+      - 'feature/**'
 
 env:
   CDK_ENVIRONMENT: Development
@@ -13,7 +15,95 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
+  # Build and test job runs for all branches
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+
+  # CDK Diff job runs for feature branches only
+  cdk-diff:
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    strategy:
+      matrix:
+        app: [TrialFinderV2, TrialMatch, LakeFormation]
+        stack_type: [ALB, COGNITO, ECS, DATA]
+        exclude:
+          - app: LakeFormation
+            stack_type: ALB
+          - app: LakeFormation
+            stack_type: COGNITO
+          - app: LakeFormation
+            stack_type: ECS
+          - app: LakeFormation
+            stack_type: DATA
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Diff-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for ${{ matrix.app }} - ${{ matrix.stack_type }}
+      if: matrix.app != 'LakeFormation'
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for ${{ matrix.app }} - ${{ matrix.stack_type }} stack..."
+        export CDK_STACK_TYPE=${{ matrix.stack_type }}
+        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for LakeFormation
+      if: matrix.app == 'LakeFormation'
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for LakeFormation..."
+        cdk diff --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+
+  # Base deployment job only runs for develop branch
   deploy-base:
+    if: github.ref == 'refs/heads/develop'
+    needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
     
@@ -71,6 +161,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/base-outputs.json
 
   deploy-alb:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-base
     runs-on: ubuntu-latest
     environment: development
@@ -151,6 +242,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ALB-outputs.json
 
   deploy-cognito:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-alb
     runs-on: ubuntu-latest
     environment: development
@@ -231,6 +323,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-COGNITO-outputs.json
 
   deploy-ecs:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-cognito
     runs-on: ubuntu-latest
     environment: development
@@ -311,6 +404,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ECS-outputs.json
 
   deploy-data:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-ecs
     runs-on: ubuntu-latest
     environment: development
@@ -391,6 +485,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-DATA-outputs.json
 
   deploy-lakeformation:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-data
     runs-on: ubuntu-latest
     environment: development
