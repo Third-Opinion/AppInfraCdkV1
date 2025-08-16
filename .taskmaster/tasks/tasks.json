@@ -527,11 +527,84 @@
             "testStrategy": "Verify permissions are correctly applied to tenant-specific databases, confirm access controls work for single-tenant resources, test that groups cannot access other tenants' data"
           }
         ]
+      },
+      {
+        "id": 38,
+        "title": "Implement CDK Native Optimization for deploy-dev.yml Workflow",
+        "description": "Replace 9 separate deployment jobs with streamlined CDK approach using native deployment capabilities to reduce deployment time from 25-30 minutes to 15 minutes for full deployments and 5 minutes when no changes are present.",
+        "details": "Refactor the deploy-dev.yml GitHub Actions workflow to use CDK's built-in deployment optimization features: 1) Create consolidated deployment job for regular apps (TrialFinderV2, TrialMatch) using 'cdk deploy --all' with --concurrency 3 flag for parallel execution and --exclusively flag to skip unchanged stacks. 2) Create separate job for LakeFormation stacks deployment maintaining isolation from regular apps. 3) Implement --outputs-file flag to consolidate deployment outputs into single file for easier consumption by downstream jobs. 4) Add comprehensive error handling with proper exit codes and detailed logging for debugging failed deployments. 5) Maintain existing build-and-test and cdk-diff jobs for visibility and validation. 6) Configure job dependencies to ensure proper execution order while maximizing parallelization opportunities. 7) Add environment variables and matrix strategies to support different deployment scenarios. 8) Implement conditional deployment logic to skip unnecessary deployments when no changes are detected.",
+        "testStrategy": "Test the optimized workflow in dev environment by triggering deployments with various change scenarios: full deployment with all stacks changed, partial deployment with only some stacks changed, and no-change deployment to verify --exclusively flag works correctly. Measure and document deployment times for each scenario to confirm 15-minute target for full deployments and 5-minute target for no-change deployments. Verify that error handling properly reports failures and that logs provide sufficient detail for debugging. Test that regular apps and LakeFormation deployments maintain proper isolation and that consolidated outputs file contains all necessary deployment information.",
+        "status": "pending",
+        "dependencies": [
+          33,
+          37
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create consolidated regular apps deployment job",
+            "description": "Replace separate ALB, ECS, DATA, and COGNITO deployment jobs for TrialFinderV2 and TrialMatch with a single consolidated job that uses CDK's native --all deployment capability",
+            "dependencies": [],
+            "details": "Modify deploy-dev.yml to create a new 'deploy-regular-apps' job that replaces deploy-alb, deploy-cognito, deploy-ecs, and deploy-data jobs. Use matrix strategy for apps [TrialFinderV2, TrialMatch] and implement cdk deploy --all command with --concurrency 3 flag for parallel execution and --exclusively flag to skip unchanged stacks. Configure proper job dependencies to run after deploy-base. Add comprehensive error handling with proper exit codes and detailed logging.",
+            "status": "pending",
+            "testStrategy": "Test the new consolidated job in dev environment by triggering deployments with different change scenarios. Verify that --exclusively flag skips unchanged stacks and that parallel execution works correctly with --concurrency 3."
+          },
+          {
+            "id": 2,
+            "title": "Implement optimized LakeFormation deployment job",
+            "description": "Consolidate the three separate LakeFormation deployment jobs (storage, setup, permissions) into a single optimized job while maintaining proper dependency order",
+            "dependencies": [
+              "38.1"
+            ],
+            "details": "Replace deploy-lakeformation-storage, deploy-lakeformation-setup, and deploy-lakeformation-permissions jobs with a single 'deploy-lakeformation' job. Use cdk deploy with multiple stack names in dependency order (dev-lf-storage-ue2 dev-lf-setup-ue2 dev-lf-permissions-ue2) and implement --outputs-file flag for consolidated output. Maintain isolation from regular apps by having separate job dependency chain. Add error handling specific to LakeFormation deployment requirements.",
+            "status": "pending",
+            "testStrategy": "Verify that LakeFormation stacks deploy in correct dependency order and that the job properly isolates from regular app deployments. Test error scenarios to ensure proper rollback behavior."
+          },
+          {
+            "id": 3,
+            "title": "Add conditional deployment logic and change detection",
+            "description": "Implement logic to skip unnecessary deployments when no changes are detected using CDK's built-in change detection capabilities",
+            "dependencies": [
+              "38.1",
+              "38.2"
+            ],
+            "details": "Add conditional deployment logic using CDK diff output to determine if deployments are needed. Implement workflow logic that uses 'cdk diff --quiet' exit codes to conditionally run deployment steps. Add environment variables and conditions to skip deployment jobs when no changes are detected. Configure proper workflow outputs to communicate skip status to downstream jobs. Ensure build-and-test and cdk-diff jobs always run for visibility and validation.",
+            "status": "pending",
+            "testStrategy": "Test no-change deployment scenarios to verify 5-minute target time when --exclusively flag detects no changes. Validate that change detection works correctly across different types of stack modifications."
+          },
+          {
+            "id": 4,
+            "title": "Implement consolidated outputs and comprehensive error handling",
+            "description": "Add --outputs-file flag usage and implement comprehensive error handling with proper exit codes and detailed logging across all deployment jobs",
+            "dependencies": [
+              "38.1",
+              "38.2"
+            ],
+            "details": "Implement --outputs-file flag for all CDK deploy commands to consolidate deployment outputs into single files for easier consumption by downstream jobs. Add comprehensive error handling with specific exit codes for different failure scenarios (build failures, deployment failures, validation failures). Implement detailed logging with timestamps and deployment status indicators. Configure artifact upload for consolidated output files. Add timeout configurations and retry logic for deployment operations.",
+            "status": "pending",
+            "testStrategy": "Test error scenarios including build failures, deployment timeouts, and CDK errors to verify proper error handling and logging. Validate that consolidated output files contain all necessary deployment information and are properly uploaded as artifacts."
+          },
+          {
+            "id": 5,
+            "title": "Optimize job dependencies and parallelization opportunities",
+            "description": "Configure job dependencies to ensure proper execution order while maximizing parallelization opportunities to achieve the 15-minute deployment target",
+            "dependencies": [
+              "38.1",
+              "38.2",
+              "38.3",
+              "38.4"
+            ],
+            "details": "Restructure job dependencies to maximize parallel execution while maintaining required dependency chains. Configure build-and-test and cdk-diff jobs to run in parallel where possible. Ensure deploy-base runs before both regular apps and LakeFormation deployments. Set up parallel execution for regular apps deployment (when multiple apps have changes) and optimize job scheduling. Add matrix strategies and environment variables to support different deployment scenarios. Configure proper timeouts and resource allocation for parallel jobs.",
+            "status": "pending",
+            "testStrategy": "Measure deployment times for various scenarios: full deployment with all stacks changed (target: 15 minutes), partial deployment with subset of stacks changed, and no-change deployment (target: 5 minutes). Verify that parallelization works correctly and doesn't cause resource conflicts or dependency issues."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-01-12T00:21:00.000Z",
-      "updated": "2025-08-15T22:58:40.375Z",
+      "updated": "2025-08-16T18:01:29.861Z",
       "description": "Tasks for master context"
     }
   }
