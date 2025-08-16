@@ -36,36 +36,12 @@ jobs:
     - name: Run tests
       run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
 
-  # CDK Diff job runs for feature branches only
-  cdk-diff:
+  # CDK Diff jobs run for feature branches only - grouped by application for efficiency
+  cdk-diff-trialfinder:
     if: startsWith(github.ref, 'refs/heads/feature/')
     needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
-    strategy:
-      matrix:
-        include:
-          # TrialFinderV2 stacks
-          - app: TrialFinderV2
-            stack_type: ALB
-          - app: TrialFinderV2
-            stack_type: COGNITO
-          - app: TrialFinderV2
-            stack_type: ECS
-          - app: TrialFinderV2
-            stack_type: DATA
-          # TrialMatch stacks
-          - app: TrialMatch
-            stack_type: ALB
-          - app: TrialMatch
-            stack_type: COGNITO
-          - app: TrialMatch
-            stack_type: ECS
-          - app: TrialMatch
-            stack_type: DATA
-          # LakeFormation (no stack type needed)
-          - app: LakeFormation
-            stack_type: NONE
     
     steps:
     - uses: actions/checkout@v4
@@ -96,16 +72,133 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: CDK Diff for ${{ matrix.app }} - ${{ matrix.stack_type }}
-      if: matrix.stack_type != 'NONE'
+    - name: CDK Diff for TrialFinderV2 - ALB
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🔍 Running CDK diff for ${{ matrix.app }} - ${{ matrix.stack_type }} stack..."
-        export CDK_STACK_TYPE=${{ matrix.stack_type }}
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        echo "🔍 Running CDK diff for TrialFinderV2 - ALB stack..."
+        export CDK_STACK_TYPE=ALB
+        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialFinderV2 - COGNITO
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialFinderV2 - ECS
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - ECS stack..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialFinderV2 - DATA
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - DATA stack..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+
+  cdk-diff-trialmatch:
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Diff-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for TrialMatch - ALB
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - ALB stack..."
+        export CDK_STACK_TYPE=ALB
+        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialMatch - COGNITO
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialMatch - ECS
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - ECS stack..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialMatch - DATA
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - DATA stack..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+
+  cdk-diff-lakeformation:
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Diff-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
     - name: CDK Diff for LakeFormation
-      if: matrix.app == 'LakeFormation'
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for LakeFormation..."
