@@ -16,7 +16,7 @@
       "Development": "615299752206",
       "Production": "442042533707"
     },
-    "TestRegions": ["us-east-2", "us-west-2"],
+    "TestRegions": ["us-east-2"],
     "TestApplications": ["TrialFinderV2"]
   }
 }
