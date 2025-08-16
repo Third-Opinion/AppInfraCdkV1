@@ -140,7 +140,7 @@ deploy_cdk_stacks() {
     
     # List available stacks
     print_status "info" "Available Lake Formation stacks:"
-    npx cdk list --app "dotnet run --project AppInfraCdkV1.Apps -- --app=LakeFormation --environment=$CDK_ENVIRONMENT" | grep -E "${env_prefix}-lf-" || true
+    npx cdk list --app "dotnet run --project AppInfraCdkV1.Deploy -- --app=LakeFormation --environment=$CDK_ENVIRONMENT" | grep -E "${env_prefix}-lf-" || true
     
     # Deploy stacks in order
     local stacks=(
@@ -152,7 +152,7 @@ deploy_cdk_stacks() {
     for stack in "${stacks[@]}"; do
         print_status "info" "Deploying stack: $stack"
         npx cdk deploy "$stack" \
-            --app "dotnet run --project AppInfraCdkV1.Apps -- --app=LakeFormation --environment=$CDK_ENVIRONMENT" \
+            --app "dotnet run --project AppInfraCdkV1.Deploy -- --app=LakeFormation --environment=$CDK_ENVIRONMENT" \
             --require-approval never \
             --profile "$AWS_PROFILE" || {
             print_status "error" "Failed to deploy stack: $stack"
@@ -261,7 +261,7 @@ destroy_resources() {
     for stack in "${stacks[@]}"; do
         print_status "info" "Destroying stack: $stack"
         npx cdk destroy "$stack" \
-            --app "dotnet run --project AppInfraCdkV1.Apps -- --app=LakeFormation --environment=$CDK_ENVIRONMENT" \
+            --app "dotnet run --project AppInfraCdkV1.Deploy -- --app=LakeFormation --environment=$CDK_ENVIRONMENT" \
             --force \
             --profile "$AWS_PROFILE" || {
             print_status "warning" "Failed to destroy stack: $stack (may not exist)"
