@@ -328,10 +328,12 @@ public abstract class Program
                         StackName = stackName
                     }, context);
                     
-                    // Add dependencies on base stack and ALB stack
+                    // Add dependencies on base stack, ALB stack, and DATA stack
                     var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
                     var albStackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
                     var albStack = app.Node.TryFindChild(albStackName) as Stack;
+                    var dataStackName = $"{envPrefix}-{appCode}-data-{regionCode}";
+                    var dataStack = app.Node.TryFindChild(dataStackName) as Stack;
                     
                     if (baseStack != null)
                     {
@@ -340,6 +342,10 @@ public abstract class Program
                     if (albStack != null)
                     {
                         stack.AddDependency(albStack);
+                    }
+                    if (dataStack != null)
+                    {
+                        stack.AddDependency(dataStack);
                     }
                     
                     return (stack, stackName);
@@ -355,18 +361,12 @@ public abstract class Program
                         StackName = stackName
                     }, context);
                     
-                    // Add dependencies on base stack and ECS stack
+                    // Add dependency on base stack only (data stores need VPC but not ECS)
                     var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
-                    var ecsStackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
-                    var ecsStack = app.Node.TryFindChild(ecsStackName) as Stack;
                     
                     if (baseStack != null)
                     {
                         stack.AddDependency(baseStack);
-                    }
-                    if (ecsStack != null)
-                    {
-                        stack.AddDependency(ecsStack);
                     }
                     
                     return (stack, stackName);
@@ -443,10 +443,12 @@ public abstract class Program
                         StackName = stackName
                     }, context);
                     
-                    // Add dependencies on base stack and ALB stack
+                    // Add dependencies on base stack, ALB stack, and DATA stack
                     var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
                     var albStackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
                     var albStack = app.Node.TryFindChild(albStackName) as Stack;
+                    var dataStackName = $"{envPrefix}-{appCode}-data-{regionCode}";
+                    var dataStack = app.Node.TryFindChild(dataStackName) as Stack;
                     
                     if (baseStack != null)
                     {
@@ -455,6 +457,10 @@ public abstract class Program
                     if (albStack != null)
                     {
                         stack.AddDependency(albStack);
+                    }
+                    if (dataStack != null)
+                    {
+                        stack.AddDependency(dataStack);
                     }
                     
                     return (stack, stackName);
@@ -470,18 +476,12 @@ public abstract class Program
                         StackName = stackName
                     }, context);
                     
-                    // Add dependencies on base stack and ECS stack
+                    // Add dependency on base stack only (data stores need VPC but not ECS)
                     var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
-                    var ecsStackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
-                    var ecsStack = app.Node.TryFindChild(ecsStackName) as Stack;
                     
                     if (baseStack != null)
                     {
                         stack.AddDependency(baseStack);
-                    }
-                    if (ecsStack != null)
-                    {
-                        stack.AddDependency(ecsStack);
                     }
                     
                     return (stack, stackName);

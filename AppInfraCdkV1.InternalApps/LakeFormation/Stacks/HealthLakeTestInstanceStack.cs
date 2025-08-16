@@ -16,6 +16,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             LakeFormationEnvironmentConfig config, DataLakeStorageStack storageStack)
             : base(scope, id, props)
         {
+            // Add explicit dependency on storage stack (needs S3 buckets)
+            AddDependency(storageStack);
+            
             // Create the test HealthLake instance for this tenant
             HealthLakeInstance = new HealthLakeTestInstanceConstruct(this, "TestHealthLakeInstance",
                 config, storageStack.CuratedDataBucket);

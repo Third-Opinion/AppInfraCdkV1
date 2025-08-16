@@ -25,6 +25,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             _storageStack = storageStack;
             Databases = new List<CfnDatabase>();
             
+            // Add explicit dependency on storage stack
+            AddDependency(storageStack);
+            
             CreateLakeFormationServiceRole();
             ConfigureDataLakeSettings();
             CreateGlueDatabases();
