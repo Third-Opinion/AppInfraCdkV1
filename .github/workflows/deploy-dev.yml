@@ -44,17 +44,28 @@ jobs:
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch, LakeFormation]
-        stack_type: [ALB, COGNITO, ECS, DATA]
-        exclude:
-          - app: LakeFormation
+        include:
+          # TrialFinderV2 stacks
+          - app: TrialFinderV2
             stack_type: ALB
-          - app: LakeFormation
+          - app: TrialFinderV2
             stack_type: COGNITO
-          - app: LakeFormation
+          - app: TrialFinderV2
             stack_type: ECS
-          - app: LakeFormation
+          - app: TrialFinderV2
             stack_type: DATA
+          # TrialMatch stacks
+          - app: TrialMatch
+            stack_type: ALB
+          - app: TrialMatch
+            stack_type: COGNITO
+          - app: TrialMatch
+            stack_type: ECS
+          - app: TrialMatch
+            stack_type: DATA
+          # LakeFormation (no stack type needed)
+          - app: LakeFormation
+            stack_type: NONE
     
     steps:
     - uses: actions/checkout@v4
@@ -86,7 +97,7 @@ jobs:
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
     - name: CDK Diff for ${{ matrix.app }} - ${{ matrix.stack_type }}
-      if: matrix.app != 'LakeFormation'
+      if: matrix.stack_type != 'NONE'
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for ${{ matrix.app }} - ${{ matrix.stack_type }} stack..."
