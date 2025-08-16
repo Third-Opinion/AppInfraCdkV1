@@ -86,7 +86,8 @@ public abstract class Program
             if (!string.IsNullOrEmpty(stackType) && (appName.ToLower() == "trialfinderv2" || appName.ToLower() == "trialmatch"))
             {
                 // Deploy specific stack type for supported applications
-                var (stack, stackName) = CreateSpecificStack(app, stackType, context, environmentConfig, appName, environmentName);
+                // Create all stacks to establish dependencies, but only deploy the requested one
+                var (stack, stackName) = CreateAllStacksWithDependencies(app, stackType, context, environmentConfig, appName, environmentName);
                 Console.WriteLine($"✅ {stackType} Stack '{stackName}' configured successfully");
                 app.Synth();
                 return;
@@ -152,6 +153,134 @@ public abstract class Program
         }
     }
 
+    private static (Stack stack, string stackName) CreateAllStacksWithDependencies(
+        App app,
+        string targetStackType,
+        DeploymentContext context,
+        EnvironmentConfig environmentConfig,
+        string appName,
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var appCode = NamingConvention.GetApplicationCode(appName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        var baseStackName = $"{envPrefix}-shared-stack-{regionCode}";
+
+        // Create placeholder base stack reference for dependencies
+        var baseStackPlaceholder = new Stack(app, baseStackName, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            StackName = baseStackName
+        });
+
+        // Create all stacks with proper dependencies
+        var albStackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
+        var cognitoStackName = $"{envPrefix}-{appCode}-cognito-{regionCode}";
+        var ecsStackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
+        var dataStackName = $"{envPrefix}-{appCode}-data-{regionCode}";
+
+        Stack albStack, cognitoStack, ecsStack, dataStack;
+        
+        if (appName.ToLower() == "trialfinderv2")
+        {
+            // Create ALB stack
+            albStack = new TrialFinderV2AlbStack(app, albStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialFinderV2 ALB infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = albStackName
+            }, context);
+            albStack.AddDependency(baseStackPlaceholder);
+
+            // Create Cognito stack
+            cognitoStack = new TrialFinderV2CognitoStack(app, cognitoStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialFinderV2 Cognito infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = cognitoStackName
+            }, context);
+            cognitoStack.AddDependency(baseStackPlaceholder);
+
+            // Create ECS stack
+            ecsStack = new TrialFinderV2EcsStack(app, ecsStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialFinderV2 ECS infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = ecsStackName
+            }, context);
+            ecsStack.AddDependency(baseStackPlaceholder);
+            ecsStack.AddDependency(albStack);
+
+            // Create Data stack
+            dataStack = new TrialFinderV2DataStack(app, dataStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialFinderV2 Data infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = dataStackName
+            }, context);
+            dataStack.AddDependency(baseStackPlaceholder);
+            dataStack.AddDependency(ecsStack);
+        }
+        else // TrialMatch
+        {
+            // Create ALB stack
+            albStack = new TrialMatchAlbStack(app, albStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialMatch ALB infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = albStackName
+            }, context);
+            albStack.AddDependency(baseStackPlaceholder);
+
+            // Create Cognito stack
+            cognitoStack = new TrialMatchCognitoStack(app, cognitoStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialMatch Cognito infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = cognitoStackName
+            }, context);
+            cognitoStack.AddDependency(baseStackPlaceholder);
+
+            // Create ECS stack
+            ecsStack = new TrialMatchEcsStack(app, ecsStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialMatch ECS infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = ecsStackName
+            }, context);
+            ecsStack.AddDependency(baseStackPlaceholder);
+            ecsStack.AddDependency(albStack);
+
+            // Create Data stack
+            dataStack = new TrialMatchDataStack(app, dataStackName, new StackProps
+            {
+                Env = environmentConfig.ToAwsEnvironment(),
+                Description = $"TrialMatch Data infrastructure for {environmentName} environment",
+                Tags = context.GetCommonTags(),
+                StackName = dataStackName
+            }, context);
+            dataStack.AddDependency(baseStackPlaceholder);
+            dataStack.AddDependency(ecsStack);
+        }
+
+        // Return the requested stack
+        return targetStackType.ToUpper() switch
+        {
+            "ALB" => (albStack, albStackName),
+            "COGNITO" => (cognitoStack, cognitoStackName),
+            "ECS" => (ecsStack, ecsStackName),
+            "DATA" => (dataStack, dataStackName),
+            _ => throw new ArgumentException($"Unknown stack type: {targetStackType}")
+        };
+    }
+
     private static (Stack stack, string stackName) CreateTrialFinderV2Stack(
         App app, 
         string stackType, 
@@ -163,6 +292,9 @@ public abstract class Program
         string appCode,
         string regionCode)
     {
+        // Get base stack name for dependency reference
+        var baseStackName = $"{envPrefix}-shared-stack-{regionCode}";
+        
         switch (stackType.ToUpper())
         {
             case "ALB":
@@ -175,6 +307,14 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependency on base stack (VPC, security groups)
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             case "ECS":
@@ -187,6 +327,21 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependencies on base stack and ALB stack
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    var albStackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
+                    var albStack = app.Node.TryFindChild(albStackName) as Stack;
+                    
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    if (albStack != null)
+                    {
+                        stack.AddDependency(albStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             case "DATA":
@@ -199,6 +354,21 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependencies on base stack and ECS stack
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    var ecsStackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
+                    var ecsStack = app.Node.TryFindChild(ecsStackName) as Stack;
+                    
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    if (ecsStack != null)
+                    {
+                        stack.AddDependency(ecsStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             case "COGNITO":
@@ -211,6 +381,14 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependency on base stack (VPC for Cognito VPC endpoints if needed)
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             default:
@@ -229,6 +407,9 @@ public abstract class Program
         string appCode,
         string regionCode)
     {
+        // Get base stack name for dependency reference
+        var baseStackName = $"{envPrefix}-shared-stack-{regionCode}";
+        
         switch (stackType.ToUpper())
         {
             case "ALB":
@@ -241,6 +422,14 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependency on base stack (VPC, security groups)
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             case "ECS":
@@ -253,6 +442,21 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependencies on base stack and ALB stack
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    var albStackName = $"{envPrefix}-{appCode}-alb-{regionCode}";
+                    var albStack = app.Node.TryFindChild(albStackName) as Stack;
+                    
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    if (albStack != null)
+                    {
+                        stack.AddDependency(albStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             case "DATA":
@@ -265,6 +469,21 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependencies on base stack and ECS stack
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    var ecsStackName = $"{envPrefix}-{appCode}-ecs-{regionCode}";
+                    var ecsStack = app.Node.TryFindChild(ecsStackName) as Stack;
+                    
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    if (ecsStack != null)
+                    {
+                        stack.AddDependency(ecsStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             case "COGNITO":
@@ -277,6 +496,14 @@ public abstract class Program
                         Tags = context.GetCommonTags(),
                         StackName = stackName
                     }, context);
+                    
+                    // Add dependency on base stack (VPC for Cognito VPC endpoints if needed)
+                    var baseStack = app.Node.TryFindChild(baseStackName) as Stack;
+                    if (baseStack != null)
+                    {
+                        stack.AddDependency(baseStack);
+                    }
+                    
                     return (stack, stackName);
                 }
             default:
