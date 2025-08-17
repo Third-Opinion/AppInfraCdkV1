@@ -36,6 +36,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             CreateGlueDatabases();
             RegisterS3Locations();
             CreateLakeFormationTags();
+            // TODO: ApplyLakeFormationTagsToResources() - implement tag assignments separately
             
             Amazon.CDK.Tags.Of(this).Add("Component", "LakeFormationSetup");
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
