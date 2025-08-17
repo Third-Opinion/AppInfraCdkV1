@@ -460,22 +460,6 @@ jobs:
         pattern: deployment-outputs-*-dev
         merge-multiple: true
     
-    - name: Generate Full Dependency Graph
-      run: |
-        echo "🔍 Generating Complete Stack Dependency Visualization"
-        echo "===================================================="
-        echo ""
-        
-        # Run the dependency graph generator
-        python3 .github/scripts/generate-dependency-graph.py
-        
-        echo ""
-        echo "📈 Optimization Benefits:"
-        echo "• Parallel deployment where dependencies allow"
-        echo "• Automatic skip of unchanged stacks"
-        echo "• Reduced API calls and throttling"
-        echo "• Faster feedback on deployment status"
-    
     - name: Generate Deployment Report
       run: |
         echo "🎉 Deployment Summary for Development Environment"
