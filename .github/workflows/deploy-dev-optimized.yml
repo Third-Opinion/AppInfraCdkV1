@@ -460,56 +460,6 @@ jobs:
         pattern: deployment-outputs-*-dev
         merge-multiple: true
     
-    - name: Generate Full Dependency Graph
-      run: |
-        echo "🔍 Generating Complete Stack Dependency Visualization"
-        echo "===================================================="
-        echo ""
-        
-2        # Check if script exists and run it
-        if [ -f ".github/scripts/generate-dependency-graph.py" ]; then
-          echo "📋 Running dependency graph generator..."
-          python3 .github/scripts/generate-dependency-graph.py
-        else
-          echo "⚠️ Dependency graph script not found, generating basic output..."
-          echo "📊 Complete Stack Dependency Tree (from deployment):"
-          echo ""
-          echo "🏗️ Base Infrastructure"
-          echo "└── dev-shared-stack-ue2 (no dependencies)"
-          echo ""
-          echo "🚀 TrialFinderV2"
-          echo "├── dev-tfv2-alb-ue2 → depends on: [dev-shared-stack-ue2]"
-          echo "├── dev-tfv2-cognito-ue2 → depends on: [dev-shared-stack-ue2]"
-          echo "├── dev-tfv2-data-ue2 → depends on: [dev-shared-stack-ue2]"
-          echo "└── dev-tfv2-ecs-ue2 → depends on: [dev-tfv2-alb-ue2, dev-tfv2-data-ue2]"
-          echo ""
-          echo "🔬 TrialMatch"
-          echo "├── dev-tm-alb-ue2 → depends on: [dev-shared-stack-ue2]"
-          echo "├── dev-tm-cognito-ue2 → depends on: [dev-shared-stack-ue2]"
-          echo "├── dev-tm-data-ue2 → depends on: [dev-shared-stack-ue2]"
-          echo "└── dev-tm-ecs-ue2 → depends on: [dev-tm-alb-ue2, dev-tm-data-ue2]"
-          echo ""
-          echo "🗄️ LakeFormation"
-          echo "├── dev-lf-storage-ue2 (no dependencies)"
-          echo "├── dev-lf-setup-ue2 → depends on: [dev-lf-storage-ue2]"
-          echo "└── dev-lf-permissions-ue2 → depends on: [dev-lf-setup-ue2]"
-          echo ""
-          echo "🔄 Actual Deployment Strategy Used:"
-          echo "• Base Infrastructure: Deployed first (standalone)"
-          echo "• Regular Apps: Deployed with --concurrency 2 --exclusively"
-          echo "  - CDK automatically respects dependencies"
-          echo "  - Parallel deployment where dependencies allow"
-          echo "  - Skips unchanged stacks automatically"
-          echo "• LakeFormation: Deployed sequentially per dependencies"
-        fi
-        
-        echo ""
-        echo "📈 Optimization Benefits:"
-        echo "• Parallel deployment where dependencies allow"
-        echo "• Automatic skip of unchanged stacks"
-        echo "• Reduced API calls and throttling"
-        echo "• Faster feedback on deployment status"
-    
     - name: Generate Deployment Report
       run: |
         echo "🎉 Deployment Summary for Development Environment"
