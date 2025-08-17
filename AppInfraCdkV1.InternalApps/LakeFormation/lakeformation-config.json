@@ -9,14 +9,16 @@
         "identityStoreId": "d-9a677c3adb",
         "identityCenterAccountId": "442042533707"
       },
-      "healthLake": {
-        "datastoreId": "test-dev-healthlake-store",
-        "datastoreArn": "",
-        "tenantId": "10000000-0000-0000-0000-000000000001",
-        "tenantName": "TestCustomerDev",
-        "enableSampleData": true,
-        "markAsPHI": false
-      },
+      "healthLake": [
+        {
+          "datastoreId": "test-dev-healthlake-store",
+          "datastoreArn": "",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "tenantName": "TestCustomerDev",
+          "enableSampleData": true,
+          "markAsPHI": false
+        }
+      ],
       "bucketConfig": {
         "bucketPrefix": "thirdopinion",
         "enableVersioning": true,
