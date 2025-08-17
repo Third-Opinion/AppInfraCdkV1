@@ -64,6 +64,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation
         
         [JsonPropertyName("identityCenterAccountId")]
         public string IdentityCenterAccountId { get; set; } = "442042533707";
+        
+        [JsonPropertyName("groupIds")]
+        public Dictionary<string, string> GroupIds { get; set; } = new();
     }
     
     public class GroupPermissions

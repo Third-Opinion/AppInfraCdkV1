@@ -5,6 +5,7 @@ using Amazon.CDK.AWS.IAM;
 using Constructs;
 using System.Collections.Generic;
 using System.Linq;
+using AppInfraCdkV1.InternalApps.LakeFormation.Constructs;
 
 namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
 {
@@ -13,6 +14,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
         public List<CfnDatabase> Databases { get; private set; }
         public Role LakeFormationServiceRole { get; private set; }
         public CfnDataLakeSettings DataLakeSettings { get; private set; }
+        public LakeFormationIdentityCenterRolesConstruct IdentityCenterRoles { get; private set; }
         
         private readonly LakeFormationEnvironmentConfig _config;
         private readonly DataLakeStorageStack _storageStack;
@@ -29,6 +31,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             AddDependency(storageStack);
             
             CreateLakeFormationServiceRole();
+            CreateIdentityCenterRoles();
             ConfigureDataLakeSettings();
             CreateGlueDatabases();
             RegisterS3Locations();
@@ -111,10 +114,42 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             }
         }
         
+        private void CreateIdentityCenterRoles()
+        {
+            var rolesProps = new LakeFormationIdentityCenterRolesConstructProps
+            {
+                Environment = _config.Environment,
+                AccountId = _config.AccountId,
+                IdentityCenterInstanceArn = _config.IdentityCenter.InstanceArn,
+                IdentityCenterGroupIds = _config.IdentityCenter.GroupIds ?? new Dictionary<string, string>(),
+                CreateProductionRoles = _config.Environment.ToLower() == "production"
+            };
+
+            IdentityCenterRoles = new LakeFormationIdentityCenterRolesConstruct(
+                this, 
+                "IdentityCenterRoles", 
+                rolesProps
+            );
+        }
+        
         private void ConfigureDataLakeSettings()
         {
             var lakeFormationConfig = Node.TryGetContext($"environments:{_config.Environment}:lakeFormation");
             var admins = new List<string> { LakeFormationServiceRole.RoleArn };
+            
+            // Add Identity Center-based admin roles
+            var developmentRoles = IdentityCenterRoles.GetDevelopmentRoles();
+            if (developmentRoles.ContainsKey("Admin"))
+            {
+                admins.Add(developmentRoles["Admin"].RoleArn);
+            }
+
+            // Add production admin role if this is production environment or if production roles are created
+            var productionRoles = IdentityCenterRoles.GetProductionRoles();
+            if (productionRoles.ContainsKey("Admin"))
+            {
+                admins.Add(productionRoles["Admin"].RoleArn);
+            }
             
             if (lakeFormationConfig != null)
             {
@@ -128,35 +163,30 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             // Configure catalog creators - IAM principals permitted to create databases in GDC root catalog
             var createDatabasePermissions = new List<CfnDataLakeSettings.PrincipalPermissionsProperty>();
             
-            // Allow Lake Formation service role to create databases
-            createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
+            // Add catalog creator roles for development
+            if (developmentRoles.ContainsKey("CatalogCreator"))
             {
-                Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
-                {
-                    DataLakePrincipalIdentifier = LakeFormationServiceRole.RoleArn
-                },
-                Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
-            });
-            
-            // Grant database creation permissions to data engineers group if it exists
-            var dataEngineersGroup = _config.GroupMappings.FirstOrDefault(g => 
-                g.Value.IsDataLakeAdmin && 
-                (g.Key.Contains("engineers") || g.Key.Contains("admin")));
-            
-            if (dataEngineersGroup.Value != null)
-            {
-                // Note: This would need the actual IAM role/group ARN in a real deployment
-                // For now, we'll document the pattern but keep it commented
-                /*
                 createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
                 {
                     Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
                     {
-                        DataLakePrincipalIdentifier = $"arn:aws:iam::{_config.AccountId}:group/{dataEngineersGroup.Value.GroupName}"
+                        DataLakePrincipalIdentifier = developmentRoles["CatalogCreator"].RoleArn
                     },
                     Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
                 });
-                */
+            }
+            
+            // Add catalog creator roles for production
+            if (productionRoles.ContainsKey("CatalogCreator"))
+            {
+                createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
+                {
+                    Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
+                    {
+                        DataLakePrincipalIdentifier = productionRoles["CatalogCreator"].RoleArn
+                    },
+                    Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
+                });
             }
             
             DataLakeSettings = new CfnDataLakeSettings(this, "DataLakeSettings", new CfnDataLakeSettingsProps

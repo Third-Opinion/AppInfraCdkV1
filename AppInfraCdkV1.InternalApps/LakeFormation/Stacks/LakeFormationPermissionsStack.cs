@@ -63,14 +63,26 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
         
         private string BuildIdentityCenterPrincipal(string groupName)
         {
-            var param = new CfnParameter(this, $"GroupId-{groupName}", new CfnParameterProps
-            {
-                Type = "String",
-                Description = $"Identity Center Group ID for {groupName}",
-                Default = "PLACEHOLDER"
-            });
+            // Map group names to IAM role ARNs from the LakeFormationIdentityCenterRolesConstruct
+            var developmentRoles = _lakeFormationStack.IdentityCenterRoles.GetDevelopmentRoles();
+            var productionRoles = _lakeFormationStack.IdentityCenterRoles.GetProductionRoles();
             
-            return $"arn:aws:identitystore::{_config.IdentityCenter.IdentityCenterAccountId}:group/{param.ValueAsString}";
+            // Map group names to corresponding IAM roles
+            switch (groupName)
+            {
+                case "data-analysts-dev":
+                    return developmentRoles["DataAnalyst"].RoleArn;
+                case "data-engineers-dev":
+                    return developmentRoles["DataEngineer"].RoleArn;
+                case "data-analysts-phi":
+                    return productionRoles.ContainsKey("DataAnalyst") ? productionRoles["DataAnalyst"].RoleArn : developmentRoles["DataAnalyst"].RoleArn;
+                case "data-engineers-phi":
+                    return productionRoles.ContainsKey("DataEngineer") ? productionRoles["DataEngineer"].RoleArn : developmentRoles["DataEngineer"].RoleArn;
+                case "data-lake-admin-prd":
+                    return productionRoles.ContainsKey("Admin") ? productionRoles["Admin"].RoleArn : developmentRoles["Admin"].RoleArn;
+                default:
+                    throw new System.ArgumentException($"Unknown group name: {groupName}. Available groups: data-analysts-dev, data-engineers-dev, data-analysts-phi, data-engineers-phi, data-lake-admin-prd");
+            }
         }
         
         private void GrantDataLakeAdminPermissions(string groupName, string principalIdentifier)
