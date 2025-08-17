@@ -160,35 +160,6 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 }
             }
             
-            // Configure catalog creators - IAM principals permitted to create databases in GDC root catalog
-            var createDatabasePermissions = new List<CfnDataLakeSettings.PrincipalPermissionsProperty>();
-            
-            // Add catalog creator roles for development
-            if (developmentRoles.ContainsKey("CatalogCreator"))
-            {
-                createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
-                {
-                    Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
-                    {
-                        DataLakePrincipalIdentifier = developmentRoles["CatalogCreator"].RoleArn
-                    },
-                    Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
-                });
-            }
-            
-            // Add catalog creator roles for production
-            if (productionRoles.ContainsKey("CatalogCreator"))
-            {
-                createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
-                {
-                    Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
-                    {
-                        DataLakePrincipalIdentifier = productionRoles["CatalogCreator"].RoleArn
-                    },
-                    Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
-                });
-            }
-            
             DataLakeSettings = new CfnDataLakeSettings(this, "DataLakeSettings", new CfnDataLakeSettingsProps
             {
                 Admins = admins.Select(admin => new CfnDataLakeSettings.DataLakePrincipalProperty
@@ -196,11 +167,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                     DataLakePrincipalIdentifier = admin
                 }).ToArray(),
                 
-                // Configure default permissions for database creation in GDC root catalog
-                CreateDatabaseDefaultPermissions = createDatabasePermissions.ToArray(),
-                
-                // Ensure table creation permissions are also restricted (no default permissions)
-                CreateTableDefaultPermissions = new CfnDataLakeSettings.PrincipalPermissionsProperty[0],
+                // Note: CreateDatabaseDefaultPermissions and CreateTableDefaultPermissions 
+                // are not supported for federated principals (SAML/OIDC roles)
+                // Catalog creation permissions will be granted via individual resource permissions
                 
                 TrustedResourceOwners = new[] { _config.AccountId }
             });

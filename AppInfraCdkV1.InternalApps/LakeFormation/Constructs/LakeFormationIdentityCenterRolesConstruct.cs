@@ -171,12 +171,16 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
             // Create the trust policy for Identity Center
             var trustPolicy = CreateIdentityCenterTrustPolicy(identityCenterGroups);
 
+            // Use the correct SAML provider ARN for Identity Center
+            var accountId = _props.AccountId;
+            var samlProviderArn = $"arn:aws:iam::{accountId}:saml-provider/AWSSSO_a3bf03f788e071e7_DO_NOT_DELETE";
+            
             var role = new Role(this, constructId, new RoleProps
             {
                 RoleName = roleName,
                 Description = description,
                 AssumedBy = new FederatedPrincipal(
-                    _props.IdentityCenterInstanceArn,
+                    samlProviderArn,
                     new Dictionary<string, object>
                     {
                         ["StringEquals"] = new Dictionary<string, object>

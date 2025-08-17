@@ -42,7 +42,7 @@
           "groupEmail": "data-analysts-dev@thirdopinion.io",
           "description": "Development data analysts with non-PHI access",
           "permissions": ["SELECT", "DESCRIBE"],
-          "allowedDatabases": ["thirdopinion_dev_10000000"],
+          "allowedDatabases": ["fhir_raw_10000000_development", "fhir_curated_10000000_development", "fhir_metadata_10000000_development"],
           "allowedTables": ["*"],
           "excludePHI": true,
           "isDataLakeAdmin": false
@@ -52,10 +52,10 @@
           "groupEmail": "data-engineers-dev@thirdopinion.io",
           "description": "Development data engineers",
           "permissions": ["ALL"],
-          "allowedDatabases": ["thirdopinion_dev_10000000"],
+          "allowedDatabases": ["fhir_raw_10000000_development", "fhir_curated_10000000_development", "fhir_metadata_10000000_development"],
           "allowedTables": ["*"],
           "excludePHI": false,
-          "isDataLakeAdmin": true
+          "isDataLakeAdmin": false
         }
       },
       "tags": {
