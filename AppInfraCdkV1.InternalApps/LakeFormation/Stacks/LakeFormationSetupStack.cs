@@ -125,12 +125,53 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 }
             }
             
+            // Configure catalog creators - IAM principals permitted to create databases in GDC root catalog
+            var createDatabasePermissions = new List<CfnDataLakeSettings.PrincipalPermissionsProperty>();
+            
+            // Allow Lake Formation service role to create databases
+            createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
+            {
+                Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
+                {
+                    DataLakePrincipalIdentifier = LakeFormationServiceRole.RoleArn
+                },
+                Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
+            });
+            
+            // Grant database creation permissions to data engineers group if it exists
+            var dataEngineersGroup = _config.GroupMappings.FirstOrDefault(g => 
+                g.Value.IsDataLakeAdmin && 
+                (g.Key.Contains("engineers") || g.Key.Contains("admin")));
+            
+            if (dataEngineersGroup.Value != null)
+            {
+                // Note: This would need the actual IAM role/group ARN in a real deployment
+                // For now, we'll document the pattern but keep it commented
+                /*
+                createDatabasePermissions.Add(new CfnDataLakeSettings.PrincipalPermissionsProperty
+                {
+                    Principal = new CfnDataLakeSettings.DataLakePrincipalProperty
+                    {
+                        DataLakePrincipalIdentifier = $"arn:aws:iam::{_config.AccountId}:group/{dataEngineersGroup.Value.GroupName}"
+                    },
+                    Permissions = new[] { "CREATE_DATABASE", "DESCRIBE", "ALTER" }
+                });
+                */
+            }
+            
             DataLakeSettings = new CfnDataLakeSettings(this, "DataLakeSettings", new CfnDataLakeSettingsProps
             {
                 Admins = admins.Select(admin => new CfnDataLakeSettings.DataLakePrincipalProperty
                 {
                     DataLakePrincipalIdentifier = admin
                 }).ToArray(),
+                
+                // Configure default permissions for database creation in GDC root catalog
+                CreateDatabaseDefaultPermissions = createDatabasePermissions.ToArray(),
+                
+                // Ensure table creation permissions are also restricted (no default permissions)
+                CreateTableDefaultPermissions = new CfnDataLakeSettings.PrincipalPermissionsProperty[0],
+                
                 TrustedResourceOwners = new[] { _config.AccountId }
             });
         }
