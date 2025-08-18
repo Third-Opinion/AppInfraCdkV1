@@ -222,28 +222,32 @@ jobs:
         
         # Deploy ALB stack first
         echo "📦 Deploying TrialFinderV2 ALB stack..."
-        CDK_STACK_TYPE=ALB cdk deploy dev-tfv2-alb-ue2 \
+        export CDK_STACK_TYPE=ALB
+        cdk deploy dev-tfv2-alb-ue2 \
           --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tfv2-alb-outputs.json || true
         
         # Deploy Cognito stack (can be parallel with ALB, but deploy separately for clarity)
         echo "📦 Deploying TrialFinderV2 Cognito stack..."
-        CDK_STACK_TYPE=COGNITO cdk deploy dev-tfv2-cognito-ue2 \
+        export CDK_STACK_TYPE=COGNITO
+        cdk deploy dev-tfv2-cognito-ue2 \
           --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tfv2-cognito-outputs.json || true
         
         # Deploy Data stack (depends on Base only)
         echo "📦 Deploying TrialFinderV2 Data stack..."
-        CDK_STACK_TYPE=DATA cdk deploy dev-tfv2-data-ue2 \
+        export CDK_STACK_TYPE=DATA
+        cdk deploy dev-tfv2-data-ue2 \
           --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tfv2-data-outputs.json || true
         
         # Deploy ECS stack last (depends on ALB and Data)
         echo "📦 Deploying TrialFinderV2 ECS stack..."
-        CDK_STACK_TYPE=ECS cdk deploy dev-tfv2-ecs-ue2 \
+        export CDK_STACK_TYPE=ECS
+        cdk deploy dev-tfv2-ecs-ue2 \
           --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tfv2-ecs-outputs.json || true
@@ -279,28 +283,32 @@ jobs:
         
         # Deploy ALB stack first
         echo "📦 Deploying TrialMatch ALB stack..."
-        CDK_STACK_TYPE=ALB cdk deploy dev-tm-alb-ue2 \
+        export CDK_STACK_TYPE=ALB
+        cdk deploy dev-tm-alb-ue2 \
           --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tm-alb-outputs.json || true
         
         # Deploy Cognito stack (can be parallel with ALB, but deploy separately for clarity)
         echo "📦 Deploying TrialMatch Cognito stack..."
-        CDK_STACK_TYPE=COGNITO cdk deploy dev-tm-cognito-ue2 \
+        export CDK_STACK_TYPE=COGNITO
+        cdk deploy dev-tm-cognito-ue2 \
           --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tm-cognito-outputs.json || true
         
         # Deploy Data stack (depends on Base only)
         echo "📦 Deploying TrialMatch Data stack..."
-        CDK_STACK_TYPE=DATA cdk deploy dev-tm-data-ue2 \
+        export CDK_STACK_TYPE=DATA
+        cdk deploy dev-tm-data-ue2 \
           --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tm-data-outputs.json || true
         
         # Deploy ECS stack last (depends on ALB and Data)
         echo "📦 Deploying TrialMatch ECS stack..."
-        CDK_STACK_TYPE=ECS cdk deploy dev-tm-ecs-ue2 \
+        export CDK_STACK_TYPE=ECS
+        cdk deploy dev-tm-ecs-ue2 \
           --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" \
           --require-approval never \
           --outputs-file tm-ecs-outputs.json || true
