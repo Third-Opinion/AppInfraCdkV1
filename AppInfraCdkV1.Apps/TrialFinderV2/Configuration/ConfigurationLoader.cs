@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AppInfraCdkV1.Core.Models;
+using AppInfraCdkV1.Core.Enums;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 
@@ -67,6 +68,12 @@ public class ConfigurationLoader
                 throw new InvalidOperationException("TaskDefinitionName is required in the configuration");
             }
             
+            // Validate scheduled job configuration if applicable
+            if (taskDef.IsScheduledJob)
+            {
+                ValidateScheduledJobConfiguration(taskDef);
+            }
+            
             var containerDefinitions = taskDef.ContainerDefinitions;
             
             if (containerDefinitions == null || containerDefinitions.Count == 0)
@@ -97,6 +104,34 @@ public class ConfigurationLoader
             {
                 throw new InvalidOperationException($"Duplicate container names found in task '{taskDef.TaskDefinitionName}': {string.Join(", ", duplicateNames)}");
             }
+        }
+    }
+    
+    /// <summary>
+    /// Validate scheduled job configuration
+    /// </summary>
+    private void ValidateScheduledJobConfiguration(TaskDefinitionConfig taskDef)
+    {
+        if (string.IsNullOrWhiteSpace(taskDef.ScheduleExpression))
+        {
+            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' requires a ScheduleExpression");
+        }
+        
+        // Validate cron expression format (basic validation)
+        if (!taskDef.ScheduleExpression.StartsWith("cron(", StringComparison.OrdinalIgnoreCase) || 
+            !taskDef.ScheduleExpression.EndsWith(")", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' has invalid ScheduleExpression format. Expected format: 'cron(0 */6 * * ? *)'");
+        }
+        
+        if (taskDef.JobTimeout <= 0)
+        {
+            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' has invalid JobTimeout. Must be greater than 0 seconds");
+        }
+        
+        if (taskDef.JobTimeout > 86400) // 24 hours
+        {
+            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' has invalid JobTimeout. Must be less than or equal to 86400 seconds (24 hours)");
         }
     }
     
@@ -264,6 +299,36 @@ public class TaskDefinitionConfig
     public int? Cpu { get; set; }
     public int? Memory { get; set; }
     public List<ContainerDefinitionConfig>? ContainerDefinitions { get; set; }
+    
+    /// <summary>
+    /// Type of task (WebApplication or ScheduledJob)
+    /// </summary>
+    public string? TaskType { get; set; } = "WebApplication";
+    
+    /// <summary>
+    /// Whether this is a scheduled job task
+    /// </summary>
+    public bool IsScheduledJob => TaskType?.Equals("ScheduledJob", StringComparison.OrdinalIgnoreCase) == true;
+    
+    /// <summary>
+    /// Schedule expression for cron-based scheduling (e.g., "cron(0 */6 * * ? *)")
+    /// </summary>
+    public string? ScheduleExpression { get; set; }
+    
+    /// <summary>
+    /// Job timeout in seconds for scheduled tasks
+    /// </summary>
+    public int? JobTimeout { get; set; } = 3600; // 1 hour default
+    
+    /// <summary>
+    /// Retry policy configuration for scheduled jobs
+    /// </summary>
+    public RetryPolicyConfig? RetryPolicy { get; set; }
+    
+    /// <summary>
+    /// Dead letter queue configuration for scheduled jobs
+    /// </summary>
+    public DeadLetterQueueConfig? DeadLetterQueue { get; set; }
 }
 
 public class ContainerRepositoryConfig
