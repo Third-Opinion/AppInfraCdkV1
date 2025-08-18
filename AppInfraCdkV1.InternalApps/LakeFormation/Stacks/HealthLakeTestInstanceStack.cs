@@ -28,14 +28,14 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 var instanceId = $"TestHealthLakeInstance{i + 1}";
                 
                 var instance = new HealthLakeTestInstanceConstruct(this, instanceId,
-                    config, healthLakeConfig, storageStack.CuratedDataBucket);
+                    config, healthLakeConfig, storageStack.RawDataBucket, storageStack.CuratedDataBucket);
                 
                 HealthLakeInstances.Add(instance);
             }
             
             // Add stack-level tags
             Amazon.CDK.Tags.Of(this).Add("Component", "HealthLakeTestInstance");
-            Amazon.CDK.Tags.Of(this).Add("Architecture", "MultiTenant");
+            Amazon.CDK.Tags.Of(this).Add("Architecture", "SingleTenant");
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
             Amazon.CDK.Tags.Of(this).Add("InstanceCount", config.HealthLake.Count.ToString());
             

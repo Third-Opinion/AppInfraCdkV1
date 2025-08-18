@@ -1,0 +1,277 @@
+{
+ "Description": "Lake Formation data storage infrastructure for Development",
+ "Resources": {
+  "LoggingBucket1E5A6F3B": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "AccessControl": "LogDeliveryWrite",
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "thirdopinion-logs-development-us-east-2",
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "ExpirationInDays": 90,
+       "Id": "DeleteOldLogs",
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "OwnershipControls": {
+     "Rules": [
+      {
+       "ObjectOwnership": "BucketOwnerPreferred"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "Component",
+      "Value": "DataLakeStorage"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-storage-ue2/LoggingBucket/Resource"
+   }
+  },
+  "RawDataBucket57F26C03": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "thirdopinion-raw-development-us-east-2",
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "Id": "IntelligentTiering",
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "INTELLIGENT_TIERING",
+         "TransitionInDays": 0
+        }
+       ]
+      }
+     ]
+    },
+    "LoggingConfiguration": {
+     "DestinationBucketName": {
+      "Ref": "LoggingBucket1E5A6F3B"
+     },
+     "LogFilePrefix": "raw-data/"
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "Component",
+      "Value": "DataLakeStorage"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     }
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-storage-ue2/RawDataBucket/Resource"
+   }
+  },
+  "CuratedDataBucket8D7AC6D2": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "thirdopinion-curated-development-us-east-2",
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "Id": "IntelligentTiering",
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "INTELLIGENT_TIERING",
+         "TransitionInDays": 0
+        }
+       ]
+      }
+     ]
+    },
+    "LoggingConfiguration": {
+     "DestinationBucketName": {
+      "Ref": "LoggingBucket1E5A6F3B"
+     },
+     "LogFilePrefix": "curated-data/"
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "Component",
+      "Value": "DataLakeStorage"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     }
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-storage-ue2/CuratedDataBucket/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yWIsQ7CIBQAv6U7PIoY4+Kg1bUm1bgaxGdCUSA8sEPTfze1ueEutwKpNlBXeiBuno6/7QPGS9bGMT3QnRSMh2IcZta8/FLTnOeSY/nPDimUZHBix5BbzGILNci1gPZ0bULCfYz8hols8LuvAikk1DNVT9byVHy2H4Ru8Q8s2mOLjwAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-storage-ue2/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "RawDataBucketName": {
+   "Description": "Raw data bucket name",
+   "Value": {
+    "Ref": "RawDataBucket57F26C03"
+   },
+   "Export": {
+    "Name": "Development-raw-data-bucket"
+   }
+  },
+  "CuratedDataBucketName": {
+   "Description": "Curated data bucket name",
+   "Value": {
+    "Ref": "CuratedDataBucket8D7AC6D2"
+   },
+   "Export": {
+    "Name": "Development-curated-data-bucket"
+   }
+  },
+  "ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583": {
+   "Value": {
+    "Fn::GetAtt": [
+     "RawDataBucket57F26C03",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+   }
+  },
+  "ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE": {
+   "Value": {
+    "Fn::GetAtt": [
+     "CuratedDataBucket8D7AC6D2",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+   }
+  },
+  "ExportsOutputRefRawDataBucket57F26C0354920F72": {
+   "Value": {
+    "Ref": "RawDataBucket57F26C03"
+   },
+   "Export": {
+    "Name": "dev-lf-storage-ue2:ExportsOutputRefRawDataBucket57F26C0354920F72"
+   }
+  },
+  "ExportsOutputRefCuratedDataBucket8D7AC6D2283880CC": {
+   "Value": {
+    "Ref": "CuratedDataBucket8D7AC6D2"
+   },
+   "Export": {
+    "Name": "dev-lf-storage-ue2:ExportsOutputRefCuratedDataBucket8D7AC6D2283880CC"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

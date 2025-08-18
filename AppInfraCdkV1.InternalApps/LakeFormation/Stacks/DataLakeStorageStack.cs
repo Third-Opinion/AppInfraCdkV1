@@ -45,7 +45,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 },
                 BlockPublicAccess = BlockPublicAccess.BLOCK_ALL,
                 Encryption = BucketEncryption.S3_MANAGED,
-                RemovalPolicy = RemovalPolicy.RETAIN
+                RemovalPolicy = RemovalPolicy.RETAIN,
+                // Enable ACLs for log delivery
+                ObjectOwnership = ObjectOwnership.BUCKET_OWNER_PREFERRED
             });
             
             // Create Raw Data Bucket

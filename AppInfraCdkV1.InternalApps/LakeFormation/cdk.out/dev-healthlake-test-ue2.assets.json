@@ -1,0 +1,20 @@
+{
+  "version": "36.0.0",
+  "files": {
+    "b573a15e269e51dc4a402d2b25c5b15eb7432eb278b5df132b02844209fcd654": {
+      "source": {
+        "path": "dev-healthlake-test-ue2.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "615299752206-us-east-2": {
+          "bucketName": "cdk-hnb659fds-assets-615299752206-us-east-2",
+          "objectKey": "b573a15e269e51dc4a402d2b25c5b15eb7432eb278b5df132b02844209fcd654.json",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-file-publishing-role-615299752206-us-east-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

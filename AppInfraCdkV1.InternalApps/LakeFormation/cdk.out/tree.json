@@ -1,0 +1,2414 @@
+{
+  "version": "tree-0.1",
+  "tree": {
+    "id": "App",
+    "path": "",
+    "children": {
+      "dev-lf-storage-ue2": {
+        "id": "dev-lf-storage-ue2",
+        "path": "dev-lf-storage-ue2",
+        "children": {
+          "LoggingBucket": {
+            "id": "LoggingBucket",
+            "path": "dev-lf-storage-ue2/LoggingBucket",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "dev-lf-storage-ue2/LoggingBucket/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::S3::Bucket",
+                  "aws:cdk:cloudformation:props": {
+                    "accessControl": "LogDeliveryWrite",
+                    "bucketEncryption": {
+                      "serverSideEncryptionConfiguration": [
+                        {
+                          "serverSideEncryptionByDefault": {
+                            "sseAlgorithm": "AES256"
+                          }
+                        }
+                      ]
+                    },
+                    "bucketName": "thirdopinion-logs-development-us-east-2",
+                    "lifecycleConfiguration": {
+                      "rules": [
+                        {
+                          "expirationInDays": 90,
+                          "id": "DeleteOldLogs",
+                          "status": "Enabled"
+                        }
+                      ]
+                    },
+                    "ownershipControls": {
+                      "rules": [
+                        {
+                          "objectOwnership": "BucketOwnerPreferred"
+                        }
+                      ]
+                    },
+                    "publicAccessBlockConfiguration": {
+                      "blockPublicAcls": true,
+                      "blockPublicPolicy": true,
+                      "ignorePublicAcls": true,
+                      "restrictPublicBuckets": true
+                    },
+                    "tags": [
+                      {
+                        "key": "Component",
+                        "value": "DataLakeStorage"
+                      },
+                      {
+                        "key": "ManagedBy",
+                        "value": "CDK"
+                      }
+                    ]
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_s3.CfnBucket",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_s3.Bucket",
+              "version": "2.136.0"
+            }
+          },
+          "RawDataBucket": {
+            "id": "RawDataBucket",
+            "path": "dev-lf-storage-ue2/RawDataBucket",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "dev-lf-storage-ue2/RawDataBucket/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::S3::Bucket",
+                  "aws:cdk:cloudformation:props": {
+                    "bucketEncryption": {
+                      "serverSideEncryptionConfiguration": [
+                        {
+                          "serverSideEncryptionByDefault": {
+                            "sseAlgorithm": "AES256"
+                          }
+                        }
+                      ]
+                    },
+                    "bucketName": "thirdopinion-raw-development-us-east-2",
+                    "lifecycleConfiguration": {
+                      "rules": [
+                        {
+                          "id": "IntelligentTiering",
+                          "status": "Enabled",
+                          "transitions": [
+                            {
+                              "storageClass": "INTELLIGENT_TIERING",
+                              "transitionInDays": 0
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "loggingConfiguration": {
+                      "destinationBucketName": {
+                        "Ref": "LoggingBucket1E5A6F3B"
+                      },
+                      "logFilePrefix": "raw-data/"
+                    },
+                    "publicAccessBlockConfiguration": {
+                      "blockPublicAcls": true,
+                      "blockPublicPolicy": true,
+                      "ignorePublicAcls": true,
+                      "restrictPublicBuckets": true
+                    },
+                    "tags": [
+                      {
+                        "key": "Component",
+                        "value": "DataLakeStorage"
+                      },
+                      {
+                        "key": "ManagedBy",
+                        "value": "CDK"
+                      }
+                    ],
+                    "versioningConfiguration": {
+                      "status": "Enabled"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_s3.CfnBucket",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_s3.Bucket",
+              "version": "2.136.0"
+            }
+          },
+          "CuratedDataBucket": {
+            "id": "CuratedDataBucket",
+            "path": "dev-lf-storage-ue2/CuratedDataBucket",
+            "children": {
+              "Resource": {
+                "id": "Resource",
+                "path": "dev-lf-storage-ue2/CuratedDataBucket/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::S3::Bucket",
+                  "aws:cdk:cloudformation:props": {
+                    "bucketEncryption": {
+                      "serverSideEncryptionConfiguration": [
+                        {
+                          "serverSideEncryptionByDefault": {
+                            "sseAlgorithm": "AES256"
+                          }
+                        }
+                      ]
+                    },
+                    "bucketName": "thirdopinion-curated-development-us-east-2",
+                    "lifecycleConfiguration": {
+                      "rules": [
+                        {
+                          "id": "IntelligentTiering",
+                          "status": "Enabled",
+                          "transitions": [
+                            {
+                              "storageClass": "INTELLIGENT_TIERING",
+                              "transitionInDays": 0
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "loggingConfiguration": {
+                      "destinationBucketName": {
+                        "Ref": "LoggingBucket1E5A6F3B"
+                      },
+                      "logFilePrefix": "curated-data/"
+                    },
+                    "publicAccessBlockConfiguration": {
+                      "blockPublicAcls": true,
+                      "blockPublicPolicy": true,
+                      "ignorePublicAcls": true,
+                      "restrictPublicBuckets": true
+                    },
+                    "tags": [
+                      {
+                        "key": "Component",
+                        "value": "DataLakeStorage"
+                      },
+                      {
+                        "key": "ManagedBy",
+                        "value": "CDK"
+                      }
+                    ],
+                    "versioningConfiguration": {
+                      "status": "Enabled"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_s3.CfnBucket",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_s3.Bucket",
+              "version": "2.136.0"
+            }
+          },
+          "RawDataBucketName": {
+            "id": "RawDataBucketName",
+            "path": "dev-lf-storage-ue2/RawDataBucketName",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.136.0"
+            }
+          },
+          "CuratedDataBucketName": {
+            "id": "CuratedDataBucketName",
+            "path": "dev-lf-storage-ue2/CuratedDataBucketName",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnOutput",
+              "version": "2.136.0"
+            }
+          },
+          "CDKMetadata": {
+            "id": "CDKMetadata",
+            "path": "dev-lf-storage-ue2/CDKMetadata",
+            "children": {
+              "Default": {
+                "id": "Default",
+                "path": "dev-lf-storage-ue2/CDKMetadata/Default",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnResource",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "Exports": {
+            "id": "Exports",
+            "path": "dev-lf-storage-ue2/Exports",
+            "children": {
+              "Output{\"Fn::GetAtt\":[\"RawDataBucket57F26C03\",\"Arn\"]}": {
+                "id": "Output{\"Fn::GetAtt\":[\"RawDataBucket57F26C03\",\"Arn\"]}",
+                "path": "dev-lf-storage-ue2/Exports/Output{\"Fn::GetAtt\":[\"RawDataBucket57F26C03\",\"Arn\"]}",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              },
+              "Output{\"Fn::GetAtt\":[\"CuratedDataBucket8D7AC6D2\",\"Arn\"]}": {
+                "id": "Output{\"Fn::GetAtt\":[\"CuratedDataBucket8D7AC6D2\",\"Arn\"]}",
+                "path": "dev-lf-storage-ue2/Exports/Output{\"Fn::GetAtt\":[\"CuratedDataBucket8D7AC6D2\",\"Arn\"]}",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              },
+              "Output{\"Ref\":\"RawDataBucket57F26C03\"}": {
+                "id": "Output{\"Ref\":\"RawDataBucket57F26C03\"}",
+                "path": "dev-lf-storage-ue2/Exports/Output{\"Ref\":\"RawDataBucket57F26C03\"}",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              },
+              "Output{\"Ref\":\"CuratedDataBucket8D7AC6D2\"}": {
+                "id": "Output{\"Ref\":\"CuratedDataBucket8D7AC6D2\"}",
+                "path": "dev-lf-storage-ue2/Exports/Output{\"Ref\":\"CuratedDataBucket8D7AC6D2\"}",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "BootstrapVersion": {
+            "id": "BootstrapVersion",
+            "path": "dev-lf-storage-ue2/BootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnParameter",
+              "version": "2.136.0"
+            }
+          },
+          "CheckBootstrapVersion": {
+            "id": "CheckBootstrapVersion",
+            "path": "dev-lf-storage-ue2/CheckBootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnRule",
+              "version": "2.136.0"
+            }
+          }
+        },
+        "constructInfo": {
+          "fqn": "aws-cdk-lib.Stack",
+          "version": "2.136.0"
+        }
+      },
+      "dev-lf-setup-ue2": {
+        "id": "dev-lf-setup-ue2",
+        "path": "dev-lf-setup-ue2",
+        "children": {
+          "LakeFormationServiceRole": {
+            "id": "LakeFormationServiceRole",
+            "path": "dev-lf-setup-ue2/LakeFormationServiceRole",
+            "children": {
+              "ImportLakeFormationServiceRole": {
+                "id": "ImportLakeFormationServiceRole",
+                "path": "dev-lf-setup-ue2/LakeFormationServiceRole/ImportLakeFormationServiceRole",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.Resource",
+                  "version": "2.136.0"
+                }
+              },
+              "Resource": {
+                "id": "Resource",
+                "path": "dev-lf-setup-ue2/LakeFormationServiceRole/Resource",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                  "aws:cdk:cloudformation:props": {
+                    "assumeRolePolicyDocument": {
+                      "Statement": [
+                        {
+                          "Action": "sts:AssumeRole",
+                          "Effect": "Allow",
+                          "Principal": {
+                            "Service": "lakeformation.amazonaws.com"
+                          }
+                        }
+                      ],
+                      "Version": "2012-10-17"
+                    },
+                    "description": "Service role for Lake Formation",
+                    "managedPolicyArns": [
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":iam::aws:policy/AWSLakeFormationDataAdmin"
+                          ]
+                        ]
+                      }
+                    ],
+                    "roleName": "LakeFormationServiceRole-Development",
+                    "tags": [
+                      {
+                        "key": "Component",
+                        "value": "LakeFormationSetup"
+                      },
+                      {
+                        "key": "ManagedBy",
+                        "value": "CDK"
+                      }
+                    ]
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                  "version": "2.136.0"
+                }
+              },
+              "DefaultPolicy": {
+                "id": "DefaultPolicy",
+                "path": "dev-lf-setup-ue2/LakeFormationServiceRole/DefaultPolicy",
+                "children": {
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "dev-lf-setup-ue2/LakeFormationServiceRole/DefaultPolicy/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                      "aws:cdk:cloudformation:props": {
+                        "policyDocument": {
+                          "Statement": [
+                            {
+                              "Action": [
+                                "s3:GetObject",
+                                "s3:PutObject",
+                                "s3:DeleteObject",
+                                "s3:ListBucket",
+                                "s3:GetBucketLocation",
+                                "s3:ListBucketMultipartUploads",
+                                "s3:ListMultipartUploadParts",
+                                "s3:AbortMultipartUpload"
+                              ],
+                              "Effect": "Allow",
+                              "Resource": [
+                                {
+                                  "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+                                },
+                                {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      {
+                                        "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+                                      },
+                                      "/*"
+                                    ]
+                                  ]
+                                },
+                                {
+                                  "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+                                },
+                                {
+                                  "Fn::Join": [
+                                    "",
+                                    [
+                                      {
+                                        "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+                                      },
+                                      "/*"
+                                    ]
+                                  ]
+                                }
+                              ]
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "policyName": "LakeFormationServiceRoleDefaultPolicy23B6A30C",
+                        "roles": [
+                          {
+                            "Ref": "LakeFormationServiceRole2DAEA7AF"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                      "version": "2.136.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Policy",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_iam.Role",
+              "version": "2.136.0"
+            }
+          },
+          "IdentityCenterRoles": {
+            "id": "IdentityCenterRoles",
+            "path": "dev-lf-setup-ue2/IdentityCenterRoles",
+            "children": {
+              "DataAnalystDevelopment": {
+                "id": "DataAnalystDevelopment",
+                "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataAnalystDevelopment",
+                "children": {
+                  "ImportDataAnalystDevelopment": {
+                    "id": "ImportDataAnalystDevelopment",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataAnalystDevelopment/ImportDataAnalystDevelopment",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataAnalystDevelopment/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRoleWithSAML",
+                              "Condition": {
+                                "StringEquals": {
+                                  "SAML:aud": "https://signin.aws.amazon.com/saml"
+                                }
+                              },
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Federated": "arn:aws:iam::615299752206:saml-provider/AWSSSO_a3bf03f788e071e7_DO_NOT_DELETE"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "description": "Lake Formation read-only access for development data analysts",
+                        "maxSessionDuration": 43200,
+                        "roleName": "LakeFormation-DataAnalyst-Development",
+                        "tags": [
+                          {
+                            "key": "Component",
+                            "value": "LakeFormationIdentityCenterRoles"
+                          },
+                          {
+                            "key": "Environment",
+                            "value": "Development"
+                          },
+                          {
+                            "key": "ManagedBy",
+                            "value": "CDK"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "DefaultPolicy": {
+                    "id": "DefaultPolicy",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataAnalystDevelopment/DefaultPolicy",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataAnalystDevelopment/DefaultPolicy/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                          "aws:cdk:cloudformation:props": {
+                            "policyDocument": {
+                              "Statement": [
+                                {
+                                  "Action": "sts:TagSession",
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "lakeformation:GetDataAccess",
+                                    "lakeformation:DescribeResource",
+                                    "lakeformation:ListResources",
+                                    "lakeformation:ListPermissions",
+                                    "glue:GetDatabase",
+                                    "glue:GetDatabases",
+                                    "glue:GetTable",
+                                    "glue:GetTables",
+                                    "glue:GetPartition",
+                                    "glue:GetPartitions"
+                                  ],
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "s3:GetObject",
+                                    "s3:ListBucket",
+                                    "s3:GetBucketLocation"
+                                  ],
+                                  "Condition": {
+                                    "StringNotLike": {
+                                      "s3:prefix": [
+                                        "*/phi/*",
+                                        "phi/*"
+                                      ]
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:s3:::thirdopinion-raw-development-us-east-2",
+                                    "arn:aws:s3:::thirdopinion-raw-development-us-east-2/*",
+                                    "arn:aws:s3:::thirdopinion-curated-development-us-east-2",
+                                    "arn:aws:s3:::thirdopinion-curated-development-us-east-2/*"
+                                  ]
+                                },
+                                {
+                                  "Action": [
+                                    "athena:GetQueryExecution",
+                                    "athena:GetQueryResults",
+                                    "athena:StartQueryExecution",
+                                    "athena:StopQueryExecution",
+                                    "athena:GetWorkGroup",
+                                    "athena:ListQueryExecutions"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:athena:us-east-2:615299752206:workgroup/primary",
+                                    "arn:aws:athena:us-east-2:615299752206:workgroup/*development*"
+                                  ]
+                                }
+                              ],
+                              "Version": "2012-10-17"
+                            },
+                            "policyName": "IdentityCenterRolesDataAnalystDevelopmentDefaultPolicyE0D01218",
+                            "roles": [
+                              {
+                                "Ref": "IdentityCenterRolesDataAnalystDevelopment9751DFAA"
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                          "version": "2.136.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.Policy",
+                      "version": "2.136.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.136.0"
+                }
+              },
+              "DataEngineerDevelopment": {
+                "id": "DataEngineerDevelopment",
+                "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataEngineerDevelopment",
+                "children": {
+                  "ImportDataEngineerDevelopment": {
+                    "id": "ImportDataEngineerDevelopment",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataEngineerDevelopment/ImportDataEngineerDevelopment",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataEngineerDevelopment/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRoleWithSAML",
+                              "Condition": {
+                                "StringEquals": {
+                                  "SAML:aud": "https://signin.aws.amazon.com/saml"
+                                }
+                              },
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Federated": "arn:aws:iam::615299752206:saml-provider/AWSSSO_a3bf03f788e071e7_DO_NOT_DELETE"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "description": "Lake Formation full access for development data engineers",
+                        "maxSessionDuration": 43200,
+                        "roleName": "LakeFormation-DataEngineer-Development",
+                        "tags": [
+                          {
+                            "key": "Component",
+                            "value": "LakeFormationIdentityCenterRoles"
+                          },
+                          {
+                            "key": "Environment",
+                            "value": "Development"
+                          },
+                          {
+                            "key": "ManagedBy",
+                            "value": "CDK"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "DefaultPolicy": {
+                    "id": "DefaultPolicy",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataEngineerDevelopment/DefaultPolicy",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "dev-lf-setup-ue2/IdentityCenterRoles/DataEngineerDevelopment/DefaultPolicy/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                          "aws:cdk:cloudformation:props": {
+                            "policyDocument": {
+                              "Statement": [
+                                {
+                                  "Action": "sts:TagSession",
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "lakeformation:*",
+                                    "glue:*",
+                                    "athena:*"
+                                  ],
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": "s3:*",
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:s3:::thirdopinion-raw-development-us-east-2",
+                                    "arn:aws:s3:::thirdopinion-raw-development-us-east-2/*",
+                                    "arn:aws:s3:::thirdopinion-curated-development-us-east-2",
+                                    "arn:aws:s3:::thirdopinion-curated-development-us-east-2/*"
+                                  ]
+                                },
+                                {
+                                  "Action": [
+                                    "logs:CreateLogGroup",
+                                    "logs:CreateLogStream",
+                                    "logs:PutLogEvents",
+                                    "logs:DescribeLogGroups",
+                                    "logs:DescribeLogStreams"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:logs:us-east-2:615299752206:log-group:/aws/athena/*",
+                                    "arn:aws:logs:us-east-2:615299752206:log-group:/aws/lakeformation/*"
+                                  ]
+                                }
+                              ],
+                              "Version": "2012-10-17"
+                            },
+                            "policyName": "IdentityCenterRolesDataEngineerDevelopmentDefaultPolicy07CAF21F",
+                            "roles": [
+                              {
+                                "Ref": "IdentityCenterRolesDataEngineerDevelopment645BCA2F"
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                          "version": "2.136.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.Policy",
+                      "version": "2.136.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.136.0"
+                }
+              },
+              "AdminDevelopment": {
+                "id": "AdminDevelopment",
+                "path": "dev-lf-setup-ue2/IdentityCenterRoles/AdminDevelopment",
+                "children": {
+                  "ImportAdminDevelopment": {
+                    "id": "ImportAdminDevelopment",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/AdminDevelopment/ImportAdminDevelopment",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/AdminDevelopment/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRoleWithSAML",
+                              "Condition": {
+                                "StringEquals": {
+                                  "SAML:aud": "https://signin.aws.amazon.com/saml"
+                                }
+                              },
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Federated": "arn:aws:iam::615299752206:saml-provider/AWSSSO_a3bf03f788e071e7_DO_NOT_DELETE"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "description": "Lake Formation administrative access for development",
+                        "managedPolicyArns": [
+                          {
+                            "Fn::Join": [
+                              "",
+                              [
+                                "arn:",
+                                {
+                                  "Ref": "AWS::Partition"
+                                },
+                                ":iam::aws:policy/AWSLakeFormationDataAdmin"
+                              ]
+                            ]
+                          }
+                        ],
+                        "maxSessionDuration": 43200,
+                        "roleName": "LakeFormation-Admin-Development",
+                        "tags": [
+                          {
+                            "key": "Component",
+                            "value": "LakeFormationIdentityCenterRoles"
+                          },
+                          {
+                            "key": "Environment",
+                            "value": "Development"
+                          },
+                          {
+                            "key": "ManagedBy",
+                            "value": "CDK"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "DefaultPolicy": {
+                    "id": "DefaultPolicy",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/AdminDevelopment/DefaultPolicy",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "dev-lf-setup-ue2/IdentityCenterRoles/AdminDevelopment/DefaultPolicy/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                          "aws:cdk:cloudformation:props": {
+                            "policyDocument": {
+                              "Statement": [
+                                {
+                                  "Action": "sts:TagSession",
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "lakeformation:*",
+                                    "iam:ListRoles",
+                                    "iam:ListUsers",
+                                    "iam:ListGroups",
+                                    "iam:GetRole",
+                                    "iam:GetUser",
+                                    "iam:GetGroup",
+                                    "organizations:DescribeOrganization",
+                                    "organizations:ListAccounts",
+                                    "cloudtrail:DescribeTrails",
+                                    "cloudtrail:LookupEvents"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": "lakeformation:*",
+                                  "Condition": {
+                                    "StringLike": {
+                                      "aws:userid": "*:*production*"
+                                    }
+                                  },
+                                  "Effect": "Deny",
+                                  "Resource": "*"
+                                }
+                              ],
+                              "Version": "2012-10-17"
+                            },
+                            "policyName": "IdentityCenterRolesAdminDevelopmentDefaultPolicy0475177D",
+                            "roles": [
+                              {
+                                "Ref": "IdentityCenterRolesAdminDevelopment5C8E272F"
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                          "version": "2.136.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.Policy",
+                      "version": "2.136.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.136.0"
+                }
+              },
+              "CatalogCreatorDevelopment": {
+                "id": "CatalogCreatorDevelopment",
+                "path": "dev-lf-setup-ue2/IdentityCenterRoles/CatalogCreatorDevelopment",
+                "children": {
+                  "ImportCatalogCreatorDevelopment": {
+                    "id": "ImportCatalogCreatorDevelopment",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/CatalogCreatorDevelopment/ImportCatalogCreatorDevelopment",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/CatalogCreatorDevelopment/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRoleWithSAML",
+                              "Condition": {
+                                "StringEquals": {
+                                  "SAML:aud": "https://signin.aws.amazon.com/saml"
+                                }
+                              },
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Federated": "arn:aws:iam::615299752206:saml-provider/AWSSSO_a3bf03f788e071e7_DO_NOT_DELETE"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "description": "Lake Formation catalog creator access for development",
+                        "maxSessionDuration": 43200,
+                        "roleName": "LakeFormation-CatalogCreator-Development",
+                        "tags": [
+                          {
+                            "key": "Component",
+                            "value": "LakeFormationIdentityCenterRoles"
+                          },
+                          {
+                            "key": "Environment",
+                            "value": "Development"
+                          },
+                          {
+                            "key": "ManagedBy",
+                            "value": "CDK"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "DefaultPolicy": {
+                    "id": "DefaultPolicy",
+                    "path": "dev-lf-setup-ue2/IdentityCenterRoles/CatalogCreatorDevelopment/DefaultPolicy",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "dev-lf-setup-ue2/IdentityCenterRoles/CatalogCreatorDevelopment/DefaultPolicy/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                          "aws:cdk:cloudformation:props": {
+                            "policyDocument": {
+                              "Statement": [
+                                {
+                                  "Action": "sts:TagSession",
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "glue:CreateDatabase",
+                                    "glue:UpdateDatabase",
+                                    "glue:DeleteDatabase",
+                                    "glue:GetDatabase",
+                                    "glue:GetDatabases",
+                                    "glue:CreateTable",
+                                    "glue:UpdateTable",
+                                    "glue:DeleteTable",
+                                    "glue:GetTable",
+                                    "glue:GetTables",
+                                    "lakeformation:GrantPermissions",
+                                    "lakeformation:RevokePermissions",
+                                    "lakeformation:ListPermissions",
+                                    "lakeformation:BatchGrantPermissions",
+                                    "lakeformation:BatchRevokePermissions"
+                                  ],
+                                  "Condition": {
+                                    "StringEquals": {
+                                      "aws:RequestedRegion": "us-east-2"
+                                    }
+                                  },
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "lakeformation:RegisterResource",
+                                    "lakeformation:DeregisterResource",
+                                    "lakeformation:DescribeResource",
+                                    "lakeformation:ListResources"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "s3:ListBucket",
+                                    "s3:GetBucketLocation"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    "arn:aws:s3:::thirdopinion-raw-development-us-east-2",
+                                    "arn:aws:s3:::thirdopinion-curated-development-us-east-2"
+                                  ]
+                                }
+                              ],
+                              "Version": "2012-10-17"
+                            },
+                            "policyName": "IdentityCenterRolesCatalogCreatorDevelopmentDefaultPolicy21A03B41",
+                            "roles": [
+                              {
+                                "Ref": "IdentityCenterRolesCatalogCreatorDevelopmentAC5E2C70"
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                          "version": "2.136.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.Policy",
+                      "version": "2.136.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "DataLakeSettings": {
+            "id": "DataLakeSettings",
+            "path": "dev-lf-setup-ue2/DataLakeSettings",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::DataLakeSettings",
+              "aws:cdk:cloudformation:props": {
+                "admins": [
+                  {
+                    "dataLakePrincipalIdentifier": {
+                      "Fn::GetAtt": [
+                        "LakeFormationServiceRole2DAEA7AF",
+                        "Arn"
+                      ]
+                    }
+                  },
+                  {
+                    "dataLakePrincipalIdentifier": {
+                      "Fn::GetAtt": [
+                        "IdentityCenterRolesAdminDevelopment5C8E272F",
+                        "Arn"
+                      ]
+                    }
+                  }
+                ],
+                "trustedResourceOwners": [
+                  "615299752206"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnDataLakeSettings",
+              "version": "2.136.0"
+            }
+          },
+          "ExternalFhirRawDatabase": {
+            "id": "ExternalFhirRawDatabase",
+            "path": "dev-lf-setup-ue2/ExternalFhirRawDatabase",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::Glue::Database",
+              "aws:cdk:cloudformation:props": {
+                "catalogId": "615299752206",
+                "databaseInput": {
+                  "description": "Raw FHIR data for tenant (10000000-0000-0000-0000-000000000001) in Development",
+                  "locationUri": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "s3://",
+                        {
+                          "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputRefRawDataBucket57F26C0354920F72"
+                        },
+                        "/tenant_10000000-0000-0000-0000-000000000001/raw/"
+                      ]
+                    ]
+                  },
+                  "name": "fhir_raw_10000000_development",
+                  "parameters": {
+                    "classification": "json",
+                    "dataFormat": "ndjson",
+                    "tenantId": "10000000-0000-0000-0000-000000000001",
+                    "partitionKeys": "source_system,import_date"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_glue.CfnDatabase",
+              "version": "2.136.0"
+            }
+          },
+          "ExternalFhirCuratedDatabase": {
+            "id": "ExternalFhirCuratedDatabase",
+            "path": "dev-lf-setup-ue2/ExternalFhirCuratedDatabase",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::Glue::Database",
+              "aws:cdk:cloudformation:props": {
+                "catalogId": "615299752206",
+                "databaseInput": {
+                  "description": "Processed FHIR data for tenant (10000000-0000-0000-0000-000000000001) ready for HealthLake import",
+                  "locationUri": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "s3://",
+                        {
+                          "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputRefCuratedDataBucket8D7AC6D2283880CC"
+                        },
+                        "/tenant_10000000-0000-0000-0000-000000000001/curated/"
+                      ]
+                    ]
+                  },
+                  "name": "fhir_curated_10000000_development",
+                  "parameters": {
+                    "classification": "json",
+                    "dataFormat": "ndjson",
+                    "tenantId": "10000000-0000-0000-0000-000000000001",
+                    "partitionKeys": "import_date",
+                    "purpose": "healthlake-import-staging",
+                    "healthLakeDatastoreIds": "84900062ba24dbc5c52e740dcb316001"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_glue.CfnDatabase",
+              "version": "2.136.0"
+            }
+          },
+          "MetadataDatabase": {
+            "id": "MetadataDatabase",
+            "path": "dev-lf-setup-ue2/MetadataDatabase",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::Glue::Database",
+              "aws:cdk:cloudformation:props": {
+                "catalogId": "615299752206",
+                "databaseInput": {
+                  "description": "Metadata for tenant (10000000-0000-0000-0000-000000000001) FHIR imports and ETL jobs",
+                  "locationUri": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "s3://",
+                        {
+                          "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputRefRawDataBucket57F26C0354920F72"
+                        },
+                        "/tenant_10000000-0000-0000-0000-000000000001/metadata/"
+                      ]
+                    ]
+                  },
+                  "name": "fhir_metadata_10000000_development",
+                  "parameters": {
+                    "classification": "parquet",
+                    "compressionType": "snappy",
+                    "tenantId": "10000000-0000-0000-0000-000000000001"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_glue.CfnDatabase",
+              "version": "2.136.0"
+            }
+          },
+          "RawDataResource": {
+            "id": "RawDataResource",
+            "path": "dev-lf-setup-ue2/RawDataResource",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Resource",
+              "aws:cdk:cloudformation:props": {
+                "resourceArn": {
+                  "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+                },
+                "roleArn": {
+                  "Fn::GetAtt": [
+                    "LakeFormationServiceRole2DAEA7AF",
+                    "Arn"
+                  ]
+                },
+                "useServiceLinkedRole": false
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnResource",
+              "version": "2.136.0"
+            }
+          },
+          "CuratedDataResource": {
+            "id": "CuratedDataResource",
+            "path": "dev-lf-setup-ue2/CuratedDataResource",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Resource",
+              "aws:cdk:cloudformation:props": {
+                "resourceArn": {
+                  "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+                },
+                "roleArn": {
+                  "Fn::GetAtt": [
+                    "LakeFormationServiceRole2DAEA7AF",
+                    "Arn"
+                  ]
+                },
+                "useServiceLinkedRole": false
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnResource",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-Environment": {
+            "id": "LFTag-Environment",
+            "path": "dev-lf-setup-ue2/LFTag-Environment",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "Environment",
+                "tagValues": [
+                  "Development"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-DataClassification": {
+            "id": "LFTag-DataClassification",
+            "path": "dev-lf-setup-ue2/LFTag-DataClassification",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "DataClassification",
+                "tagValues": [
+                  "Public",
+                  "Internal",
+                  "Confidential"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-PHI": {
+            "id": "LFTag-PHI",
+            "path": "dev-lf-setup-ue2/LFTag-PHI",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "PHI",
+                "tagValues": [
+                  "true",
+                  "false"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-TenantID": {
+            "id": "LFTag-TenantID",
+            "path": "dev-lf-setup-ue2/LFTag-TenantID",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "TenantID",
+                "tagValues": [
+                  "10000000-0000-0000-0000-000000000001"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-TenantName": {
+            "id": "LFTag-TenantName",
+            "path": "dev-lf-setup-ue2/LFTag-TenantName",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "TenantName",
+                "tagValues": [
+                  "TestCustomerDev"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-DataType": {
+            "id": "LFTag-DataType",
+            "path": "dev-lf-setup-ue2/LFTag-DataType",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "DataType",
+                "tagValues": [
+                  "clinical",
+                  "research",
+                  "operational",
+                  "administrative",
+                  "reference"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-Sensitivity": {
+            "id": "LFTag-Sensitivity",
+            "path": "dev-lf-setup-ue2/LFTag-Sensitivity",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "Sensitivity",
+                "tagValues": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-SourceSystem": {
+            "id": "LFTag-SourceSystem",
+            "path": "dev-lf-setup-ue2/LFTag-SourceSystem",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "SourceSystem",
+                "tagValues": [
+                  "epic",
+                  "cerner",
+                  "allscripts",
+                  "healthlake",
+                  "external-api"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "LFTag-HealthLakeDatastore": {
+            "id": "LFTag-HealthLakeDatastore",
+            "path": "dev-lf-setup-ue2/LFTag-HealthLakeDatastore",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::Tag",
+              "aws:cdk:cloudformation:props": {
+                "tagKey": "HealthLakeDatastore",
+                "tagValues": [
+                  "84900062ba24dbc5c52e740dcb316001"
+                ]
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTag",
+              "version": "2.136.0"
+            }
+          },
+          "DatabaseTags-fhirraw10000000development": {
+            "id": "DatabaseTags-fhirraw10000000development",
+            "path": "dev-lf-setup-ue2/DatabaseTags-fhirraw10000000development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::TagAssociation",
+              "aws:cdk:cloudformation:props": {
+                "lfTags": [
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "Environment",
+                    "tagValues": [
+                      "Development"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "TenantID",
+                    "tagValues": [
+                      "10000000-0000-0000-0000-000000000001"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "DataType",
+                    "tagValues": [
+                      "clinical"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "PHI",
+                    "tagValues": [
+                      "false"
+                    ]
+                  }
+                ],
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_raw_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTagAssociation",
+              "version": "2.136.0"
+            }
+          },
+          "DatabaseTags-fhircurated10000000development": {
+            "id": "DatabaseTags-fhircurated10000000development",
+            "path": "dev-lf-setup-ue2/DatabaseTags-fhircurated10000000development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::TagAssociation",
+              "aws:cdk:cloudformation:props": {
+                "lfTags": [
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "Environment",
+                    "tagValues": [
+                      "Development"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "TenantID",
+                    "tagValues": [
+                      "10000000-0000-0000-0000-000000000001"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "DataType",
+                    "tagValues": [
+                      "clinical"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "PHI",
+                    "tagValues": [
+                      "false"
+                    ]
+                  }
+                ],
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_curated_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTagAssociation",
+              "version": "2.136.0"
+            }
+          },
+          "DatabaseTags-fhirmetadata10000000development": {
+            "id": "DatabaseTags-fhirmetadata10000000development",
+            "path": "dev-lf-setup-ue2/DatabaseTags-fhirmetadata10000000development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::TagAssociation",
+              "aws:cdk:cloudformation:props": {
+                "lfTags": [
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "Environment",
+                    "tagValues": [
+                      "Development"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "TenantID",
+                    "tagValues": [
+                      "10000000-0000-0000-0000-000000000001"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "DataType",
+                    "tagValues": [
+                      "operational"
+                    ]
+                  },
+                  {
+                    "catalogId": "615299752206",
+                    "tagKey": "PHI",
+                    "tagValues": [
+                      "false"
+                    ]
+                  }
+                ],
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_metadata_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnTagAssociation",
+              "version": "2.136.0"
+            }
+          },
+          "CDKMetadata": {
+            "id": "CDKMetadata",
+            "path": "dev-lf-setup-ue2/CDKMetadata",
+            "children": {
+              "Default": {
+                "id": "Default",
+                "path": "dev-lf-setup-ue2/CDKMetadata/Default",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnResource",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "Exports": {
+            "id": "Exports",
+            "path": "dev-lf-setup-ue2/Exports",
+            "children": {
+              "Output{\"Fn::GetAtt\":[\"IdentityCenterRolesDataAnalystDevelopment9751DFAA\",\"Arn\"]}": {
+                "id": "Output{\"Fn::GetAtt\":[\"IdentityCenterRolesDataAnalystDevelopment9751DFAA\",\"Arn\"]}",
+                "path": "dev-lf-setup-ue2/Exports/Output{\"Fn::GetAtt\":[\"IdentityCenterRolesDataAnalystDevelopment9751DFAA\",\"Arn\"]}",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              },
+              "Output{\"Fn::GetAtt\":[\"IdentityCenterRolesDataEngineerDevelopment645BCA2F\",\"Arn\"]}": {
+                "id": "Output{\"Fn::GetAtt\":[\"IdentityCenterRolesDataEngineerDevelopment645BCA2F\",\"Arn\"]}",
+                "path": "dev-lf-setup-ue2/Exports/Output{\"Fn::GetAtt\":[\"IdentityCenterRolesDataEngineerDevelopment645BCA2F\",\"Arn\"]}",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "BootstrapVersion": {
+            "id": "BootstrapVersion",
+            "path": "dev-lf-setup-ue2/BootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnParameter",
+              "version": "2.136.0"
+            }
+          },
+          "CheckBootstrapVersion": {
+            "id": "CheckBootstrapVersion",
+            "path": "dev-lf-setup-ue2/CheckBootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnRule",
+              "version": "2.136.0"
+            }
+          }
+        },
+        "constructInfo": {
+          "fqn": "aws-cdk-lib.Stack",
+          "version": "2.136.0"
+        }
+      },
+      "dev-lf-permissions-ue2": {
+        "id": "dev-lf-permissions-ue2",
+        "path": "dev-lf-permissions-ue2",
+        "children": {
+          "DbPermissions-data-analysts-dev-fhir_raw_10000000_development": {
+            "id": "DbPermissions-data-analysts-dev-fhir_raw_10000000_development",
+            "path": "dev-lf-permissions-ue2/DbPermissions-data-analysts-dev-fhir_raw_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+                  }
+                },
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_raw_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "TablePermissions-data-analysts-dev-fhir_raw_10000000_development": {
+            "id": "TablePermissions-data-analysts-dev-fhir_raw_10000000_development",
+            "path": "dev-lf-permissions-ue2/TablePermissions-data-analysts-dev-fhir_raw_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "SELECT",
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+                  }
+                },
+                "resource": {
+                  "table": {
+                    "catalogId": "615299752206",
+                    "databaseName": "fhir_raw_10000000_development",
+                    "tableWildcard": {}
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "DbPermissions-data-analysts-dev-fhir_curated_10000000_development": {
+            "id": "DbPermissions-data-analysts-dev-fhir_curated_10000000_development",
+            "path": "dev-lf-permissions-ue2/DbPermissions-data-analysts-dev-fhir_curated_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+                  }
+                },
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_curated_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "TablePermissions-data-analysts-dev-fhir_curated_10000000_development": {
+            "id": "TablePermissions-data-analysts-dev-fhir_curated_10000000_development",
+            "path": "dev-lf-permissions-ue2/TablePermissions-data-analysts-dev-fhir_curated_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "SELECT",
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+                  }
+                },
+                "resource": {
+                  "table": {
+                    "catalogId": "615299752206",
+                    "databaseName": "fhir_curated_10000000_development",
+                    "tableWildcard": {}
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "DbPermissions-data-analysts-dev-fhir_metadata_10000000_development": {
+            "id": "DbPermissions-data-analysts-dev-fhir_metadata_10000000_development",
+            "path": "dev-lf-permissions-ue2/DbPermissions-data-analysts-dev-fhir_metadata_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+                  }
+                },
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_metadata_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "TablePermissions-data-analysts-dev-fhir_metadata_10000000_development": {
+            "id": "TablePermissions-data-analysts-dev-fhir_metadata_10000000_development",
+            "path": "dev-lf-permissions-ue2/TablePermissions-data-analysts-dev-fhir_metadata_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "SELECT",
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+                  }
+                },
+                "resource": {
+                  "table": {
+                    "catalogId": "615299752206",
+                    "databaseName": "fhir_metadata_10000000_development",
+                    "tableWildcard": {}
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "DbPermissions-data-engineers-dev-fhir_raw_10000000_development": {
+            "id": "DbPermissions-data-engineers-dev-fhir_raw_10000000_development",
+            "path": "dev-lf-permissions-ue2/DbPermissions-data-engineers-dev-fhir_raw_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+                  }
+                },
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_raw_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "TablePermissions-data-engineers-dev-fhir_raw_10000000_development": {
+            "id": "TablePermissions-data-engineers-dev-fhir_raw_10000000_development",
+            "path": "dev-lf-permissions-ue2/TablePermissions-data-engineers-dev-fhir_raw_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "SELECT",
+                  "INSERT",
+                  "DELETE",
+                  "DESCRIBE",
+                  "ALTER",
+                  "DROP"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+                  }
+                },
+                "resource": {
+                  "table": {
+                    "catalogId": "615299752206",
+                    "databaseName": "fhir_raw_10000000_development",
+                    "tableWildcard": {}
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "DbPermissions-data-engineers-dev-fhir_curated_10000000_development": {
+            "id": "DbPermissions-data-engineers-dev-fhir_curated_10000000_development",
+            "path": "dev-lf-permissions-ue2/DbPermissions-data-engineers-dev-fhir_curated_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+                  }
+                },
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_curated_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "TablePermissions-data-engineers-dev-fhir_curated_10000000_development": {
+            "id": "TablePermissions-data-engineers-dev-fhir_curated_10000000_development",
+            "path": "dev-lf-permissions-ue2/TablePermissions-data-engineers-dev-fhir_curated_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "SELECT",
+                  "INSERT",
+                  "DELETE",
+                  "DESCRIBE",
+                  "ALTER",
+                  "DROP"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+                  }
+                },
+                "resource": {
+                  "table": {
+                    "catalogId": "615299752206",
+                    "databaseName": "fhir_curated_10000000_development",
+                    "tableWildcard": {}
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "DbPermissions-data-engineers-dev-fhir_metadata_10000000_development": {
+            "id": "DbPermissions-data-engineers-dev-fhir_metadata_10000000_development",
+            "path": "dev-lf-permissions-ue2/DbPermissions-data-engineers-dev-fhir_metadata_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "DESCRIBE"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+                  }
+                },
+                "resource": {
+                  "database": {
+                    "catalogId": "615299752206",
+                    "name": "fhir_metadata_10000000_development"
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "TablePermissions-data-engineers-dev-fhir_metadata_10000000_development": {
+            "id": "TablePermissions-data-engineers-dev-fhir_metadata_10000000_development",
+            "path": "dev-lf-permissions-ue2/TablePermissions-data-engineers-dev-fhir_metadata_10000000_development",
+            "attributes": {
+              "aws:cdk:cloudformation:type": "AWS::LakeFormation::PrincipalPermissions",
+              "aws:cdk:cloudformation:props": {
+                "permissions": [
+                  "SELECT",
+                  "INSERT",
+                  "DELETE",
+                  "DESCRIBE",
+                  "ALTER",
+                  "DROP"
+                ],
+                "permissionsWithGrantOption": [],
+                "principal": {
+                  "dataLakePrincipalIdentifier": {
+                    "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+                  }
+                },
+                "resource": {
+                  "table": {
+                    "catalogId": "615299752206",
+                    "databaseName": "fhir_metadata_10000000_development",
+                    "tableWildcard": {}
+                  }
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.aws_lakeformation.CfnPrincipalPermissions",
+              "version": "2.136.0"
+            }
+          },
+          "CDKMetadata": {
+            "id": "CDKMetadata",
+            "path": "dev-lf-permissions-ue2/CDKMetadata",
+            "children": {
+              "Default": {
+                "id": "Default",
+                "path": "dev-lf-permissions-ue2/CDKMetadata/Default",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnResource",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "BootstrapVersion": {
+            "id": "BootstrapVersion",
+            "path": "dev-lf-permissions-ue2/BootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnParameter",
+              "version": "2.136.0"
+            }
+          },
+          "CheckBootstrapVersion": {
+            "id": "CheckBootstrapVersion",
+            "path": "dev-lf-permissions-ue2/CheckBootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnRule",
+              "version": "2.136.0"
+            }
+          }
+        },
+        "constructInfo": {
+          "fqn": "aws-cdk-lib.Stack",
+          "version": "2.136.0"
+        }
+      },
+      "dev-healthlake-test-ue2": {
+        "id": "dev-healthlake-test-ue2",
+        "path": "dev-healthlake-test-ue2",
+        "children": {
+          "TestHealthLakeInstance1": {
+            "id": "TestHealthLakeInstance1",
+            "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1",
+            "children": {
+              "DatastoreRole": {
+                "id": "DatastoreRole",
+                "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole",
+                "children": {
+                  "ImportDatastoreRole": {
+                    "id": "ImportDatastoreRole",
+                    "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole/ImportDatastoreRole",
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.Resource",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "Resource": {
+                    "id": "Resource",
+                    "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole/Resource",
+                    "attributes": {
+                      "aws:cdk:cloudformation:type": "AWS::IAM::Role",
+                      "aws:cdk:cloudformation:props": {
+                        "assumeRolePolicyDocument": {
+                          "Statement": [
+                            {
+                              "Action": "sts:AssumeRole",
+                              "Effect": "Allow",
+                              "Principal": {
+                                "Service": "healthlake.amazonaws.com"
+                              }
+                            }
+                          ],
+                          "Version": "2012-10-17"
+                        },
+                        "description": "Role for HealthLake datastore 84900062ba24dbc5c52e740dcb316001",
+                        "roleName": "HealthLakeRole-10000000-Development",
+                        "tags": [
+                          {
+                            "key": "Architecture",
+                            "value": "SingleTenant"
+                          },
+                          {
+                            "key": "Component",
+                            "value": "HealthLakeTestInstance"
+                          },
+                          {
+                            "key": "InstanceCount",
+                            "value": "1"
+                          },
+                          {
+                            "key": "ManagedBy",
+                            "value": "CDK"
+                          }
+                        ]
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.CfnRole",
+                      "version": "2.136.0"
+                    }
+                  },
+                  "DefaultPolicy": {
+                    "id": "DefaultPolicy",
+                    "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole/DefaultPolicy",
+                    "children": {
+                      "Resource": {
+                        "id": "Resource",
+                        "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole/DefaultPolicy/Resource",
+                        "attributes": {
+                          "aws:cdk:cloudformation:type": "AWS::IAM::Policy",
+                          "aws:cdk:cloudformation:props": {
+                            "policyDocument": {
+                              "Statement": [
+                                {
+                                  "Action": [
+                                    "s3:GetObject",
+                                    "s3:ListBucket"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    {
+                                      "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+                                    },
+                                    {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          {
+                                            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+                                          },
+                                          "/tenants/10000000-0000-0000-0000-000000000001/*"
+                                        ]
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Action": [
+                                    "s3:GetObject",
+                                    "s3:ListBucket"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    {
+                                      "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+                                    },
+                                    {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          {
+                                            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+                                          },
+                                          "/tenant_10000000-0000-0000-0000-000000000001/*"
+                                        ]
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Action": [
+                                    "s3:PutObject",
+                                    "s3:PutObjectAcl"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": [
+                                    {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          {
+                                            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+                                          },
+                                          "/tenants/10000000-0000-0000-0000-000000000001/fhir/import-results/*"
+                                        ]
+                                      ]
+                                    },
+                                    {
+                                      "Fn::Join": [
+                                        "",
+                                        [
+                                          {
+                                            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+                                          },
+                                          "/tenant_10000000-0000-0000-0000-000000000001/exports/*"
+                                        ]
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "Action": [
+                                    "logs:CreateLogGroup",
+                                    "logs:CreateLogStream",
+                                    "logs:PutLogEvents"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                },
+                                {
+                                  "Action": [
+                                    "kms:DescribeKey",
+                                    "kms:Decrypt",
+                                    "kms:GenerateDataKey"
+                                  ],
+                                  "Effect": "Allow",
+                                  "Resource": "*"
+                                }
+                              ],
+                              "Version": "2012-10-17"
+                            },
+                            "policyName": "TestHealthLakeInstance1DatastoreRoleDefaultPolicy7D36074A",
+                            "roles": [
+                              {
+                                "Ref": "TestHealthLakeInstance1DatastoreRole5F959857"
+                              }
+                            ]
+                          }
+                        },
+                        "constructInfo": {
+                          "fqn": "aws-cdk-lib.aws_iam.CfnPolicy",
+                          "version": "2.136.0"
+                        }
+                      }
+                    },
+                    "constructInfo": {
+                      "fqn": "aws-cdk-lib.aws_iam.Policy",
+                      "version": "2.136.0"
+                    }
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_iam.Role",
+                  "version": "2.136.0"
+                }
+              },
+              "FHIRDatastore": {
+                "id": "FHIRDatastore",
+                "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/FHIRDatastore",
+                "attributes": {
+                  "aws:cdk:cloudformation:type": "AWS::HealthLake::FHIRDatastore",
+                  "aws:cdk:cloudformation:props": {
+                    "datastoreName": "testcustomerdev-development",
+                    "datastoreTypeVersion": "R4",
+                    "sseConfiguration": {
+                      "kmsEncryptionConfig": {
+                        "cmkType": "AWS_OWNED_KMS_KEY"
+                      }
+                    },
+                    "tags": [
+                      {
+                        "key": "Architecture",
+                        "value": "SingleTenant"
+                      },
+                      {
+                        "key": "Component",
+                        "value": "HealthLakeTestInstance"
+                      },
+                      {
+                        "key": "Environment",
+                        "value": "Development"
+                      },
+                      {
+                        "key": "InstanceCount",
+                        "value": "1"
+                      },
+                      {
+                        "key": "ManagedBy",
+                        "value": "CDK"
+                      },
+                      {
+                        "key": "PHI",
+                        "value": "false"
+                      },
+                      {
+                        "key": "Purpose",
+                        "value": "SingleTenantFHIR"
+                      },
+                      {
+                        "key": "TenantId",
+                        "value": "10000000-0000-0000-0000-000000000001"
+                      },
+                      {
+                        "key": "TenantName",
+                        "value": "TestCustomerDev"
+                      }
+                    ]
+                  }
+                },
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.aws_healthlake.CfnFHIRDatastore",
+                  "version": "2.136.0"
+                }
+              },
+              "DatastoreId": {
+                "id": "DatastoreId",
+                "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreId",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              },
+              "DatastoreArn": {
+                "id": "DatastoreArn",
+                "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreArn",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              },
+              "DatastoreEndpoint": {
+                "id": "DatastoreEndpoint",
+                "path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreEndpoint",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnOutput",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "CDKMetadata": {
+            "id": "CDKMetadata",
+            "path": "dev-healthlake-test-ue2/CDKMetadata",
+            "children": {
+              "Default": {
+                "id": "Default",
+                "path": "dev-healthlake-test-ue2/CDKMetadata/Default",
+                "constructInfo": {
+                  "fqn": "aws-cdk-lib.CfnResource",
+                  "version": "2.136.0"
+                }
+              }
+            },
+            "constructInfo": {
+              "fqn": "constructs.Construct",
+              "version": "10.0.0"
+            }
+          },
+          "BootstrapVersion": {
+            "id": "BootstrapVersion",
+            "path": "dev-healthlake-test-ue2/BootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnParameter",
+              "version": "2.136.0"
+            }
+          },
+          "CheckBootstrapVersion": {
+            "id": "CheckBootstrapVersion",
+            "path": "dev-healthlake-test-ue2/CheckBootstrapVersion",
+            "constructInfo": {
+              "fqn": "aws-cdk-lib.CfnRule",
+              "version": "2.136.0"
+            }
+          }
+        },
+        "constructInfo": {
+          "fqn": "aws-cdk-lib.Stack",
+          "version": "2.136.0"
+        }
+      },
+      "Tree": {
+        "id": "Tree",
+        "path": "Tree",
+        "constructInfo": {
+          "fqn": "constructs.Construct",
+          "version": "10.0.0"
+        }
+      }
+    },
+    "constructInfo": {
+      "fqn": "aws-cdk-lib.App",
+      "version": "2.136.0"
+    }
+  }
+}

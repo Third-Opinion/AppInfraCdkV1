@@ -34,3 +34,5 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/
+/AppInfraCdkV1.InternalApps/LakeFormation/sampledata/synthea/
+/AppInfraCdkV1.InternalApps/LakeFormation/sampledata/generated-data/

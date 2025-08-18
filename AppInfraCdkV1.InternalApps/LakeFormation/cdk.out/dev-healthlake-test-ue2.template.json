@@ -1,0 +1,293 @@
+{
+ "Description": "HealthLake test instances for tenants: TestCustomerDev in Development",
+ "Resources": {
+  "TestHealthLakeInstance1DatastoreRole5F959857": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "healthlake.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Role for HealthLake datastore 84900062ba24dbc5c52e740dcb316001",
+    "RoleName": "HealthLakeRole-10000000-Development",
+    "Tags": [
+     {
+      "Key": "Architecture",
+      "Value": "SingleTenant"
+     },
+     {
+      "Key": "Component",
+      "Value": "HealthLakeTestInstance"
+     },
+     {
+      "Key": "InstanceCount",
+      "Value": "1"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole/Resource"
+   }
+  },
+  "TestHealthLakeInstance1DatastoreRoleDefaultPolicy7D36074A": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+           },
+           "/tenants/10000000-0000-0000-0000-000000000001/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+           },
+           "/tenant_10000000-0000-0000-0000-000000000001/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:PutObject",
+        "s3:PutObjectAcl"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttRawDataBucket57F26C03Arn307EA583"
+           },
+           "/tenants/10000000-0000-0000-0000-000000000001/fhir/import-results/*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "dev-lf-storage-ue2:ExportsOutputFnGetAttCuratedDataBucket8D7AC6D2ArnE51012FE"
+           },
+           "/tenant_10000000-0000-0000-0000-000000000001/exports/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "kms:DescribeKey",
+        "kms:Decrypt",
+        "kms:GenerateDataKey"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TestHealthLakeInstance1DatastoreRoleDefaultPolicy7D36074A",
+    "Roles": [
+     {
+      "Ref": "TestHealthLakeInstance1DatastoreRole5F959857"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/DatastoreRole/DefaultPolicy/Resource"
+   }
+  },
+  "TestHealthLakeInstance1FHIRDatastore843D7B9D": {
+   "Type": "AWS::HealthLake::FHIRDatastore",
+   "Properties": {
+    "DatastoreName": "testcustomerdev-development",
+    "DatastoreTypeVersion": "R4",
+    "SseConfiguration": {
+     "KmsEncryptionConfig": {
+      "CmkType": "AWS_OWNED_KMS_KEY"
+     }
+    },
+    "Tags": [
+     {
+      "Key": "Architecture",
+      "Value": "SingleTenant"
+     },
+     {
+      "Key": "Component",
+      "Value": "HealthLakeTestInstance"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Development"
+     },
+     {
+      "Key": "InstanceCount",
+      "Value": "1"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "PHI",
+      "Value": "false"
+     },
+     {
+      "Key": "Purpose",
+      "Value": "SingleTenantFHIR"
+     },
+     {
+      "Key": "TenantId",
+      "Value": "10000000-0000-0000-0000-000000000001"
+     },
+     {
+      "Key": "TenantName",
+      "Value": "TestCustomerDev"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-healthlake-test-ue2/TestHealthLakeInstance1/FHIRDatastore"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/y2MwQ6CMBBEv8V7WagY48WDAY1e0FTj1VRcQqW0pF0khvDvBjBzeDOTzCyBx2uIFrLzQf6qAq2e0F9J5hWTnX/0StbQC6uRJYWZeLFa5d8xzm5gJUpNpZYVQlKYw/EkUknSk3U4MIHeti6f9ueWmpamp387sNRShhRuIAK+CiHb3xLrcNc0wR2dV9ZsPzHwkEM0avH2SgWuNaRqBDHzBy2N/BzEAAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-healthlake-test-ue2/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "TestHealthLakeInstance1DatastoreIdF17B4C32": {
+   "Description": "HealthLake Datastore ID for tenant TestCustomerDev",
+   "Value": {
+    "Fn::GetAtt": [
+     "TestHealthLakeInstance1FHIRDatastore843D7B9D",
+     "DatastoreId"
+    ]
+   },
+   "Export": {
+    "Name": "HealthLake-10000000-DatastoreId"
+   }
+  },
+  "TestHealthLakeInstance1DatastoreArn8AD020D5": {
+   "Description": "HealthLake Datastore ARN for tenant TestCustomerDev",
+   "Value": {
+    "Fn::GetAtt": [
+     "TestHealthLakeInstance1FHIRDatastore843D7B9D",
+     "DatastoreArn"
+    ]
+   },
+   "Export": {
+    "Name": "HealthLake-10000000-DatastoreArn"
+   }
+  },
+  "TestHealthLakeInstance1DatastoreEndpoint202E28AF": {
+   "Description": "HealthLake FHIR API endpoint for tenant TestCustomerDev",
+   "Value": {
+    "Fn::GetAtt": [
+     "TestHealthLakeInstance1FHIRDatastore843D7B9D",
+     "DatastoreEndpoint"
+    ]
+   },
+   "Export": {
+    "Name": "HealthLake-10000000-Endpoint"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

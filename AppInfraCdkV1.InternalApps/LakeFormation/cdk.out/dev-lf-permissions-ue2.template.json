@@ -1,0 +1,348 @@
+{
+ "Description": "Lake Formation permissions for Development",
+ "Resources": {
+  "DbPermissionsdataanalystsdevfhirraw10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+     }
+    },
+    "Resource": {
+     "Database": {
+      "CatalogId": "615299752206",
+      "Name": "fhir_raw_10000000_development"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/DbPermissions-data-analysts-dev-fhir_raw_10000000_development"
+   }
+  },
+  "TablePermissionsdataanalystsdevfhirraw10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "SELECT",
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+     }
+    },
+    "Resource": {
+     "Table": {
+      "CatalogId": "615299752206",
+      "DatabaseName": "fhir_raw_10000000_development",
+      "TableWildcard": {}
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/TablePermissions-data-analysts-dev-fhir_raw_10000000_development"
+   }
+  },
+  "DbPermissionsdataanalystsdevfhircurated10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+     }
+    },
+    "Resource": {
+     "Database": {
+      "CatalogId": "615299752206",
+      "Name": "fhir_curated_10000000_development"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/DbPermissions-data-analysts-dev-fhir_curated_10000000_development"
+   }
+  },
+  "TablePermissionsdataanalystsdevfhircurated10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "SELECT",
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+     }
+    },
+    "Resource": {
+     "Table": {
+      "CatalogId": "615299752206",
+      "DatabaseName": "fhir_curated_10000000_development",
+      "TableWildcard": {}
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/TablePermissions-data-analysts-dev-fhir_curated_10000000_development"
+   }
+  },
+  "DbPermissionsdataanalystsdevfhirmetadata10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+     }
+    },
+    "Resource": {
+     "Database": {
+      "CatalogId": "615299752206",
+      "Name": "fhir_metadata_10000000_development"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/DbPermissions-data-analysts-dev-fhir_metadata_10000000_development"
+   }
+  },
+  "TablePermissionsdataanalystsdevfhirmetadata10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "SELECT",
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataAnalystDevelopment9751DFAAArnA9D03F26"
+     }
+    },
+    "Resource": {
+     "Table": {
+      "CatalogId": "615299752206",
+      "DatabaseName": "fhir_metadata_10000000_development",
+      "TableWildcard": {}
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/TablePermissions-data-analysts-dev-fhir_metadata_10000000_development"
+   }
+  },
+  "DbPermissionsdataengineersdevfhirraw10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+     }
+    },
+    "Resource": {
+     "Database": {
+      "CatalogId": "615299752206",
+      "Name": "fhir_raw_10000000_development"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/DbPermissions-data-engineers-dev-fhir_raw_10000000_development"
+   }
+  },
+  "TablePermissionsdataengineersdevfhirraw10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "SELECT",
+     "INSERT",
+     "DELETE",
+     "DESCRIBE",
+     "ALTER",
+     "DROP"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+     }
+    },
+    "Resource": {
+     "Table": {
+      "CatalogId": "615299752206",
+      "DatabaseName": "fhir_raw_10000000_development",
+      "TableWildcard": {}
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/TablePermissions-data-engineers-dev-fhir_raw_10000000_development"
+   }
+  },
+  "DbPermissionsdataengineersdevfhircurated10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+     }
+    },
+    "Resource": {
+     "Database": {
+      "CatalogId": "615299752206",
+      "Name": "fhir_curated_10000000_development"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/DbPermissions-data-engineers-dev-fhir_curated_10000000_development"
+   }
+  },
+  "TablePermissionsdataengineersdevfhircurated10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "SELECT",
+     "INSERT",
+     "DELETE",
+     "DESCRIBE",
+     "ALTER",
+     "DROP"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+     }
+    },
+    "Resource": {
+     "Table": {
+      "CatalogId": "615299752206",
+      "DatabaseName": "fhir_curated_10000000_development",
+      "TableWildcard": {}
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/TablePermissions-data-engineers-dev-fhir_curated_10000000_development"
+   }
+  },
+  "DbPermissionsdataengineersdevfhirmetadata10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "DESCRIBE"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+     }
+    },
+    "Resource": {
+     "Database": {
+      "CatalogId": "615299752206",
+      "Name": "fhir_metadata_10000000_development"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/DbPermissions-data-engineers-dev-fhir_metadata_10000000_development"
+   }
+  },
+  "TablePermissionsdataengineersdevfhirmetadata10000000development": {
+   "Type": "AWS::LakeFormation::PrincipalPermissions",
+   "Properties": {
+    "Permissions": [
+     "SELECT",
+     "INSERT",
+     "DELETE",
+     "DESCRIBE",
+     "ALTER",
+     "DROP"
+    ],
+    "PermissionsWithGrantOption": [],
+    "Principal": {
+     "DataLakePrincipalIdentifier": {
+      "Fn::ImportValue": "dev-lf-setup-ue2:ExportsOutputFnGetAttIdentityCenterRolesDataEngineerDevelopment645BCA2FArn64F0DABC"
+     }
+    },
+    "Resource": {
+     "Table": {
+      "CatalogId": "615299752206",
+      "DatabaseName": "fhir_metadata_10000000_development",
+      "TableWildcard": {}
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/TablePermissions-data-engineers-dev-fhir_metadata_10000000_development"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yXKsQ6CMBCA4Wdhp1cqxrg4GHQlBI2rqfVIztKW3BUZjO9uiPmHb/k3YOodVIVdRLmnVyM94HPJ1vnSLnIfrcchcbCZUoRmiB1TdDTZsUMOJEIpStkMsUdJMzv8lqeUW8x6DxWYrYb2fG0S43Ga1A15/Q/vGow2UK0VLyFSPMdMAaH/+wO1sBNRlQAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "dev-lf-permissions-ue2/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

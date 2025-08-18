@@ -47,11 +47,8 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation
         [JsonPropertyName("tenantName")]
         public string TenantName { get; set; } = string.Empty; // Human-readable tenant/customer name
         
-        [JsonPropertyName("enableSampleData")]
-        public bool EnableSampleData { get; set; } = false; // For test instances
-        
         [JsonPropertyName("markAsPHI")]
-        public bool MarkAsPHI { get; set; } = false; // Mark sample data as PHI
+        public bool MarkAsPHI { get; set; } = false; // Whether this contains PHI
     }
     
     public class IdentityCenterConfig

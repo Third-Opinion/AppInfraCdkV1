@@ -3,6 +3,7 @@ using Amazon.CDK.AWS.LakeFormation;
 using Amazon.CDK.AWS.Glue;
 using Amazon.CDK.AWS.IAM;
 using Constructs;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AppInfraCdkV1.InternalApps.LakeFormation.Constructs;
@@ -12,6 +13,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
     public class LakeFormationSetupStack : Stack
     {
         public List<CfnDatabase> Databases { get; private set; }
+        public Dictionary<CfnDatabase, string> DatabaseNames { get; private set; }
         public Role LakeFormationServiceRole { get; private set; }
         public CfnDataLakeSettings DataLakeSettings { get; private set; }
         public LakeFormationIdentityCenterRolesConstruct IdentityCenterRoles { get; private set; }
@@ -26,6 +28,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             _config = config;
             _storageStack = storageStack;
             Databases = new List<CfnDatabase>();
+            DatabaseNames = new Dictionary<CfnDatabase, string>();
             
             // Add explicit dependency on storage stack
             AddDependency(storageStack);
@@ -36,7 +39,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
             CreateGlueDatabases();
             RegisterS3Locations();
             CreateLakeFormationTags();
-            // TODO: ApplyLakeFormationTagsToResources() - implement tag assignments separately
+            ApplyDatabaseLevelTags();
             
             Amazon.CDK.Tags.Of(this).Add("Component", "LakeFormationSetup");
             Amazon.CDK.Tags.Of(this).Add("ManagedBy", "CDK");
@@ -201,7 +204,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 }
             });
             
+            var rawDbName = $"fhir_raw_{shortTenantId}_{_config.Environment.ToLower()}";
             Databases.Add(rawDatabase);
+            DatabaseNames[rawDatabase] = rawDbName;
             
             // Create curated database for processed FHIR data ready for HealthLake import
             var curatedDatabase = new CfnDatabase(this, "ExternalFhirCuratedDatabase", new CfnDatabaseProps
@@ -224,7 +229,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 }
             });
             
+            var curatedDbName = $"fhir_curated_{shortTenantId}_{_config.Environment.ToLower()}";
             Databases.Add(curatedDatabase);
+            DatabaseNames[curatedDatabase] = curatedDbName;
             
             // Note: HealthLake will create its own Glue catalog with Iceberg tables after import
             // Those databases/tables will be named according to HealthLake's convention
@@ -248,7 +255,9 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                 }
             });
             
+            var metadataDbName = $"fhir_metadata_{shortTenantId}_{_config.Environment.ToLower()}";
             Databases.Add(metadataDatabase);
+            DatabaseNames[metadataDatabase] = metadataDbName;
         }
         
         private void RegisterS3Locations()
@@ -309,6 +318,88 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Stacks
                     TagKey = tag.Key,
                     TagValues = tag.Value
                 });
+            }
+        }
+        
+        private void ApplyDatabaseLevelTags()
+        {
+            var tenantId = _config.BucketConfig.SingleTenantId;
+            var environment = _config.Environment;
+            
+            // Apply tags to each database at the database level only
+            Console.WriteLine($"DEBUG: Found {Databases.Count} databases to tag");
+            foreach (var database in Databases)
+            {
+                // Get the database name from our dictionary
+                if (!DatabaseNames.TryGetValue(database, out var databaseName))
+                {
+                    Console.WriteLine($"DEBUG: Database name not found in dictionary for database");
+                    continue;
+                }
+                
+                Console.WriteLine($"DEBUG: Processing database with name: {databaseName}");
+                
+                if (databaseName != null)
+                {
+                    // Determine tag values based on database type
+                    string dataType = databaseName.Contains("metadata") ? "operational" : "clinical";
+                    string phiValue = environment.ToLower() == "production" ? "true" : "false";
+                    
+                    // Create LF-Tag pairs with proper CatalogId (CRITICAL: This was missing!)
+                    var lfTagPairs = new List<CfnTagAssociation.LFTagPairProperty>
+                    {
+                        new CfnTagAssociation.LFTagPairProperty
+                        {
+                            CatalogId = _config.AccountId,  // Required property that was missing
+                            TagKey = "Environment",
+                            TagValues = new[] { environment }
+                        },
+                        new CfnTagAssociation.LFTagPairProperty
+                        {
+                            CatalogId = _config.AccountId,
+                            TagKey = "TenantID",
+                            TagValues = new[] { tenantId }
+                        },
+                        new CfnTagAssociation.LFTagPairProperty
+                        {
+                            CatalogId = _config.AccountId,
+                            TagKey = "DataType",
+                            TagValues = new[] { dataType }
+                        },
+                        new CfnTagAssociation.LFTagPairProperty
+                        {
+                            CatalogId = _config.AccountId,
+                            TagKey = "PHI",
+                            TagValues = new[] { phiValue }
+                        }
+                    };
+                    
+                    // Create the TagAssociation resource
+                    var tagAssociation = new CfnTagAssociation(this, $"DatabaseTags-{databaseName.Replace("_", "")}", new CfnTagAssociationProps
+                    {
+                        LfTags = lfTagPairs.ToArray(),
+                        Resource = new CfnTagAssociation.ResourceProperty
+                        {
+                            Database = new CfnTagAssociation.DatabaseResourceProperty
+                            {
+                                CatalogId = _config.AccountId,
+                                Name = databaseName
+                            }
+                        }
+                    });
+                    
+                    // Add explicit dependency on the database resource to ensure proper ordering
+                    tagAssociation.AddDependency(database);
+                    
+                    // Also add dependency on the LF-Tags to ensure they exist before association
+                    var environmentTag = this.Node.TryFindChild($"LFTag-Environment");
+                    if (environmentTag != null)
+                    {
+                        tagAssociation.AddDependency(environmentTag as Amazon.CDK.CfnResource);
+                    }
+                    
+                    Console.WriteLine($"DEBUG: Created TagAssociation for {databaseName} with {lfTagPairs.Count} tags");
+                }
             }
         }
     }

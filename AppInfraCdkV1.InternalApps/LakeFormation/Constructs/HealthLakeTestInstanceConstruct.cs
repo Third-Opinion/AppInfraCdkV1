@@ -2,7 +2,6 @@ using Amazon.CDK;
 using Amazon.CDK.AWS.HealthLake;
 using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.S3;
-using Amazon.CDK.AWS.Lambda;
 using Constructs;
 using System;
 using System.Collections.Generic;
@@ -17,25 +16,21 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
     {
         public CfnFHIRDatastore Datastore { get; private set; }
         public Role DatastoreRole { get; private set; }
-        public Function SampleDataLoader { get; private set; }
         
         private readonly LakeFormationEnvironmentConfig _config;
-        private readonly Bucket _importBucket;
+        private readonly Bucket _rawBucket;
+        private readonly Bucket _curatedBucket;
         
         public HealthLakeTestInstanceConstruct(Construct scope, string id, 
-            LakeFormationEnvironmentConfig config, HealthLakeConfig healthLakeConfig, Bucket importBucket) 
+            LakeFormationEnvironmentConfig config, HealthLakeConfig healthLakeConfig, Bucket rawBucket, Bucket curatedBucket) 
             : base(scope, id)
         {
             _config = config;
-            _importBucket = importBucket;
+            _rawBucket = rawBucket;
+            _curatedBucket = curatedBucket;
             
             CreateDatastoreRole(healthLakeConfig);
             CreateHealthLakeDatastore(healthLakeConfig);
-            
-            if (healthLakeConfig.EnableSampleData)
-            {
-                CreateSampleDataLoader(healthLakeConfig);
-            }
         }
         
         private void CreateDatastoreRole(HealthLakeConfig healthLakeConfig)
@@ -47,7 +42,7 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 RoleName = $"HealthLakeRole-{healthLakeConfig.TenantId.Substring(0, 8)}-{_config.Environment}"
             });
             
-            // Grant access to the import bucket for this tenant only
+            // Grant access to the raw bucket for imports (reading FHIR data)
             DatastoreRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
             {
                 Effect = Effect.ALLOW,
@@ -58,12 +53,28 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 },
                 Resources = new[]
                 {
-                    _importBucket.BucketArn,
-                    $"{_importBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/*"
+                    _rawBucket.BucketArn,
+                    $"{_rawBucket.BucketArn}/tenants/{healthLakeConfig.TenantId}/*"
                 }
             }));
             
-            // Grant access to write export data
+            // Grant access to the curated bucket for exports
+            DatastoreRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+            {
+                Effect = Effect.ALLOW,
+                Actions = new[]
+                {
+                    "s3:GetObject",
+                    "s3:ListBucket"
+                },
+                Resources = new[]
+                {
+                    _curatedBucket.BucketArn,
+                    $"{_curatedBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/*"
+                }
+            }));
+            
+            // Grant access to write export data and import results
             DatastoreRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
             {
                 Effect = Effect.ALLOW,
@@ -74,7 +85,8 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 },
                 Resources = new[]
                 {
-                    $"{_importBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/exports/*"
+                    $"{_rawBucket.BucketArn}/tenants/{healthLakeConfig.TenantId}/fhir/import-results/*",
+                    $"{_curatedBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/exports/*"
                 }
             }));
             
@@ -90,6 +102,19 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 },
                 Resources = new[] { "*" }
             }));
+            
+            // Grant KMS permissions for S3 encryption
+            DatastoreRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+            {
+                Effect = Effect.ALLOW,
+                Actions = new[]
+                {
+                    "kms:DescribeKey",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey"
+                },
+                Resources = new[] { "*" }
+            }));
         }
         
         private void CreateHealthLakeDatastore(HealthLakeConfig healthLakeConfig)
@@ -102,11 +127,6 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
             {
                 DatastoreName = datastoreName,
                 DatastoreTypeVersion = "R4",
-                PreloadDataConfig = healthLakeConfig.EnableSampleData ? 
-                    new CfnFHIRDatastore.PreloadDataConfigProperty
-                    {
-                        PreloadDataType = "SYNTHEA"
-                    } : null,
                 SseConfiguration = new CfnFHIRDatastore.SseConfigurationProperty
                 {
                     KmsEncryptionConfig = new CfnFHIRDatastore.KmsEncryptionConfigProperty
@@ -146,140 +166,6 @@ namespace AppInfraCdkV1.InternalApps.LakeFormation.Constructs
                 Description = $"HealthLake FHIR API endpoint for tenant {healthLakeConfig.TenantName}",
                 ExportName = $"HealthLake-{healthLakeConfig.TenantId.Substring(0, 8)}-Endpoint"
             });
-        }
-        
-        private void CreateSampleDataLoader(HealthLakeConfig healthLakeConfig)
-        {
-            // Lambda function to load sample FHIR data and mark as PHI if configured
-            var lambdaRole = new Role(this, "SampleDataLoaderRole", new RoleProps
-            {
-                AssumedBy = new ServicePrincipal("lambda.amazonaws.com"),
-                ManagedPolicies = new[]
-                {
-                    ManagedPolicy.FromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
-                }
-            });
-            
-            // Grant HealthLake permissions
-            lambdaRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
-            {
-                Effect = Effect.ALLOW,
-                Actions = new[]
-                {
-                    "healthlake:CreateResource",
-                    "healthlake:UpdateResource",
-                    "healthlake:ReadResource",
-                    "healthlake:SearchWithPost"
-                },
-                Resources = new[] { Datastore.AttrDatastoreArn }
-            }));
-            
-            // Grant S3 permissions for sample data
-            lambdaRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
-            {
-                Effect = Effect.ALLOW,
-                Actions = new[]
-                {
-                    "s3:GetObject",
-                    "s3:PutObject"
-                },
-                Resources = new[]
-                {
-                    $"{_importBucket.BucketArn}/tenant_{healthLakeConfig.TenantId}/sample-data/*"
-                }
-            }));
-            
-            SampleDataLoader = new Function(this, "SampleDataLoader", new FunctionProps
-            {
-                Runtime = Runtime.PYTHON_3_11,
-                Handler = "index.handler",
-                Code = Code.FromInline(@"
-import json
-import boto3
-import os
-
-def handler(event, context):
-    '''
-    Load sample FHIR data into HealthLake.
-    This function would typically:
-    1. Generate or retrieve sample FHIR resources
-    2. Upload to HealthLake using the FHIR API
-    Note: Security labels are applied at the datastore level, not on individual resources
-    '''
-    
-    datastore_id = os.environ['DATASTORE_ID']
-    tenant_id = os.environ['TENANT_ID']
-    tenant_name = os.environ['TENANT_NAME']
-    
-    # Sample Patient resource - clean FHIR data without security labels
-    patient = {
-        'resourceType': 'Patient',
-        'meta': {
-            'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient']
-        },
-        'identifier': [{
-            'system': f'http://thirdopinion.io/tenant/{tenant_id}',
-            'value': 'sample-patient-001'
-        }],
-        'name': [{
-            'use': 'official',
-            'family': 'TestPatient',
-            'given': ['Sample']
-        }],
-        'gender': 'unknown',
-        'birthDate': '2000-01-01'
-    }
-    
-    # Sample Observation resource
-    observation = {
-        'resourceType': 'Observation',
-        'status': 'final',
-        'code': {
-            'coding': [{
-                'system': 'http://loinc.org',
-                'code': '8867-4',
-                'display': 'Heart rate'
-            }]
-        },
-        'subject': {
-            'reference': 'Patient/sample-patient-001'
-        },
-        'valueQuantity': {
-            'value': 72,
-            'unit': 'beats/minute',
-            'system': 'http://unitsofmeasure.org',
-            'code': '/min'
-        }
-    }
-    
-    print(f'Sample data loader completed for tenant {tenant_name} ({tenant_id})')
-    print(f'Datastore: {datastore_id}')
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps({
-            'message': 'Sample data loaded successfully',
-            'tenantId': tenant_id,
-            'tenantName': tenant_name,
-            'datastoreId': datastore_id
-        })
-    }
-"),
-                Environment = new Dictionary<string, string>
-                {
-                    ["DATASTORE_ID"] = Datastore.AttrDatastoreId,
-                    ["TENANT_ID"] = healthLakeConfig.TenantId,
-                    ["TENANT_NAME"] = healthLakeConfig.TenantName
-                },
-                Role = lambdaRole,
-                Timeout = Duration.Minutes(5),
-                MemorySize = 256
-            });
-            
-            // Add tags to the Lambda function
-            Amazon.CDK.Tags.Of(SampleDataLoader).Add("TenantId", healthLakeConfig.TenantId);
-            Amazon.CDK.Tags.Of(SampleDataLoader).Add("TenantName", healthLakeConfig.TenantName);
-            Amazon.CDK.Tags.Of(SampleDataLoader).Add("Purpose", "SampleDataLoader");
         }
     }
 }

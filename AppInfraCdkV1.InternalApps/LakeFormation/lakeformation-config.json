@@ -15,11 +15,10 @@
       },
       "healthLake": [
         {
-          "datastoreId": "test-dev-healthlake-store",
-          "datastoreArn": "",
+          "datastoreId": "84900062ba24dbc5c52e740dcb316001",
+          "datastoreArn": "arn:aws:healthlake:us-east-2:615299752206:datastore/fhir/84900062ba24dbc5c52e740dcb316001",
           "tenantId": "10000000-0000-0000-0000-000000000001",
           "tenantName": "TestCustomerDev",
-          "enableSampleData": true,
           "markAsPHI": false
         }
       ],
@@ -85,7 +84,6 @@
           "datastoreArn": "",
           "tenantId": "20000000-0000-0000-0000-000000000002",
           "tenantName": "TestCustomerProd",
-          "enableSampleData": true,
           "markAsPHI": true
         },
         {
@@ -93,7 +91,6 @@
           "datastoreArn": "",
           "tenantId": "40000000-0000-0000-0000-000000000004",
           "tenantName": "HMU",
-          "enableSampleData": false,
           "markAsPHI": true
         }
       ],
