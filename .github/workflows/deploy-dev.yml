@@ -77,28 +77,28 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialFinderV2 - ALB stack..."
         export CDK_STACK_TYPE=ALB
-        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tfv2-alb-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
     
     - name: CDK Diff for TrialFinderV2 - COGNITO
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialFinderV2 - COGNITO stack..."
         export CDK_STACK_TYPE=COGNITO
-        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tfv2-cognito-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
     
     - name: CDK Diff for TrialFinderV2 - ECS
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialFinderV2 - ECS stack..."
         export CDK_STACK_TYPE=ECS
-        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tfv2-ecs-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
     
     - name: CDK Diff for TrialFinderV2 - DATA
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialFinderV2 - DATA stack..."
         export CDK_STACK_TYPE=DATA
-        cdk diff --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tfv2-data-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
 
   cdk-diff-trialmatch:
     if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
@@ -140,28 +140,28 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialMatch - ALB stack..."
         export CDK_STACK_TYPE=ALB
-        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tm-alb-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
     
     - name: CDK Diff for TrialMatch - COGNITO
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialMatch - COGNITO stack..."
         export CDK_STACK_TYPE=COGNITO
-        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tm-cognito-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
     
     - name: CDK Diff for TrialMatch - ECS
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialMatch - ECS stack..."
         export CDK_STACK_TYPE=ECS
-        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tm-ecs-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
     
     - name: CDK Diff for TrialMatch - DATA
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🔍 Running CDK diff for TrialMatch - DATA stack..."
         export CDK_STACK_TYPE=DATA
-        cdk diff --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        cdk diff dev-tm-data-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
 
   cdk-diff-lakeformation:
     if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
@@ -319,16 +319,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} ALB stack..."
         export CDK_STACK_TYPE=ALB
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy ALB Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} ALB stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=ALB
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        else
+          cdk deploy dev-tm-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        fi
         echo "✅ ALB stack deployment completed successfully!"
     
     - name: Display Created ALB Resources
@@ -400,16 +410,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} COGNITO stack..."
         export CDK_STACK_TYPE=COGNITO
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy COGNITO Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} COGNITO stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=COGNITO
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        else
+          cdk deploy dev-tm-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        fi
         echo "✅ COGNITO stack deployment completed successfully!"
     
     - name: Display Created COGNITO Resources
@@ -481,16 +501,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} ECS stack..."
         export CDK_STACK_TYPE=ECS
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy ECS Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} ECS stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=ECS
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        else
+          cdk deploy dev-tm-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        fi
         echo "✅ ECS stack deployment completed successfully!"
     
     - name: Display Created ECS Resources
@@ -562,16 +592,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} DATA stack..."
         export CDK_STACK_TYPE=DATA
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy DATA Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} DATA stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=DATA
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        else
+          cdk deploy dev-tm-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        fi
         echo "✅ DATA stack deployment completed successfully!"
     
     - name: Display Created DATA Resources
