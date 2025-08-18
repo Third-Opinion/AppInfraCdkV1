@@ -15,8 +15,8 @@
       },
       "healthLake": [
         {
-          "datastoreId": "84900062ba24dbc5c52e740dcb316001",
-          "datastoreArn": "arn:aws:healthlake:us-east-2:615299752206:datastore/fhir/84900062ba24dbc5c52e740dcb316001",
+          "datastoreId": "2baa0a23d558e0e3fc1c539d590dba10",
+          "datastoreArn": "arn:aws:healthlake:us-east-2:615299752206:datastore/fhir/2baa0a23d558e0e3fc1c539d590dba10",
           "tenantId": "10000000-0000-0000-0000-000000000001",
           "tenantName": "TestCustomerDev",
           "markAsPHI": false

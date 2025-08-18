@@ -1194,7 +1194,7 @@
                     "tenantId": "10000000-0000-0000-0000-000000000001",
                     "partitionKeys": "import_date",
                     "purpose": "healthlake-import-staging",
-                    "healthLakeDatastoreIds": "84900062ba24dbc5c52e740dcb316001"
+                    "healthLakeDatastoreIds": "2baa0a23d558e0e3fc1c539d590dba10"
                   }
                 }
               }
@@ -1443,7 +1443,7 @@
               "aws:cdk:cloudformation:props": {
                 "tagKey": "HealthLakeDatastore",
                 "tagValues": [
-                  "84900062ba24dbc5c52e740dcb316001"
+                  "2baa0a23d558e0e3fc1c539d590dba10"
                 ]
               }
             },
@@ -2107,7 +2107,7 @@
                           ],
                           "Version": "2012-10-17"
                         },
-                        "description": "Role for HealthLake datastore 84900062ba24dbc5c52e740dcb316001",
+                        "description": "Role for HealthLake datastore 2baa0a23d558e0e3fc1c539d590dba10",
                         "roleName": "HealthLakeRole-10000000-Development",
                         "tags": [
                           {
