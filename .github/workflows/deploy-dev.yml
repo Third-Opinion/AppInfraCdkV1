@@ -271,7 +271,7 @@ jobs:
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -362,7 +362,7 @@ jobs:
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -453,7 +453,7 @@ jobs:
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -544,7 +544,7 @@ jobs:
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
