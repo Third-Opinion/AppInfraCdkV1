@@ -28,10 +28,12 @@ public class OutputExporter : Construct
     /// <summary>
     /// Export ECS service outputs for external consumption
     /// </summary>
-    public void ExportEcsOutputs(FargateService service, FargateTaskDefinition taskDefinition)
+    public void ExportEcsOutputs(FargateService service, FargateTaskDefinition taskDefinition, string? uniqueId = null)
     {
+        var suffix = string.IsNullOrEmpty(uniqueId) ? "" : uniqueId;
+        
         // Export service name
-        new CfnOutput(this, "ServiceName", new CfnOutputProps
+        new CfnOutput(this, $"ServiceName{suffix}", new CfnOutputProps
         {
             Value = service.ServiceName,
             Description = "ECS Service name",
@@ -39,7 +41,7 @@ public class OutputExporter : Construct
         });
 
         // Export task definition ARN
-        new CfnOutput(this, "TaskDefinitionArn", new CfnOutputProps
+        new CfnOutput(this, $"TaskDefinitionArn{suffix}", new CfnOutputProps
         {
             Value = taskDefinition.TaskDefinitionArn,
             Description = "ECS Task Definition ARN for GitHub Actions deployments",
@@ -47,7 +49,7 @@ public class OutputExporter : Construct
         });
 
         // Export task definition family
-        new CfnOutput(this, "TaskDefinitionFamily", new CfnOutputProps
+        new CfnOutput(this, $"TaskDefinitionFamily{suffix}", new CfnOutputProps
         {
             Value = taskDefinition.Family,
             Description = "ECS Task Definition family name",
@@ -55,7 +57,7 @@ public class OutputExporter : Construct
         });
 
         // Export cluster name from service
-        new CfnOutput(this, "ServiceClusterName", new CfnOutputProps
+        new CfnOutput(this, $"ServiceClusterName{suffix}", new CfnOutputProps
         {
             Value = service.Cluster.ClusterName,
             Description = "ECS Cluster name from service",
@@ -66,10 +68,12 @@ public class OutputExporter : Construct
     /// <summary>
     /// Export scheduled task outputs for external consumption
     /// </summary>
-    public void ExportScheduledTaskOutputs(string taskDefinitionArn, string taskDefinitionFamily)
+    public void ExportScheduledTaskOutputs(string taskDefinitionArn, string taskDefinitionFamily, string? uniqueId = null)
     {
+        var suffix = string.IsNullOrEmpty(uniqueId) ? "" : uniqueId;
+        
         // Export scheduled task definition ARN
-        new CfnOutput(this, "ScheduledTaskDefinitionArn", new CfnOutputProps
+        new CfnOutput(this, $"ScheduledTaskDefinitionArn{suffix}", new CfnOutputProps
         {
             Value = taskDefinitionArn,
             Description = "ECS Scheduled Task Definition ARN",
@@ -77,7 +81,7 @@ public class OutputExporter : Construct
         });
 
         // Export scheduled task definition family
-        new CfnOutput(this, "ScheduledTaskDefinitionFamily", new CfnOutputProps
+        new CfnOutput(this, $"ScheduledTaskDefinitionFamily{suffix}", new CfnOutputProps
         {
             Value = taskDefinitionFamily,
             Description = "ECS Scheduled Task Definition family name",
@@ -88,10 +92,12 @@ public class OutputExporter : Construct
     /// <summary>
     /// Export IAM role ARNs for external consumption
     /// </summary>
-    public void ExportIamRoleOutputs(IRole taskRole, IRole executionRole, IRole? githubActionsRole = null)
+    public void ExportIamRoleOutputs(IRole taskRole, IRole executionRole, IRole? githubActionsRole = null, string? uniqueId = null)
     {
+        var suffix = string.IsNullOrEmpty(uniqueId) ? "" : uniqueId;
+        
         // Export task role ARN
-        new CfnOutput(this, "TaskRoleArn", new CfnOutputProps
+        new CfnOutput(this, $"TaskRoleArn{suffix}", new CfnOutputProps
         {
             Value = taskRole.RoleArn,
             Description = "ECS Task IAM Role ARN",
@@ -99,7 +105,7 @@ public class OutputExporter : Construct
         });
 
         // Export execution role ARN
-        new CfnOutput(this, "ExecutionRoleArn", new CfnOutputProps
+        new CfnOutput(this, $"ExecutionRoleArn{suffix}", new CfnOutputProps
         {
             Value = executionRole.RoleArn,
             Description = "ECS Execution IAM Role ARN",
@@ -121,10 +127,12 @@ public class OutputExporter : Construct
     /// <summary>
     /// Export cluster information for external consumption
     /// </summary>
-    public void ExportClusterOutputs(ICluster cluster)
+    public void ExportClusterOutputs(ICluster cluster, string? uniqueId = null)
     {
+        var suffix = string.IsNullOrEmpty(uniqueId) ? "" : uniqueId;
+        
         // Export cluster ARN
-        new CfnOutput(this, "ClusterArn", new CfnOutputProps
+        new CfnOutput(this, $"ClusterArn{suffix}", new CfnOutputProps
         {
             Value = cluster.ClusterArn,
             Description = "ECS Cluster ARN",
@@ -132,7 +140,7 @@ public class OutputExporter : Construct
         });
 
         // Export cluster name
-        new CfnOutput(this, "ClusterName", new CfnOutputProps
+        new CfnOutput(this, $"ClusterName{suffix}", new CfnOutputProps
         {
             Value = cluster.ClusterName,
             Description = "ECS Cluster name",
@@ -143,11 +151,11 @@ public class OutputExporter : Construct
     /// <summary>
     /// Export all outputs for a complete ECS setup
     /// </summary>
-    public void ExportAllOutputs(FargateService service, FargateTaskDefinition taskDefinition, IRole taskRole, IRole executionRole, IRole? githubActionsRole = null)
+    public void ExportAllOutputs(FargateService service, FargateTaskDefinition taskDefinition, IRole taskRole, IRole executionRole, IRole? githubActionsRole = null, string? uniqueId = null)
     {
-        ExportEcsOutputs(service, taskDefinition);
-        ExportIamRoleOutputs(taskRole, executionRole, githubActionsRole);
-        ExportClusterOutputs(service.Cluster);
+        ExportEcsOutputs(service, taskDefinition, uniqueId);
+        ExportIamRoleOutputs(taskRole, executionRole, githubActionsRole, uniqueId);
+        ExportClusterOutputs(service.Cluster, uniqueId);
     }
 
     /// <summary>

@@ -84,7 +84,7 @@ public class EcsServiceFactory : Construct
             : _context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
 
         var taskRole = _iamRoleBuilder.CreateTaskRole("WebApp");
-        var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup);
+        var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup, "WebApp");
 
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName, new FargateTaskDefinitionProps
         {
@@ -157,7 +157,7 @@ public class EcsServiceFactory : Construct
 
         Console.WriteLine($"📈 Auto-scaling configured for {_context.Application.Name}: {minCapacity}-{maxCapacity} tasks, target: {desiredCapacity}");
 
-        _outputExporter.ExportAllOutputs(service, taskDefinition, taskRole, executionRole);
+        _outputExporter.ExportAllOutputs(service, taskDefinition, taskRole, executionRole, null, "WebApp");
     }
 
     /// <summary>
@@ -177,7 +177,7 @@ public class EcsServiceFactory : Construct
             : _context.Namer.EcsTaskDefinition("loader");
 
         var taskRole = _iamRoleBuilder.CreateTaskRole("Loader");
-        var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup);
+        var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup, "Loader");
 
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName, new FargateTaskDefinitionProps
         {
@@ -230,8 +230,8 @@ public class EcsServiceFactory : Construct
 
         rule.AddTarget(taskTarget);
 
-        _outputExporter.ExportScheduledTaskOutputs(taskDefinition.TaskDefinitionArn, taskDefinition.Family);
-        _outputExporter.ExportIamRoleOutputs(taskRole, executionRole);
+        _outputExporter.ExportScheduledTaskOutputs(taskDefinition.TaskDefinitionArn, taskDefinition.Family, "Loader");
+        _outputExporter.ExportIamRoleOutputs(taskRole, executionRole, null, "Loader");
     }
 
     private ContainerInfo AddContainersFromConfiguration(FargateTaskDefinition taskDefinition,

@@ -27,12 +27,15 @@ public class IamRoleBuilder : Construct
     /// <summary>
     /// Create task execution role for ECS tasks
     /// </summary>
-    public IRole CreateTaskExecutionRole(ILogGroup logGroup)
+    public IRole CreateTaskExecutionRole(ILogGroup logGroup, string? uniqueId = null)
     {
         // Follow naming convention: {environment}-{service}-execution-role
         var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role";
         
-        var executionRole = new Role(this, "TrialFinderExecutionRole", new RoleProps
+        // Create unique construct ID to avoid duplicates
+        var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderExecutionRole" : $"TrialFinderExecutionRole{uniqueId}";
+        
+        var executionRole = new Role(this, constructId, new RoleProps
         {
             RoleName = roleName,
             Description = $"Execution role for {_context.Application.Name} ECS tasks in {_context.Environment.Name}",
