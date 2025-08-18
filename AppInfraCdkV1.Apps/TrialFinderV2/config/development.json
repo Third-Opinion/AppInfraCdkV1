@@ -3,9 +3,10 @@
   "ecsConfiguration": {
     "taskDefinition": [
       {
-        "taskDefinitionName": "main",
-                            "cpu": 1024,
-                    "memory": 2048,
+        "taskDefinitionName": "web-application",
+        "taskType": "WebApplication",
+        "cpu": 1024,
+        "memory": 2048,
         "containerDefinitions": [
           {
             "name": "trial-finder-v2",
@@ -69,19 +70,39 @@
                 "retries": 3
             },
             "systemControls": []
-          },
+          }
+        ]
+      },
+      {
+        "taskDefinitionName": "loader-scheduled-job",
+        "taskType": "ScheduledJob",
+        "scheduleExpression": "cron(0 */6 * * * *)",
+        "jobTimeout": 3600,
+        "cpu": 512,
+        "memory": 1024,
+        "retryPolicy": {
+          "maxRetryAttempts": 3,
+          "retryDelaySeconds": 300,
+          "useExponentialBackoff": true,
+          "maxRetryDelaySeconds": 3600
+        },
+        "deadLetterQueue": {
+          "enabled": false,
+          "maxReceiveCount": 3
+        },
+        "containerDefinitions": [
           {
             "name": "trial-finder-v2-loader",
             "image": "placeholder",
             "repository": {
               "type": "loader",
-              "description": "Background loader service",
+              "description": "Background loader service for scheduled data processing",
               "imageScanOnPush": true,
               "removalPolicy": "RETAIN"
             },
             "cpu": 0,
             "portMappings": [],
-            "essential": false,
+            "essential": true,
             "secrets": [
               "OpenAiOptions__ApiKey",
               "GoogleMaps__ApiKey",

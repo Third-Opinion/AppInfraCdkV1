@@ -1,5 +1,5 @@
 {
-  "vpcNamePattern": "stg-shared-vpc-ue2-main",
+  "vpcNamePattern": "dev-shared-vpc-ue2-main",
   "ecsConfiguration": {
     "taskDefinition": [
       {
@@ -76,20 +76,10 @@
       {
         "taskDefinitionName": "loader-scheduled-job",
         "taskType": "ScheduledJob",
-        "scheduleExpression": "cron(0 */6 * * * *)",
+        "scheduleExpression": "cron(0 */6 * * ? *)",
         "jobTimeout": 3600,
         "cpu": 512,
         "memory": 1024,
-        "retryPolicy": {
-          "maxRetryAttempts": 3,
-          "retryDelaySeconds": 300,
-          "useExponentialBackoff": true,
-          "maxRetryDelaySeconds": 3600
-        },
-        "deadLetterQueue": {
-          "enabled": false,
-          "maxReceiveCount": 3
-        },
         "containerDefinitions": [
           {
             "name": "trial-finder-v2-loader",
