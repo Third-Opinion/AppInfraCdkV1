@@ -54,12 +54,12 @@ public class OutputExporter : Construct
             ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-task-family"
         });
 
-        // Export cluster name
-        new CfnOutput(this, "ClusterName", new CfnOutputProps
+        // Export cluster name from service
+        new CfnOutput(this, "ServiceClusterName", new CfnOutputProps
         {
             Value = service.Cluster.ClusterName,
-            Description = "ECS Cluster name",
-            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-cluster-name"
+            Description = "ECS Cluster name from service",
+            ExportName = $"{_context.Environment.Name}-{_context.Application.Name}-service-cluster-name"
         });
     }
 
