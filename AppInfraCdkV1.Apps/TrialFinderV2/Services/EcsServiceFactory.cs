@@ -83,7 +83,7 @@ public class EcsServiceFactory : Construct
             ? _context.Namer.EcsTaskDefinition(taskDef.TaskDefinitionName)
             : _context.Namer.EcsTaskDefinition(ResourcePurpose.Web);
 
-        var taskRole = _iamRoleBuilder.CreateTaskRole();
+        var taskRole = _iamRoleBuilder.CreateTaskRole("WebApp");
         var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup);
 
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName, new FargateTaskDefinitionProps
@@ -176,7 +176,7 @@ public class EcsServiceFactory : Construct
             ? _context.Namer.EcsTaskDefinition(taskDef.TaskDefinitionName)
             : _context.Namer.EcsTaskDefinition("loader");
 
-        var taskRole = _iamRoleBuilder.CreateTaskRole();
+        var taskRole = _iamRoleBuilder.CreateTaskRole("Loader");
         var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup);
 
         var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName, new FargateTaskDefinitionProps

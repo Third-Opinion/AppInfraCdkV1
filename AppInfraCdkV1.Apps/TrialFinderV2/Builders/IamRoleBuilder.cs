@@ -102,12 +102,15 @@ public class IamRoleBuilder : Construct
     /// <summary>
     /// Create task role for ECS tasks
     /// </summary>
-    public IRole CreateTaskRole()
+    public IRole CreateTaskRole(string? uniqueId = null)
     {
         // Follow naming convention: {environment}-{service}-task-role
         var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role";
         
-        var taskRole = new Role(this, "TrialFinderTaskRole", new RoleProps
+        // Create unique construct ID to avoid duplicates
+        var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderTaskRole" : $"TrialFinderTaskRole{uniqueId}";
+        
+        var taskRole = new Role(this, constructId, new RoleProps
         {
             RoleName = roleName,
             Description = $"Task role for {_context.Application.Name} ECS tasks in {_context.Environment.Name}",
