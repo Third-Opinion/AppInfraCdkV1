@@ -1,0 +1,137 @@
+name: Deploy PublicThirdOpinion
+
+on:
+  push:
+    branches:
+      - develop  # Auto-deploy to development
+    paths:
+      - 'AppInfraCdkV1.PublicThirdOpinion/**'
+      - 'AppInfraCdkV1.Core/**'
+      - 'AppInfraCdkV1.Stacks/**'
+      - '.github/workflows/deploy-public-thirdopinion.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-development:
+    if: (github.ref == 'refs/heads/develop' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'development')
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials for Development
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::615299752206:role/dev-tfv2-role-ue2-github-actions
+          aws-region: us-east-2
+
+      - name: Build Lambda function
+        run: |
+          cd AppInfraCdkV1.PublicThirdOpinion/Lambda
+          chmod +x build-lambda.sh
+          ./build-lambda.sh
+
+      - name: Build project
+        run: |
+          cd AppInfraCdkV1.Deploy
+          dotnet build
+
+      - name: Deploy PublicThirdOpinion to Development
+        run: |
+          cd AppInfraCdkV1.Deploy
+          export CDK_ENVIRONMENT=Development
+          export CDK_APPLICATION=PublicThirdOpinion
+          export CDK_STACK_TYPE=PUBLIC
+          dotnet run -- --app=PublicThirdOpinion --environment=Development
+          cdk deploy dev-pto-public-ue2 --require-approval never
+
+  deploy-production:
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://public.thirdopinion.io
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials for Production
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::442042533707:role/prod-tfv2-role-ue2-github-actions
+          aws-region: us-east-2
+
+      - name: Build Lambda function
+        run: |
+          cd AppInfraCdkV1.PublicThirdOpinion/Lambda
+          chmod +x build-lambda.sh
+          ./build-lambda.sh
+
+      - name: Build project
+        run: |
+          cd AppInfraCdkV1.Deploy
+          dotnet build
+
+      - name: Deploy PublicThirdOpinion to Production
+        run: |
+          cd AppInfraCdkV1.Deploy
+          export CDK_ENVIRONMENT=Production
+          export CDK_APPLICATION=PublicThirdOpinion
+          export CDK_STACK_TYPE=PUBLIC
+          dotnet run -- --app=PublicThirdOpinion --environment=Production
+          cdk deploy prod-pto-public-ue2 --require-approval never
+
+      - name: Invalidate CloudFront cache
+        run: |
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name prod-pto-public-ue2 \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text)
+          
+          if [ ! -z "$DISTRIBUTION_ID" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id $DISTRIBUTION_ID \
+              --paths "/*"
+          fi

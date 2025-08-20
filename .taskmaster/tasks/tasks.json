@@ -600,11 +600,98 @@
             "testStrategy": "Measure deployment times for various scenarios: full deployment with all stacks changed (target: 15 minutes), partial deployment with subset of stacks changed, and no-change deployment (target: 5 minutes). Verify that parallelization works correctly and doesn't cause resource conflicts or dependency issues."
           }
         ]
+      },
+      {
+        "id": 39,
+        "title": "Create Public S3 Bucket for HTTPS Hosting with CloudFront and Route53",
+        "description": "Implement a new CDK project AppInfraCdkV1.PublicThirdOpinion for public static website hosting with S3, CloudFront distribution for HTTPS, and Route53 hosted zones for dev-public.thirdopinion.io and public.thirdopinion.io domains. All AWS resources must use the ResourceNamer class from AppInfraCdkV1.Core.Naming.ResourceNamer for consistent naming patterns.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "details": "Create new CDK project AppInfraCdkV1.PublicThirdOpinion at same level as other apps. Initialize C# project structure with proper CDK dependencies and cdk.json configuration. Implement PublicWebsiteConstruct.cs that accepts a DeploymentContext and uses ResourceNamer for all AWS resource naming: 1) S3 bucket using ResourceNamer.S3Bucket with appropriate StoragePurpose, with static website hosting enabled and public read access, 2) CloudFront distribution using ResourceNamer.Custom, with S3 origin, HTTPS redirect, and proper caching headers, 3) Route53 hosted zone using ResourceNamer.Custom and A record pointing to CloudFront distribution. Lambda functions must use ResourceNamer.Lambda, IAM roles use ResourceNamer.IamRole, CloudWatch log groups use ResourceNamer.LogGroup, and Secrets Manager secrets use ResourceNamer.SecretsManager. Support environment-specific domains (dev-public.thirdopinion.io for Development, public.thirdopinion.io for Production). Configure SSL certificate through AWS Certificate Manager with automatic DNS validation. Implement proper IAM policies for S3 bucket access and CloudFront origin access identity. Add deployment configuration to support both environments through CDK context variables and maintain consistency with existing project patterns.",
+        "testStrategy": "Verify project compiles with dotnet build and CDK synthesizes without errors. Deploy to dev environment first and confirm S3 bucket created with ResourceNamer-generated name and static website hosting enabled. Test CloudFront distribution serves content over HTTPS with proper caching headers. Validate Route53 hosted zone created and A record points to CloudFront distribution. Test DNS resolution for dev-public.thirdopinion.io domain. Upload sample HTML file to S3 and verify accessible via HTTPS through CloudFront. Confirm SSL certificate properly configured and automatic renewal enabled. Test both HTTP to HTTPS redirect and proper error pages configuration. Verify all AWS resources follow ResourceNamer naming conventions.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create AppInfraCdkV1.PublicThirdOpinion Project Structure",
+            "description": "Create a new CDK project at the same level as AppInfraCdkV1.Apps and AppInfraCdkV1.InternalApps with proper C# project structure, CDK dependencies, and solution integration.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Create new directory /Users/ken/code/AppInfraCdkV1/AppInfraCdkV1.PublicThirdOpinion. Initialize C# project file (.csproj) with OutputType=Exe, TargetFramework=net8.0, and CDK package references matching existing patterns (Amazon.CDK.Lib v2.201.0, Constructs v10.0.0-11.0.0, Amazon.Jsii.Analyzers v1.100.0). Add project references to AppInfraCdkV1.Core and AppInfraCdkV1.Stacks. Create Program.cs with basic CDK app initialization. Create cdk.json configuration file matching the deployment pattern from AppInfraCdkV1.Deploy. Update AppInfraCdkV1.sln to include the new project.",
+            "testStrategy": "Verify project compiles with dotnet build. Ensure solution builds successfully. Confirm CDK can synthesize without errors using cdk synth."
+          },
+          {
+            "id": 2,
+            "title": "Implement PublicWebsiteConstruct for S3 Static Hosting with ResourceNamer",
+            "description": "Create the core CDK construct that sets up S3 bucket with static website hosting, public read access, and proper IAM policies using ResourceNamer for consistent naming.",
+            "status": "done",
+            "dependencies": [
+              1
+            ],
+            "details": "Create PublicWebsiteConstruct.cs that extends Construct and accepts a DeploymentContext parameter. Instantiate ResourceNamer from the DeploymentContext to generate all resource names. Implement S3 bucket creation using ResourceNamer.S3Bucket with appropriate StoragePurpose (likely StoragePurpose.WebsiteHosting or similar). Configure bucket with WebsiteConfiguration enabled, PublicReadAccess set to true, and BlockPublicAccess configured to allow public reads. Set up proper bucket CORS settings for web access. Create IAM policies for CloudFront Origin Access Identity using ResourceNamer.IamRole for any roles. Ensure bucket follows security best practices while allowing public static content serving.",
+            "testStrategy": "Deploy to dev environment and verify S3 bucket created with ResourceNamer-generated name and static website hosting enabled. Test direct S3 website endpoint accessibility. Validate IAM policies are correctly configured and use ResourceNamer naming conventions."
+          },
+          {
+            "id": 3,
+            "title": "Implement CloudFront Distribution with HTTPS and ResourceNamer",
+            "description": "Add CloudFront distribution to the PublicWebsiteConstruct with S3 origin, HTTPS redirect, proper caching headers, SSL certificate integration, and ResourceNamer naming.",
+            "status": "done",
+            "dependencies": [
+              2
+            ],
+            "details": "Extend PublicWebsiteConstruct to create CloudFront distribution using ResourceNamer.Custom for distribution naming since no specific CloudFront method exists in ResourceNamer. Use S3 bucket as origin. Configure OriginAccessIdentity for secure S3 access. Set up ViewerCertificate with SSL certificate from AWS Certificate Manager (ACM). Implement ViewerProtocolPolicy to redirect HTTP to HTTPS. Configure default and custom cache behaviors with appropriate TTL settings for static content (CSS, JS, images). Set up custom error pages and default root object (index.html). Ensure compression is enabled for better performance. All related IAM resources should use ResourceNamer.IamRole.",
+            "testStrategy": "Verify CloudFront distribution serves content over HTTPS and uses ResourceNamer-generated naming. Test HTTP to HTTPS redirect functionality. Validate caching headers are properly set. Confirm SSL certificate is correctly configured."
+          },
+          {
+            "id": 4,
+            "title": "Implement Route53 Hosted Zone and DNS Configuration with ResourceNamer",
+            "description": "Create Route53 hosted zone and A record that points to the CloudFront distribution, supporting environment-specific domains and using ResourceNamer for consistent naming.",
+            "status": "done",
+            "dependencies": [
+              3
+            ],
+            "details": "Extend PublicWebsiteConstruct to create Route53 HostedZone using ResourceNamer.Custom for hosted zone naming since no specific Route53 method exists in ResourceNamer. Configure domain based on environment (dev-public.thirdopinion.io for Development, public.thirdopinion.io for Production). Create A record (ARecord or AliasRecord) that points to the CloudFront distribution. Implement environment-specific domain configuration through CDK context variables. Ensure DNS validation is configured for ACM certificate. Output the hosted zone nameservers and domain endpoints for configuration. Follow existing project patterns for environment-based resource naming through ResourceNamer.",
+            "testStrategy": "Verify Route53 hosted zone is created with ResourceNamer-generated name and correct domain name. Test A record points to CloudFront distribution. Validate DNS resolution from the custom domain to CloudFront. Confirm SSL certificate DNS validation works correctly."
+          },
+          {
+            "id": 5,
+            "title": "Integrate with Deployment System and Add Configuration",
+            "description": "Update the deployment system to support the new PublicThirdOpinion application and add proper environment configuration following existing project patterns.",
+            "status": "done",
+            "dependencies": [
+              4
+            ],
+            "details": "Update StackFactory.cs to include PUBLICSITEOPINION case in the switch statement. Create stack class that instantiates PublicWebsiteConstruct with proper DeploymentContext parameter to enable ResourceNamer usage. Add configuration files for development.json and production.json with domain-specific settings. Update Program.cs in the PublicThirdOpinion project to support the same deployment pattern as other apps (--app=PublicThirdOpinion --environment=Development). Ensure integration with existing CDK context variables and naming conventions through ResourceNamer. Add support for CDK_APPLICATION and CDK_ENVIRONMENT environment variables.",
+            "testStrategy": "Test full deployment pipeline works for both dev and production environments. Verify environment-specific domains are correctly configured. Test CDK synth and deploy commands work with the new application. Confirm integration with existing deployment scripts. Validate all resources use ResourceNamer naming conventions."
+          },
+          {
+            "id": 6,
+            "title": "Create GitHub Actions Deployment Workflow",
+            "description": "Create dedicated GitHub Actions workflow for deploying PublicThirdOpinion stack with environment-specific triggers and approval requirements.",
+            "status": "done",
+            "dependencies": [
+              5
+            ],
+            "details": "Create .github/workflows/deploy-public-website.yml workflow file. Configure path filters to trigger only on changes to AppInfraCdkV1.PublicThirdOpinion/, AppInfraCdkV1.Core/, or AppInfraCdkV1.Stacks/ directories. Set up two deployment jobs: 1) Development deployment that automatically runs on push to develop branch, uses OIDC authentication with dev-tfv2-role-ue2-github-actions role, and deploys using AWS profile equivalent permissions. 2) Production deployment that triggers on push to main/master branch but requires manual approval through GitHub environment protection rules, uses prod-tfv2-role-ue2-github-actions role. Both jobs should run CDK deploy with appropriate environment parameters (--app=PublicThirdOpinion --environment=Development/Production). Include proper error handling, deployment status notifications, and CloudFormation stack outputs.",
+            "testStrategy": "Test workflow triggers correctly on path changes. Verify development deployment runs automatically on develop branch merge. Confirm production deployment requires manual approval. Validate OIDC authentication works with both AWS roles. Test successful deployment to both environments through GitHub Actions."
+          },
+          {
+            "id": 7,
+            "title": "Create JWK Key Pair Generation Lambda Function with ResourceNamer",
+            "description": "Implement Lambda function to generate JWK key pairs for FHIR R4 authentication with proper storage in S3 and Secrets Manager, using ResourceNamer for all AWS resource naming.",
+            "status": "done",
+            "dependencies": [
+              2
+            ],
+            "details": "Create Lambda function using ResourceNamer.Lambda for function naming that generates JWK key pairs supporting ES384 (ECDSA with P-384 curve) as the recommended algorithm for FHIR R4 implementations, with RS384 (RSA with SHA-384) as an alternative option. Lambda accepts a name parameter (e.g., athena_1, athena_2, epic_1) that determines the storage path. Public keys are stored in S3 at path jwks/{name}/jwks.json with proper JWK format including: kty (key type: RSA or EC), kid (unique identifier), use: 'sig', key_ops: ['verify'], alg (ES384 or RS384), and algorithm-specific fields (for EC: crv, x, y coordinates; for RSA: n modulus, e exponent). Private keys are stored in AWS Secrets Manager using ResourceNamer.SecretsManager with the naming convention {environment}-jwk-private-{name}, restricted to admin role access only. CloudWatch log groups must use ResourceNamer.LogGroup. Lambda should be manually triggered only, generate cryptographically secure key pairs, format them according to FHIR R4 JWK specifications, and return the public key location and kid for reference. Add 'regenerate' boolean parameter - when false or unset, Lambda checks if key already exists in S3 and skips generation if found; when true, forces regeneration of existing keys overwriting current ones. Include proper error handling, logging, and CloudWatch metrics.\n\nVERIFICATION SCRIPT: Create bash script 'verify-jwk-keys.sh' that: 1) Invokes Lambda function with specified name parameter to create/update keys, 2) Validates public key accessibility from S3 in both dev and prod environments using appropriate AWS profiles, 3) Parses and validates JWK format compliance including required fields (kty, kid, use, key_ops, alg, and algorithm-specific fields), 4) Reports success/failure status for each environment with detailed error messages. Script accepts parameters: key name (required) and regenerate flag (optional, defaults to false). Include proper AWS profile handling for cross-environment testing and comprehensive error reporting for troubleshooting deployment issues.",
+            "testStrategy": "Test Lambda manual invocation with various name parameters and verify ResourceNamer-generated function name. Verify regenerate flag behavior: false/unset skips existing keys, true forces regeneration. Test ES384 key pairs are generated correctly with P-384 curve. Validate JWK format matches FHIR R4 specifications. Run verify-jwk-keys.sh script for both dev (to-dev-admin) and prod (to-prd-admin) environments. Confirm public keys are accessible at S3 path jwks/{name}/jwks.json in both environments. Verify private keys are stored in Secrets Manager with ResourceNamer-generated names and admin-only access. Verify CloudWatch log groups use ResourceNamer naming. Test script properly handles key creation, updates, and validation across environments. Validate key pair can be used for JWT signing and verification. Test error handling for invalid inputs, existing keys without regenerate flag, and AWS service failures."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-01-12T00:21:00.000Z",
-      "updated": "2025-08-16T18:01:29.861Z",
+      "updated": "2025-08-20T00:27:25.655Z",
       "description": "Tasks for master context"
     }
   }

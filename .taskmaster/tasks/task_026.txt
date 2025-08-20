@@ -1,0 +1,11 @@
+# Task ID: 26
+# Title: Create CDK Project Structure for Lake Formation
+# Status: done
+# Dependencies: None
+# Priority: medium
+# Description: Initialize new C# CDK project structure for Lake Formation implementation
+# Details:
+Create new LakeFormation app at same level as TrialFinderV2. Setup project structure with src/ThirdOpinionDataLake.Core directory, add EnvironmentConfig.cs with group to role mappings, create cdk.json configuration file, and initialize C# project files with proper CDK dependencies.
+
+# Test Strategy:
+Verify project compiles successfully with dotnet build, confirm CDK can synthesize templates without errors

@@ -1,0 +1,11 @@
+# Task ID: 36
+# Title: Remove SCIM Synchronization Infrastructure and Code
+# Status: done
+# Dependencies: 35
+# Priority: medium
+# Description: Completely remove all SCIM-related code, CDK stacks, AWS resources, and configuration files from the project, including cleanup of deployed infrastructure.
+# Details:
+This task involves comprehensive removal of the SCIM synchronization system: 1) Delete all deployed AWS CloudFormation stacks using CDK destroy commands for both dev and prod environments (dev-scim-sync-ue2, prod-scim-sync-ue2). 2) Remove the ScimSync CDK application code from AppInfraCdkV1.Apps directory including ScimSyncStack.cs, ScimSyncApp.cs, and related configuration files. 3) Delete SCIM-related Lambda function code from tools/AppInfraCdkV1.Tools.Common/docker-lambda/ directory. 4) Remove SCIM configuration scripts from tools/AppInfraCdkV1.Tools.Common/scripts/scim-sync/ directory. 5) Clean up any SCIM-related environment variables, secrets, or configuration references in deployment scripts. 6) Remove SCIM dependencies from project files, solution files, and CDK configuration. 7) Update deployment documentation to remove SCIM references. 8) Verify no orphaned AWS resources remain after stack deletion including Lambda functions, IAM roles, CloudWatch logs, and any associated resources.
+
+# Test Strategy:
+Verify AWS CloudFormation stacks are completely deleted using AWS CLI stack describe commands. Confirm no SCIM-related code exists in the codebase using grep searches for 'scim', 'ScimSync', and related terms. Validate project builds successfully after code removal. Check AWS console to ensure no orphaned Lambda functions, IAM roles, or other SCIM-related resources remain. Run full deployment pipeline to confirm removal doesn't break existing functionality. Verify GitHub Actions workflows no longer reference SCIM components.
