@@ -99,7 +99,7 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
                 FunctionName = functionName,
                 Runtime = Runtime.DOTNET_8,
                 Handler = "JwkGenerator::AppInfraCdkV1.PublicThirdOpinion.Lambda.JwkGenerator::Handler",
-                Code = Code.FromAsset(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "AppInfraCdkV1.PublicThirdOpinion/Lambda/publish")),
+                Code = Code.FromAsset("Lambda/publish"),
                 Role = LambdaExecutionRole,
                 Timeout = Duration.Minutes(5),
                 MemorySize = 512,
@@ -113,31 +113,8 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
                 Description = "Lambda function to generate JWK key pairs for FHIR R4 authentication"
             });
 
-            // Create IAM policy for admin-only access to private keys
-            var adminSecretPolicy = new Policy(this, "AdminSecretPolicy", new PolicyProps
-            {
-                PolicyName = resourceNamer.IamPolicy(IamPurpose.SecretsAccess),
-                Statements = new[]
-                {
-                    new PolicyStatement(new PolicyStatementProps
-                    {
-                        Effect = Effect.ALLOW,
-                        Actions = new[]
-                        {
-                            "secretsmanager:GetSecretValue",
-                            "secretsmanager:DescribeSecret"
-                        },
-                        Resources = new[]
-                        {
-                            $"arn:aws:secretsmanager:{context.Environment.Region}:{context.Environment.AccountId}:secret:{secretsPath}"
-                        },
-                        Principals = new[]
-                        {
-                            new ArnPrincipal($"arn:aws:iam::{context.Environment.AccountId}:role/AWSReservedSSO_AdministratorAccess_*")
-                        }
-                    })
-                }
-            });
+            // Note: Admin access to secrets is controlled via IAM policies attached to admin roles,
+            // not through resource-based policies on the secrets themselves
 
             // Output Lambda function ARN
             new CfnOutput(this, "FunctionArn", new CfnOutputProps

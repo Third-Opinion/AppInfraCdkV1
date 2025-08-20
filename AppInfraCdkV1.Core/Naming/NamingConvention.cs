@@ -35,6 +35,7 @@ public static class NamingConvention
         [ApplicationType.TrialMatch] = "tm",
         [ApplicationType.Cdk] = "cdk",
         [ApplicationType.LakeFormation] = "lf",
+        [ApplicationType.PublicThirdOpinion] = "pto",
     };
 
     // Region codes
