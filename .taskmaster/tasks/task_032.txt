@@ -1,0 +1,11 @@
+# Task ID: 32
+# Title: Implement Permission Validation Scripts
+# Status: done
+# Dependencies: 31
+# Priority: medium
+# Description: Create automated testing scripts to validate Lake Formation permissions are correctly applied
+# Details:
+Create test-permissions script (bash or C# for consistency) that validates each group has correct Lake Formation permissions, tests that DevOps groups cannot access data tables, verifies PHI access controls work properly, and generates permission validation reports for compliance.
+
+# Test Strategy:
+Execute validation scripts against deployed infrastructure, confirm all test cases pass, verify DevOps access denial works, validate PHI protection mechanisms

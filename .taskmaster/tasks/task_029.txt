@@ -1,0 +1,11 @@
+# Task ID: 29
+# Title: Implement Permissions Management Construct
+# Status: done
+# Dependencies: 28
+# Priority: high
+# Description: Create CDK construct for environment-specific Lake Formation permissions based on Identity Center groups
+# Details:
+Implement PermissionsConstruct.cs with separate permission logic for prod and dev environments. Production: data-analysts-phi gets SELECT/DESCRIBE on all tables, data-engineers get CREATE_TABLE/ALTER/DROP/DESCRIBE, prod-access gets NO data permissions. Development: broader ALL permissions for data-analysts-dev and data-engineers groups.
+
+# Test Strategy:
+Deploy to both environments, verify correct permissions applied per group, test that DevOps team cannot access data in production, confirm PHI access restrictions work

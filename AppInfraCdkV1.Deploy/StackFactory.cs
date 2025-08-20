@@ -1,8 +1,10 @@
 using Amazon.CDK;
 using AppInfraCdkV1.Apps.TrialFinderV2;
 using AppInfraCdkV1.Apps.TrialMatch;
-using AppInfraCdkV1.InternalApps.LakeFormation;
-using AppInfraCdkV1.InternalApps.LakeFormation.Stacks;
+using AppInfraCdkV1.PublicThirdOpinion.Stacks;
+// LakeFormation is now a separate internal app - deploy using AppInfraCdkV1.InternalApps/LakeFormation
+// using AppInfraCdkV1.InternalApps.LakeFormation;
+// using AppInfraCdkV1.InternalApps.LakeFormation.Stacks;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
 using AppInfraCdkV1.Stacks.Base;
@@ -27,7 +29,8 @@ public static class StackFactory
         {
             "TRIALFINDERV2" => CreateTrialFinderV2Stack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode),
             "TRIALMATCH" => CreateTrialMatchStack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode),
-            _ => throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch")
+            "PUBLICTHIRDOPINION" => CreatePublicThirdOpinionStack(app, stackType, context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode),
+            _ => throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch, PublicThirdOpinion")
         };
     }
 
@@ -47,6 +50,7 @@ public static class StackFactory
         {
             "TRIALFINDERV2" => CreateAllTrialFinderV2StacksWithDependencies(app, targetStackType, context, environmentConfig, environmentName, envPrefix, regionCode, baseStackName),
             "TRIALMATCH" => CreateAllTrialMatchStacksWithDependencies(app, targetStackType, context, environmentConfig, environmentName, envPrefix, regionCode, baseStackName),
+            "PUBLICTHIRDOPINION" => CreatePublicThirdOpinionStack(app, targetStackType, context, environmentConfig, "PublicThirdOpinion", environmentName, envPrefix, "pto", regionCode),
             _ => throw new ArgumentException($"Unknown application: {appName}")
         };
     }
@@ -425,6 +429,9 @@ public static class StackFactory
         }
     }
 
+    // LakeFormation deployment has been moved to a separate internal app
+    // Deploy using: cd AppInfraCdkV1.InternalApps/LakeFormation && dotnet run
+    /*
     public static void DeployLakeFormationStacks(App app, DeploymentContext context, EnvironmentConfig environmentConfig, string environmentName)
     {
         try
@@ -483,6 +490,36 @@ public static class StackFactory
             Console.WriteLine($"❌ Error configuring LakeFormation stacks: {ex.Message}");
             throw;
         }
+    }
+    */
+
+    public static (Stack stack, string stackName) CreatePublicThirdOpinionStack(
+        App app, 
+        string stackType, 
+        DeploymentContext context, 
+        EnvironmentConfig environmentConfig, 
+        string appName, 
+        string environmentName,
+        string envPrefix,
+        string appCode,
+        string regionCode)
+    {
+        // PublicThirdOpinion is a single stack, no sub-stacks
+        if (stackType.ToUpper() != "PUBLIC" && stackType.ToUpper() != "MAIN")
+        {
+            throw new ArgumentException($"PublicThirdOpinion only supports 'PUBLIC' or 'MAIN' stack type, got: {stackType}");
+        }
+        
+        var stackName = $"{envPrefix}-{appCode}-public-{regionCode}";
+        var stack = new PublicThirdOpinionStack(app, stackName, context, new StackProps
+        {
+            Env = environmentConfig.ToAwsEnvironment(),
+            Description = $"PublicThirdOpinion public website infrastructure for {environmentName} environment",
+            Tags = context.GetCommonTags(),
+            StackName = stackName
+        });
+        
+        return (stack, stackName);
     }
 
     private static string GetApplicationCode(string appName)

@@ -1,0 +1,46 @@
+# Task ID: 25
+# Title: Setup Lake Formation Identity Center Integration Scripts
+# Status: done
+# Dependencies: 24
+# Priority: high
+# Description: Create and configure bash scripts for one-time Lake Formation Identity Center integration
+# Details:
+Create check-prerequisites.sh script to validate Identity Center instance ARN and existing groups. Create setup-lakeformation-identity-center.sh script to enable Identity Center integration using aws lakeformation create-lake-formation-identity-center-configuration command for both dev and prod accounts.
+
+# Test Strategy:
+Execute scripts in both dev and prod environments, verify integration status in AWS console, confirm no errors in script execution
+
+# Subtasks:
+## 1. Create prerequisites validation script [done]
+### Dependencies: None
+### Description: Create check-prerequisites.sh script to validate Identity Center instance ARN and existing groups before integration
+### Details:
+Create bash script that checks for valid Identity Center instance ARN using aws sso-admin list-instances, validates required groups exist in Identity Center, verifies current user has necessary permissions for Lake Formation operations, and outputs clear validation results with error messages for missing prerequisites.
+<info added on 2025-08-13T00:35:47.268Z>
+Scripts have been moved to AppInfraCdkV1.Tools/scripts/lake-formation/ directory for better project organization. The scripts are now part of the Tools project and are included in the build output.
+</info added on 2025-08-13T00:35:47.268Z>
+
+## 2. Create Lake Formation Identity Center configuration script for dev environment [done]
+### Dependencies: 25.1
+### Description: Create setup-lakeformation-identity-center.sh script targeting development account (615299752206)
+### Details:
+Create bash script using to-dev-admin profile that calls aws lakeformation create-lake-formation-identity-center-configuration with the validated Identity Center instance ARN, includes error handling and rollback capabilities, logs all operations for audit purposes, and verifies successful integration status.
+
+## 3. Create Lake Formation Identity Center configuration script for prod environment [done]
+### Dependencies: 25.2
+### Description: Create production version of setup script targeting production account (442042533707)
+### Details:
+Adapt the dev script for to-prd-admin profile with production account-specific configurations, include additional confirmation prompts for production safety, implement comprehensive logging and backup procedures before making changes, and add validation steps specific to production environment constraints.
+
+## 4. Implement integration status verification functionality [done]
+### Dependencies: 25.2, 25.3
+### Description: Add verification functions to confirm Lake Formation Identity Center integration is properly configured
+### Details:
+Create bash functions that use aws lakeformation describe-lake-formation-identity-center-configuration to verify integration status, check that Identity Center groups are properly mapped, validate permissions inheritance is working, and generate status reports showing current configuration state.
+
+## 5. Create comprehensive integration test suite [done]
+### Dependencies: 25.4
+### Description: Develop test scripts to validate end-to-end Lake Formation Identity Center integration functionality
+### Details:
+Create test suite that validates prerequisite checks work correctly, tests successful integration setup in both environments, verifies integration status reporting accuracy, includes rollback testing procedures, and generates comprehensive test reports for compliance documentation.
+

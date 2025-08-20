@@ -1,0 +1,11 @@
+# Task ID: 28
+# Title: Implement Lake Formation Setup Construct
+# Status: done
+# Dependencies: 27
+# Priority: high
+# Description: Create CDK construct for Lake Formation configuration including admin roles, data lake settings, and resource registration
+# Details:
+Implement LakeFormationSetupConstruct.cs with Lake Formation admin role creation, data lake settings configuration with trusted resource owners, S3 location registration for all buckets, Glue database creation (thirdopinion_{environment}), and LF-Tags creation for Environment, DataClassification, and PHI tagging.
+
+# Test Strategy:
+Verify admin role created with correct permissions, confirm data lake settings applied, test S3 locations registered in Lake Formation, validate Glue database accessible

@@ -19,6 +19,8 @@ public static class EnumExtensions
         ResourcePurpose.Primary => "primary",
         ResourcePurpose.Admin => "admin",
         ResourcePurpose.Auth => "auth",
+        ResourcePurpose.PublicWebsite => "public-website",
+        ResourcePurpose.JwkGenerator => "jwk-generator",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
     };
 
@@ -33,6 +35,7 @@ public static class EnumExtensions
         StoragePurpose.Backups => "backups",
         StoragePurpose.Cache => "cache",
         StoragePurpose.Session => "session",
+        StoragePurpose.PublicWebsite => "public-website",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
     };
 
@@ -46,6 +49,8 @@ public static class EnumExtensions
         IamPurpose.S3Access => "s3-access",
         IamPurpose.Service => "service",
         IamPurpose.GithubActionsDeploy => "github-actions-deploy",
+        IamPurpose.LambdaExecution => "lambda-exec",
+        IamPurpose.SecretsAccess => "secrets-access",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null)
     };
 

@@ -38,5 +38,15 @@ public enum ResourcePurpose
     /// <summary>
     /// Authentication and authorization components
     /// </summary>
-    Auth
+    Auth,
+    
+    /// <summary>
+    /// Public website resources
+    /// </summary>
+    PublicWebsite,
+    
+    /// <summary>
+    /// JWK key generator resources
+    /// </summary>
+    JwkGenerator
 }

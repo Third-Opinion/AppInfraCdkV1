@@ -1,0 +1,11 @@
+# Task ID: 30
+# Title: Create Master Deployment Script
+# Status: done
+# Dependencies: 29
+# Priority: medium
+# Description: Develop comprehensive bash deployment script for Lake Formation with multiple deployment actions
+# Details:
+Create deploy-data-lake.sh script supporting actions: setup-identity-center, deploy, grant-permissions, test, full, and destroy. Script should handle environment loading, AWS account detection, CDK deployment with proper context variables, and orchestrate all deployment phases with proper error handling.
+
+# Test Strategy:
+Test all deployment actions in dev environment, verify full deployment pipeline works end-to-end, confirm destroy action properly cleans up resources

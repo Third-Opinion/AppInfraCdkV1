@@ -1,0 +1,36 @@
+{
+  "version": "44.0.0",
+  "files": {
+    "4145f2f26ecc516b7fe094166cd117ee8ae3f82fa374dd0a82e664bb54d1ed7e": {
+      "displayName": "JwkLambda/Function/Code",
+      "source": {
+        "path": "asset.4145f2f26ecc516b7fe094166cd117ee8ae3f82fa374dd0a82e664bb54d1ed7e",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "615299752206-us-east-1": {
+          "bucketName": "cdk-hnb659fds-assets-615299752206-us-east-1",
+          "objectKey": "4145f2f26ecc516b7fe094166cd117ee8ae3f82fa374dd0a82e664bb54d1ed7e.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-file-publishing-role-615299752206-us-east-1"
+        }
+      }
+    },
+    "31724a89aca3149eff65b4bfa3037273da518e4455cf0b75968a33d12d030e08": {
+      "displayName": "dev-pto-public-ue1 Template",
+      "source": {
+        "path": "dev-pto-public-ue1.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "615299752206-us-east-1": {
+          "bucketName": "cdk-hnb659fds-assets-615299752206-us-east-1",
+          "objectKey": "31724a89aca3149eff65b4bfa3037273da518e4455cf0b75968a33d12d030e08.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-file-publishing-role-615299752206-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

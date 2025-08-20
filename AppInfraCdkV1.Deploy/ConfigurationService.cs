@@ -1,6 +1,7 @@
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
 using Microsoft.Extensions.Configuration;
+using System.Linq;
 
 namespace AppInfraCdkV1.Deploy;
 
@@ -8,10 +9,14 @@ public static class ConfigurationService
 {
     public static IConfiguration BuildConfiguration(string[] args)
     {
+        // Get the directory where the executing assembly is located
+        var assemblyLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        var basePath = Path.GetDirectoryName(assemblyLocation) ?? Directory.GetCurrentDirectory();
+        
         var builder = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true)
-            .AddJsonFile("appsettings.Development.json", optional: true)
+            .SetBasePath(basePath)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddCommandLine(args);
 
@@ -70,25 +75,32 @@ public static class ConfigurationService
             return envVar;
         }
 
-        // Default to TrialFinderV2
-        return "TrialFinderV2";
+        throw new ArgumentException("Application name is required. Please specify using --app or set the CDK_APPLICATION environment variable.");
     }
 
     public static EnvironmentConfig GetEnvironmentConfig(IConfiguration configuration, string environmentName)
     {
-        var environmentSection = configuration.GetSection($"environments:{environmentName}");
+        var environmentSection = configuration.GetSection($"Environments:{environmentName}");
         
         if (!environmentSection.Exists())
         {
-            throw new InvalidOperationException($"Environment '{environmentName}' not found in configuration.");
+            // List available environments for debugging
+            var availableEnvironments = configuration.GetSection("Environments").GetChildren().Select(x => x.Key);
+            var envList = string.Join(", ", availableEnvironments);
+            throw new InvalidOperationException($"Environment '{environmentName}' not found in configuration. Available environments: {envList}");
         }
 
+        var accountId = environmentSection.GetValue<string>("AccountId") ?? throw new InvalidOperationException($"AccountId not found for environment '{environmentName}'");
+        var accountTypeString = environmentSection.GetValue<string>("AccountType");
+        
         return new EnvironmentConfig
         {
             Name = environmentName,
-            AccountId = environmentSection.GetValue<string>("accountId") ?? throw new InvalidOperationException($"AccountId not found for environment '{environmentName}'"),
-            Region = environmentSection.GetValue<string>("region") ?? "us-east-2",
-            AccountType = DetermineAccountType(environmentSection.GetValue<string>("accountId")!)
+            AccountId = accountId,
+            Region = environmentSection.GetValue<string>("Region") ?? "us-east-2",
+            AccountType = !string.IsNullOrEmpty(accountTypeString) 
+                ? Enum.Parse<AccountType>(accountTypeString) 
+                : DetermineAccountType(configuration, accountId)
         };
     }
 
@@ -129,8 +141,25 @@ public static class ConfigurationService
         return NamingConvention.GetRegionCode(region);
     }
 
-    private static AccountType DetermineAccountType(string accountId)
+    private static AccountType DetermineAccountType(IConfiguration configuration, string accountId)
     {
+        // Search through all environments in configuration to find the account type
+        var environmentsSection = configuration.GetSection("Environments");
+        
+        foreach (var environment in environmentsSection.GetChildren())
+        {
+            var envAccountId = environment.GetValue<string>("AccountId");
+            if (envAccountId == accountId)
+            {
+                var accountTypeString = environment.GetValue<string>("AccountType");
+                if (!string.IsNullOrEmpty(accountTypeString))
+                {
+                    return Enum.Parse<AccountType>(accountTypeString);
+                }
+            }
+        }
+        
+        // Fallback to hardcoded values if not found in configuration
         return accountId switch
         {
             "615299752206" => AccountType.NonProduction,

@@ -1,0 +1,328 @@
+{
+ "Description": "Certificate and DNS for PublicThirdOpinion Production environment",
+ "Resources": {
+  "HostedZoneDB99F866": {
+   "Type": "AWS::Route53::HostedZone",
+   "Properties": {
+    "HostedZoneConfig": {
+     "Comment": "Hosted zone for PublicThirdOpinion Production"
+    },
+    "HostedZoneTags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Certificate"
+     }
+    ],
+    "Name": "public.thirdopinion.io."
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-cert-ue2/HostedZone/Resource"
+   }
+  },
+  "CertificateCertificateRequestorFunctionServiceRoleC04C13DA": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Certificate"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-cert-ue2/Certificate/CertificateRequestorFunction/ServiceRole/Resource"
+   }
+  },
+  "CertificateCertificateRequestorFunctionServiceRoleDefaultPolicy3C8845BC": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "acm:AddTagsToCertificate",
+        "acm:DeleteCertificate",
+        "acm:DescribeCertificate",
+        "acm:RequestCertificate",
+        "route53:GetChange"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "route53:changeResourceRecordSets",
+       "Condition": {
+        "ForAllValues:StringEquals": {
+         "route53:ChangeResourceRecordSetsRecordTypes": [
+          "CNAME"
+         ],
+         "route53:ChangeResourceRecordSetsActions": [
+          "UPSERT"
+         ]
+        },
+        "ForAllValues:StringLike": {
+         "route53:ChangeResourceRecordSetsNormalizedRecordNames": [
+          "*.public.thirdopinion.io",
+          "*.public.thirdopinion.io"
+         ]
+        }
+       },
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:route53:::hostedzone/",
+          {
+           "Ref": "HostedZoneDB99F866"
+          }
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "CertificateCertificateRequestorFunctionServiceRoleDefaultPolicy3C8845BC",
+    "Roles": [
+     {
+      "Ref": "CertificateCertificateRequestorFunctionServiceRoleC04C13DA"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-cert-ue2/Certificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "CertificateCertificateRequestorFunction5E845413": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-442042533707-us-east-2",
+     "S3Key": "b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8.zip"
+    },
+    "Handler": "index.certificateRequestHandler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CertificateCertificateRequestorFunctionServiceRoleC04C13DA",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Certificate"
+     }
+    ],
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "CertificateCertificateRequestorFunctionServiceRoleDefaultPolicy3C8845BC",
+    "CertificateCertificateRequestorFunctionServiceRoleC04C13DA"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-cert-ue2/Certificate/CertificateRequestorFunction/Resource",
+    "aws:asset:path": "asset.b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "CertificateCertificateRequestorResource2890C6B7": {
+   "Type": "AWS::CloudFormation::CustomResource",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CertificateCertificateRequestorFunction5E845413",
+      "Arn"
+     ]
+    },
+    "DomainName": "public.thirdopinion.io",
+    "SubjectAlternativeNames": [
+     "*.public.thirdopinion.io"
+    ],
+    "HostedZoneId": {
+     "Ref": "HostedZoneDB99F866"
+    },
+    "Region": "us-east-1",
+    "Tags": {
+     "Application": "PublicThirdOpinion",
+     "Environment": "Production",
+     "ManagedBy": "CDK",
+     "Repository": "AppInfraCdkV1",
+     "StackType": "Certificate"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-cert-ue2/Certificate/CertificateRequestorResource/Default"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02NQUvDQBCFf0vvm0nSKHjx0KaKpyqt9OClTDfTMCbZDTuzFgn575IUrczh+x4P3ixhmeWQLfAiia2apOUTDHtF2xi8yHEIPirdFzC8eFGqPrwjU57dLY3GUlA+s0WlDh3WFGDj5IAtV6hUlbfatNidKoThOTqr7N009eujYexg2Pl2/jDzzbdsv6d4tdFIcUQRUoHVBCMFrKNtSNcoNJodiY/BkpnbvWLNrjZlFPXdXzet//PXqH3U0Wy8bknTB8ggv0th+/Re+kCrvk8OFIS9e/wqIE9zyKZbfApzEqJT7gh2V/4AekqvUk4BAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-cert-ue2/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "CertificateArn": {
+   "Description": "Certificate ARN for CloudFront",
+   "Value": {
+    "Fn::GetAtt": [
+     "CertificateCertificateRequestorResource2890C6B7",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "Production-PublicWebsite-CertificateArn"
+   }
+  },
+  "HostedZoneId": {
+   "Description": "Hosted Zone ID",
+   "Value": {
+    "Ref": "HostedZoneDB99F866"
+   },
+   "Export": {
+    "Name": "Production-PublicWebsite-HostedZoneId"
+   }
+  },
+  "HostedZoneName": {
+   "Description": "Hosted Zone Name",
+   "Value": "public.thirdopinion.io",
+   "Export": {
+    "Name": "Production-PublicWebsite-HostedZoneName"
+   }
+  },
+  "NameServers": {
+   "Description": "Name servers for DNS delegation",
+   "Value": {
+    "Fn::Join": [
+     ",",
+     {
+      "Fn::GetAtt": [
+       "HostedZoneDB99F866",
+       "NameServers"
+      ]
+     }
+    ]
+   }
+  },
+  "ValidationStatus": {
+   "Description": "Next steps",
+   "Value": "IMPORTANT: Add NS records to parent domain and wait for certificate validation before deploying main stack"
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,123 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0/linux-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {},
+    ".NETCoreApp,Version=v8.0/linux-x64": {
+      "JwkGenerator/1.0.0": {
+        "dependencies": {
+          "AWSSDK.S3": "3.7.310.6",
+          "AWSSDK.SecretsManager": "3.7.400",
+          "Amazon.Lambda.Core": "2.2.0",
+          "Amazon.Lambda.Serialization.SystemTextJson": "2.4.1",
+          "System.Text.Json": "8.0.5"
+        },
+        "runtime": {
+          "JwkGenerator.dll": {}
+        }
+      },
+      "Amazon.Lambda.Core/2.2.0": {
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Amazon.Lambda.Serialization.SystemTextJson/2.4.1": {
+        "dependencies": {
+          "Amazon.Lambda.Core": "2.2.0"
+        },
+        "runtime": {
+          "lib/net8.0/Amazon.Lambda.Serialization.SystemTextJson.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "AWSSDK.Core/3.7.400": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "3.3.0.0",
+            "fileVersion": "3.7.400.0"
+          }
+        }
+      },
+      "AWSSDK.S3/3.7.310.6": {
+        "dependencies": {
+          "AWSSDK.Core": "3.7.400"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "assemblyVersion": "3.3.0.0",
+            "fileVersion": "3.7.310.6"
+          }
+        }
+      },
+      "AWSSDK.SecretsManager/3.7.400": {
+        "dependencies": {
+          "AWSSDK.Core": "3.7.400"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SecretsManager.dll": {
+            "assemblyVersion": "3.3.0.0",
+            "fileVersion": "3.7.400.0"
+          }
+        }
+      },
+      "System.Text.Json/8.0.5": {}
+    }
+  },
+  "libraries": {
+    "JwkGenerator/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Amazon.Lambda.Core/2.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DHqKeD1CYocP0t1dJC/NaXfu+5k6AoqnQ1Hlu/J2mXpLpCyeJfY+tIqT5fpruDarUlU0NtdIH8zSkCjeinyb1A==",
+      "path": "amazon.lambda.core/2.2.0",
+      "hashPath": "amazon.lambda.core.2.2.0.nupkg.sha512"
+    },
+    "Amazon.Lambda.Serialization.SystemTextJson/2.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-X06Z8zPDZJS/xAoAntSqsxOoSSKKFJMg+0QGPRtlPt1mbP19HFXlXn+q+XqHdVWWFsiH/r7KbDIICr0nsrlwug==",
+      "path": "amazon.lambda.serialization.systemtextjson/2.4.1",
+      "hashPath": "amazon.lambda.serialization.systemtextjson.2.4.1.nupkg.sha512"
+    },
+    "AWSSDK.Core/3.7.400": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-qw+WGhxcYtZ6wc1uibOu9XXLsfUpQ1r+gWa0euFnm1e9HowQbcwvKvOqQzwBNqIBO7S5IJ26T9kV/eFiwvZAkQ==",
+      "path": "awssdk.core/3.7.400",
+      "hashPath": "awssdk.core.3.7.400.nupkg.sha512"
+    },
+    "AWSSDK.S3/3.7.310.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4VNmtEp/ZPlCJat8KGeh3Sm/K2EqjM21oAgw2VsrSHwogxsOg11xYuBmTRbJgJrGiwYsa3tBkOOUhA4lFWTUQA==",
+      "path": "awssdk.s3/3.7.310.6",
+      "hashPath": "awssdk.s3.3.7.310.6.nupkg.sha512"
+    },
+    "AWSSDK.SecretsManager/3.7.400": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-46KCISbKTMlHq6c79WyTKrKYqGBQpHOUCpMXwiXf7LL2FLQda8fsu/hJCBxfSsxS/+eEGj604QgWWyfPF1OBOw==",
+      "path": "awssdk.secretsmanager/3.7.400",
+      "hashPath": "awssdk.secretsmanager.3.7.400.nupkg.sha512"
+    },
+    "System.Text.Json/8.0.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0f1B50Ss7rqxXiaBJyzUu9bWFOO2/zSlifZ/UNMdiIpDYe4cY4LQQicP4nirK1OS31I43rn062UIJ1Q9bpmHpg==",
+      "path": "system.text.json/8.0.5",
+      "hashPath": "system.text.json.8.0.5.nupkg.sha512"
+    }
+  }
+}

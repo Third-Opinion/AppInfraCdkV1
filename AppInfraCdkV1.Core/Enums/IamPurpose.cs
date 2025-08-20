@@ -28,5 +28,15 @@ public enum IamPurpose
     /// <summary>
     /// GitHub Actions deployment role for ECS task definition updates
     /// </summary>
-    GithubActionsDeploy
+    GithubActionsDeploy,
+    
+    /// <summary>
+    /// Lambda execution role
+    /// </summary>
+    LambdaExecution,
+    
+    /// <summary>
+    /// Secrets Manager access role
+    /// </summary>
+    SecretsAccess
 }

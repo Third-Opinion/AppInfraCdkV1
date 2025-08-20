@@ -33,5 +33,10 @@ public enum StoragePurpose
     /// <summary>
     /// Session storage
     /// </summary>
-    Session
+    Session,
+    
+    /// <summary>
+    /// Public website hosting
+    /// </summary>
+    PublicWebsite
 }

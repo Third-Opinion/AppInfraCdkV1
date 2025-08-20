@@ -1,0 +1,11 @@
+# Task ID: 33
+# Title: Integrate with Existing GitHub Actions Workflow
+# Status: done
+# Dependencies: 32
+# Priority: high
+# Description: Add Lake Formation deployment to existing GitHub Actions deployment pipeline
+# Details:
+Create or modify existing GitHub Actions workflow to include Lake Formation deployment steps. Add workflow_dispatch trigger for manual deployments, configure AWS credentials using existing OIDC roles, integrate CDK deployment commands, and add permission configuration and validation steps. Ensure compatibility with existing deployment structure.
+
+# Test Strategy:
+Test GitHub Actions workflow in dev environment first, verify OIDC authentication works, confirm deployment integrates with existing infrastructure, validate end-to-end deployment from GitHub
