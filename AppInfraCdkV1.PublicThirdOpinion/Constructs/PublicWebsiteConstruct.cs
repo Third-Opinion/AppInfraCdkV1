@@ -125,10 +125,14 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
             ICertificate? existingCert = null;
             if (string.IsNullOrEmpty(existingCertificateArn))
             {
+                // For production, use the known certificate ARN for public.thirdopinion.io
+                if (domainName == "public.thirdopinion.io" && context.Environment.Name.ToLower() == "production")
+                {
+                    existingCertificateArn = "arn:aws:acm:us-east-1:442042533707:certificate/f7644724-861c-4a11-be2f-bc591d628fc2";
+                }
                 // Note: CDK doesn't provide a direct lookup for certificates by domain name
                 // We would need to use custom resources or context lookups for this
-                // For now, we'll skip automatic certificate discovery
-                // Users can provide certificate ARN explicitly if they want to reuse existing ones
+                // For now, we use known certificate ARNs for specific domains
             }
 
             // Use existing certificate if provided or found
