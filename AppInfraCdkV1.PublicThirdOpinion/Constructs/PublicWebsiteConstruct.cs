@@ -84,18 +84,12 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
             IHostedZone? existingZone = null;
             if (string.IsNullOrEmpty(existingHostedZoneId))
             {
-                try
+                // For production, use the known hosted zone ID to avoid lookup issues
+                if (domainName == "public.thirdopinion.io" && context.Environment.Name.ToLower() == "production")
                 {
-                    // Try to lookup existing hosted zone by domain name
-                    existingZone = Amazon.CDK.AWS.Route53.HostedZone.FromLookup(this, "LookupHostedZone", new HostedZoneProviderProps
-                    {
-                        DomainName = domainName
-                    });
+                    existingHostedZoneId = "Z09476051323EX0YIALJW";
                 }
-                catch
-                {
-                    // Hosted zone not found, will create new one
-                }
+                // Skip lookup to avoid synthesis issues - will create new zone if not provided
             }
 
             // Use existing hosted zone if provided or found

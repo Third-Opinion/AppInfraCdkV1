@@ -25,7 +25,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-deploy-role-442042533707-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-cfn-exec-role-442042533707-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-442042533707-us-east-2/80f832072ea181c7e3506cc6942cf892d785b39e9b574d7a59b27655714dd461.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-442042533707-us-east-2/f3961fa16e80e79a626a0e01d4e002c9c5914f97f44bcb05651db126f5a6bdf7.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -84,42 +84,6 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteOAI150B4789"
-          }
-        ],
-        "/prod-pto-public-ue2/PublicWebsite/HostedZone/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "PublicWebsiteHostedZone6112A7E1"
-          }
-        ],
-        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction": [
-          {
-            "type": "aws:cdk:is-custom-resource-handler-runtime-family",
-            "data": 0
-          }
-        ],
-        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/ServiceRole/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleEA86C6E1"
-          }
-        ],
-        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy128D8A60"
-          }
-        ],
-        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "PublicWebsiteCertificateCertificateRequestorFunction80996675"
-          }
-        ],
-        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorResource/Default": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "PublicWebsiteCertificateCertificateRequestorResourceE76D2BF6"
           }
         ],
         "/prod-pto-public-ue2/PublicWebsite/Distribution/Resource": [
