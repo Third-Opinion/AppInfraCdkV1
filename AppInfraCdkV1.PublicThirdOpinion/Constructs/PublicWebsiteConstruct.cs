@@ -77,11 +77,16 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
             });
 
             // Create ACM certificate for HTTPS
-            Certificate = new Certificate(this, "Certificate", new CertificateProps
+            // Note: For CloudFront, the certificate must be in us-east-1
+            // We'll use DnsValidatedCertificate despite deprecation warning as it supports cross-region
+            Certificate = new DnsValidatedCertificate(this, "Certificate", new DnsValidatedCertificateProps
             {
                 DomainName = domainName,
-                Validation = CertificateValidation.FromDns(HostedZone),
-                SubjectAlternativeNames = new[] { $"*.{domainName}" }
+                HostedZone = HostedZone,
+                SubjectAlternativeNames = new[] { $"*.{domainName}" },
+                // CloudFront requires certificates to be in us-east-1
+                Region = "us-east-1",
+                Validation = CertificateValidation.FromDns(HostedZone)
             });
 
             // Create CloudFront distribution using ResourceNamer for custom naming
