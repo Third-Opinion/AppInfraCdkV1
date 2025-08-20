@@ -1,46 +1,46 @@
 {
   "version": "44.0.0",
   "artifacts": {
-    "dev-pto-public-ue1.assets": {
+    "prod-pto-public-ue2.assets": {
       "type": "cdk:asset-manifest",
       "properties": {
-        "file": "dev-pto-public-ue1.assets.json",
+        "file": "prod-pto-public-ue2.assets.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
       }
     },
-    "dev-pto-public-ue1": {
+    "prod-pto-public-ue2": {
       "type": "aws:cloudformation:stack",
-      "environment": "aws://615299752206/us-east-1",
+      "environment": "aws://442042533707/us-east-2",
       "properties": {
-        "templateFile": "dev-pto-public-ue1.template.json",
+        "templateFile": "prod-pto-public-ue2.template.json",
         "terminationProtection": false,
         "tags": {
           "Application": "PublicThirdOpinion",
-          "Environment": "Development",
+          "Environment": "Production",
           "ManagedBy": "CDK",
           "Repository": "AppInfraCdkV1"
         },
         "validateOnSynth": false,
-        "assumeRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-deploy-role-615299752206-us-east-1",
-        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-cfn-exec-role-615299752206-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-615299752206-us-east-1/31724a89aca3149eff65b4bfa3037273da518e4455cf0b75968a33d12d030e08.json",
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-deploy-role-442042533707-us-east-2",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-cfn-exec-role-442042533707-us-east-2",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-442042533707-us-east-2/7572dcc0d91c439938dc25ed0f84b4fa868eee809df5e345fdc7195676b7f7a6.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
-          "dev-pto-public-ue1.assets"
+          "prod-pto-public-ue2.assets"
         ],
         "lookupRole": {
-          "arn": "arn:${AWS::Partition}:iam::615299752206:role/cdk-hnb659fds-lookup-role-615299752206-us-east-1",
+          "arn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-lookup-role-442042533707-us-east-2",
           "requiresBootstrapStackVersion": 8,
           "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
         }
       },
       "dependencies": [
-        "dev-pto-public-ue1.assets"
+        "prod-pto-public-ue2.assets"
       ],
       "metadata": {
-        "/dev-pto-public-ue1": [
+        "/prod-pto-public-ue2": [
           {
             "type": "aws:cdk:stack-tags",
             "data": [
@@ -50,7 +50,7 @@
               },
               {
                 "Key": "Environment",
-                "Value": "Development"
+                "Value": "Production"
               },
               {
                 "Key": "ManagedBy",
@@ -63,152 +63,176 @@
             ]
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/WebsiteBucket/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/WebsiteBucket/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteWebsiteBucket4AB85198"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/WebsiteBucket/Policy/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/WebsiteBucket/Policy/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteWebsiteBucketPolicyB15840D2"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/OAI/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/OAI/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteOAI150B4789"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/HostedZone/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/HostedZone/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteHostedZone6112A7E1"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/Certificate/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction": [
           {
-            "type": "aws:cdk:logicalId",
-            "data": "PublicWebsiteCertificateA44FD92D"
+            "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+            "data": 0
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/Distribution/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleEA86C6E1"
+          }
+        ],
+        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy128D8A60"
+          }
+        ],
+        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PublicWebsiteCertificateCertificateRequestorFunction80996675"
+          }
+        ],
+        "/prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PublicWebsiteCertificateCertificateRequestorResourceE76D2BF6"
+          }
+        ],
+        "/prod-pto-public-ue2/PublicWebsite/Distribution/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteDistributionC2C47F9F"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/SiteAliasRecord/Resource": [
+        "/prod-pto-public-ue2/PublicWebsite/SiteAliasRecord/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteSiteAliasRecordA73AE1B0"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/BucketName": [
+        "/prod-pto-public-ue2/PublicWebsite/BucketName": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteBucketName984B4B01"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/DistributionId": [
+        "/prod-pto-public-ue2/PublicWebsite/DistributionId": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteDistributionIdCEEA35BC"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/DistributionDomainName": [
+        "/prod-pto-public-ue2/PublicWebsite/DistributionDomainName": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteDistributionDomainNameAA3DD007"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/WebsiteUrl": [
+        "/prod-pto-public-ue2/PublicWebsite/WebsiteUrl": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteWebsiteUrl54B24A3A"
           }
         ],
-        "/dev-pto-public-ue1/PublicWebsite/HostedZoneId": [
+        "/prod-pto-public-ue2/PublicWebsite/HostedZoneId": [
           {
             "type": "aws:cdk:logicalId",
             "data": "PublicWebsiteHostedZoneIdF663A11F"
           }
         ],
-        "/dev-pto-public-ue1/AWSCloudFrontPartitionHostedZoneIdMap": [
+        "/prod-pto-public-ue2/AWSCloudFrontPartitionHostedZoneIdMap": [
           {
             "type": "aws:cdk:logicalId",
             "data": "AWSCloudFrontPartitionHostedZoneIdMap"
           }
         ],
-        "/dev-pto-public-ue1/JwkLambda/LogGroup/Resource": [
+        "/prod-pto-public-ue2/JwkLambda/LogGroup/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "JwkLambdaLogGroup90594E6C"
           }
         ],
-        "/dev-pto-public-ue1/JwkLambda/ExecutionRole/Resource": [
+        "/prod-pto-public-ue2/JwkLambda/ExecutionRole/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "JwkLambdaExecutionRoleBA7DBF66"
           }
         ],
-        "/dev-pto-public-ue1/JwkLambda/ExecutionRole/DefaultPolicy/Resource": [
+        "/prod-pto-public-ue2/JwkLambda/ExecutionRole/DefaultPolicy/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "JwkLambdaExecutionRoleDefaultPolicy29E9DB1F"
           }
         ],
-        "/dev-pto-public-ue1/JwkLambda/Function/Resource": [
+        "/prod-pto-public-ue2/JwkLambda/Function/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "JwkLambdaFunction27563E2B"
           }
         ],
-        "/dev-pto-public-ue1/JwkLambda/FunctionArn": [
+        "/prod-pto-public-ue2/JwkLambda/FunctionArn": [
           {
             "type": "aws:cdk:logicalId",
             "data": "JwkLambdaFunctionArn29515B4E"
           }
         ],
-        "/dev-pto-public-ue1/JwkLambda/FunctionName": [
+        "/prod-pto-public-ue2/JwkLambda/FunctionName": [
           {
             "type": "aws:cdk:logicalId",
             "data": "JwkLambdaFunctionNameE0481F74"
           }
         ],
-        "/dev-pto-public-ue1/StackName": [
+        "/prod-pto-public-ue2/StackName": [
           {
             "type": "aws:cdk:logicalId",
             "data": "StackName"
           }
         ],
-        "/dev-pto-public-ue1/Region": [
+        "/prod-pto-public-ue2/Region": [
           {
             "type": "aws:cdk:logicalId",
             "data": "Region"
           }
         ],
-        "/dev-pto-public-ue1/CDKMetadata/Default": [
+        "/prod-pto-public-ue2/CDKMetadata/Default": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CDKMetadata"
           }
         ],
-        "/dev-pto-public-ue1/BootstrapVersion": [
+        "/prod-pto-public-ue2/BootstrapVersion": [
           {
             "type": "aws:cdk:logicalId",
             "data": "BootstrapVersion"
           }
         ],
-        "/dev-pto-public-ue1/CheckBootstrapVersion": [
+        "/prod-pto-public-ue2/CheckBootstrapVersion": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CheckBootstrapVersion"
           }
         ]
       },
-      "displayName": "dev-pto-public-ue1"
+      "displayName": "prod-pto-public-ue2"
     },
     "Tree": {
       "type": "cdk:tree",

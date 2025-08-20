@@ -1,0 +1,838 @@
+{
+ "Description": "PublicThirdOpinion infrastructure for Production environment",
+ "Resources": {
+  "PublicWebsiteWebsiteBucket4AB85198": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketName": "thirdopinion.io-prod-pto-public-website-ue2",
+    "CorsConfiguration": {
+     "CorsRules": [
+      {
+       "AllowedHeaders": [
+        "*"
+       ],
+       "AllowedMethods": [
+        "GET",
+        "HEAD"
+       ],
+       "AllowedOrigins": [
+        "*"
+       ],
+       "MaxAge": 3000
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": false,
+     "BlockPublicPolicy": false,
+     "IgnorePublicAcls": false,
+     "RestrictPublicBuckets": false
+    },
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    },
+    "WebsiteConfiguration": {
+     "ErrorDocument": "error.html",
+     "IndexDocument": "index.html"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/WebsiteBucket/Resource"
+   }
+  },
+  "PublicWebsiteWebsiteBucketPolicyB15840D2": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "PublicWebsiteWebsiteBucket4AB85198"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "CanonicalUser": {
+         "Fn::GetAtt": [
+          "PublicWebsiteOAI150B4789",
+          "S3CanonicalUserId"
+         ]
+        }
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PublicWebsiteWebsiteBucket4AB85198",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PublicWebsiteWebsiteBucket4AB85198",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "s3:GetObject",
+       "Effect": "Allow",
+       "Principal": {
+        "CanonicalUser": {
+         "Fn::GetAtt": [
+          "PublicWebsiteOAI150B4789",
+          "S3CanonicalUserId"
+         ]
+        }
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "PublicWebsiteWebsiteBucket4AB85198",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/WebsiteBucket/Policy/Resource"
+   }
+  },
+  "PublicWebsiteOAI150B4789": {
+   "Type": "AWS::CloudFront::CloudFrontOriginAccessIdentity",
+   "Properties": {
+    "CloudFrontOriginAccessIdentityConfig": {
+     "Comment": "OAI for public.thirdopinion.io"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/OAI/Resource"
+   }
+  },
+  "PublicWebsiteHostedZone6112A7E1": {
+   "Type": "AWS::Route53::HostedZone",
+   "Properties": {
+    "HostedZoneConfig": {
+     "Comment": "Hosted zone for PublicThirdOpinion Production"
+    },
+    "HostedZoneTags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ],
+    "Name": "public.thirdopinion.io."
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/HostedZone/Resource"
+   }
+  },
+  "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleEA86C6E1": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/ServiceRole/Resource"
+   }
+  },
+  "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy128D8A60": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "acm:AddTagsToCertificate",
+        "acm:DeleteCertificate",
+        "acm:DescribeCertificate",
+        "acm:RequestCertificate",
+        "route53:GetChange"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "route53:changeResourceRecordSets",
+       "Condition": {
+        "ForAllValues:StringEquals": {
+         "route53:ChangeResourceRecordSetsRecordTypes": [
+          "CNAME"
+         ],
+         "route53:ChangeResourceRecordSetsActions": [
+          "UPSERT"
+         ]
+        },
+        "ForAllValues:StringLike": {
+         "route53:ChangeResourceRecordSetsNormalizedRecordNames": [
+          "*.public.thirdopinion.io",
+          "*.public.thirdopinion.io"
+         ]
+        }
+       },
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:route53:::hostedzone/",
+          {
+           "Ref": "PublicWebsiteHostedZone6112A7E1"
+          }
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy128D8A60",
+    "Roles": [
+     {
+      "Ref": "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleEA86C6E1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "PublicWebsiteCertificateCertificateRequestorFunction80996675": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-442042533707-us-east-2",
+     "S3Key": "b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8.zip"
+    },
+    "Handler": "index.certificateRequestHandler",
+    "Role": {
+     "Fn::GetAtt": [
+      "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleEA86C6E1",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ],
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy128D8A60",
+    "PublicWebsiteCertificateCertificateRequestorFunctionServiceRoleEA86C6E1"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorFunction/Resource",
+    "aws:asset:path": "asset.b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "PublicWebsiteCertificateCertificateRequestorResourceE76D2BF6": {
+   "Type": "AWS::CloudFormation::CustomResource",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "PublicWebsiteCertificateCertificateRequestorFunction80996675",
+      "Arn"
+     ]
+    },
+    "DomainName": "public.thirdopinion.io",
+    "SubjectAlternativeNames": [
+     "*.public.thirdopinion.io"
+    ],
+    "HostedZoneId": {
+     "Ref": "PublicWebsiteHostedZone6112A7E1"
+    },
+    "Region": "us-east-1",
+    "Tags": {
+     "Application": "PublicThirdOpinion",
+     "Environment": "Production",
+     "ManagedBy": "CDK",
+     "Repository": "AppInfraCdkV1"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/Certificate/CertificateRequestorResource/Default"
+   }
+  },
+  "PublicWebsiteDistributionC2C47F9F": {
+   "Type": "AWS::CloudFront::Distribution",
+   "Properties": {
+    "DistributionConfig": {
+     "Aliases": [
+      "public.thirdopinion.io"
+     ],
+     "Comment": "prod-pto-cloudfront-ue2-public-website",
+     "CustomErrorResponses": [
+      {
+       "ErrorCachingMinTTL": 300,
+       "ErrorCode": 403,
+       "ResponseCode": 200,
+       "ResponsePagePath": "/index.html"
+      },
+      {
+       "ErrorCachingMinTTL": 300,
+       "ErrorCode": 404,
+       "ResponseCode": 404,
+       "ResponsePagePath": "/error.html"
+      }
+     ],
+     "DefaultCacheBehavior": {
+      "AllowedMethods": [
+       "GET",
+       "HEAD"
+      ],
+      "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+      "Compress": true,
+      "TargetOriginId": "prodptopublicue2PublicWebsiteDistributionOrigin196E30792",
+      "ViewerProtocolPolicy": "redirect-to-https"
+     },
+     "DefaultRootObject": "index.html",
+     "Enabled": true,
+     "HttpVersion": "http2and3",
+     "IPV6Enabled": true,
+     "Origins": [
+      {
+       "DomainName": {
+        "Fn::GetAtt": [
+         "PublicWebsiteWebsiteBucket4AB85198",
+         "RegionalDomainName"
+        ]
+       },
+       "Id": "prodptopublicue2PublicWebsiteDistributionOrigin196E30792",
+       "S3OriginConfig": {
+        "OriginAccessIdentity": {
+         "Fn::Join": [
+          "",
+          [
+           "origin-access-identity/cloudfront/",
+           {
+            "Ref": "PublicWebsiteOAI150B4789"
+           }
+          ]
+         ]
+        }
+       }
+      }
+     ],
+     "PriceClass": "PriceClass_100",
+     "ViewerCertificate": {
+      "AcmCertificateArn": {
+       "Fn::GetAtt": [
+        "PublicWebsiteCertificateCertificateRequestorResourceE76D2BF6",
+        "Arn"
+       ]
+      },
+      "MinimumProtocolVersion": "TLSv1.2_2021",
+      "SslSupportMethod": "sni-only"
+     }
+    },
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/Distribution/Resource"
+   }
+  },
+  "PublicWebsiteSiteAliasRecordA73AE1B0": {
+   "Type": "AWS::Route53::RecordSet",
+   "Properties": {
+    "AliasTarget": {
+     "DNSName": {
+      "Fn::GetAtt": [
+       "PublicWebsiteDistributionC2C47F9F",
+       "DomainName"
+      ]
+     },
+     "HostedZoneId": {
+      "Fn::FindInMap": [
+       "AWSCloudFrontPartitionHostedZoneIdMap",
+       {
+        "Ref": "AWS::Partition"
+       },
+       "zoneId"
+      ]
+     }
+    },
+    "HostedZoneId": {
+     "Ref": "PublicWebsiteHostedZone6112A7E1"
+    },
+    "Name": "public.thirdopinion.io.",
+    "Type": "A"
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/PublicWebsite/SiteAliasRecord/Resource"
+   }
+  },
+  "JwkLambdaLogGroup90594E6C": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/aws/lambda/prod-pto-jwk-generator",
+    "RetentionInDays": 30,
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/JwkLambda/LogGroup/Resource"
+   }
+  },
+  "JwkLambdaExecutionRoleBA7DBF66": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Execution role for JWK Generator Lambda",
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "RoleName": "prod-pto-role-ue2-lambda-exec",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/JwkLambda/ExecutionRole/Resource"
+   }
+  },
+  "JwkLambdaExecutionRoleDefaultPolicy29E9DB1F": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PublicWebsiteWebsiteBucket4AB85198",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PublicWebsiteWebsiteBucket4AB85198",
+             "Arn"
+            ]
+           },
+           "/jwks/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:PutSecretValue",
+        "secretsmanager:TagResource",
+        "secretsmanager:UpdateSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:secretsmanager:us-east-2:442042533707:secret:production/jwk/*"
+      },
+      {
+       "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey"
+       ],
+       "Condition": {
+        "StringEquals": {
+         "kms:ViaService": "secretsmanager.us-east-2.amazonaws.com"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "arn:aws:kms:us-east-2:442042533707:key/*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "JwkLambdaExecutionRoleDefaultPolicy29E9DB1F",
+    "Roles": [
+     {
+      "Ref": "JwkLambdaExecutionRoleBA7DBF66"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/JwkLambda/ExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "JwkLambdaFunction27563E2B": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-442042533707-us-east-2",
+     "S3Key": "0c8730a61619346efe075e8c371c1a7da5b75626ae98d179a8a099cefc3779a2.zip"
+    },
+    "Description": "Lambda function to generate JWK key pairs for FHIR R4 authentication",
+    "Environment": {
+     "Variables": {
+      "BUCKET_NAME": {
+       "Ref": "PublicWebsiteWebsiteBucket4AB85198"
+      },
+      "ENVIRONMENT": "Production",
+      "SECRETS_PREFIX": "production/jwk"
+     }
+    },
+    "FunctionName": "prod-pto-lambda-ue2-jwk-generator",
+    "Handler": "JwkGenerator::AppInfraCdkV1.PublicThirdOpinion.Lambda.JwkGenerator::Handler",
+    "LoggingConfig": {
+     "LogGroup": {
+      "Ref": "JwkLambdaLogGroup90594E6C"
+     }
+    },
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "JwkLambdaExecutionRoleBA7DBF66",
+      "Arn"
+     ]
+    },
+    "Runtime": "dotnet8",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "PublicThirdOpinion"
+     },
+     {
+      "Key": "Environment",
+      "Value": "Production"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Repository",
+      "Value": "AppInfraCdkV1"
+     }
+    ],
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "JwkLambdaExecutionRoleDefaultPolicy29E9DB1F",
+    "JwkLambdaExecutionRoleBA7DBF66"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/JwkLambda/Function/Resource",
+    "aws:asset:path": "asset.0c8730a61619346efe075e8c371c1a7da5b75626ae98d179a8a099cefc3779a2",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/22RT0/CQBDFPwv3ZQDRxIsHKKImCgYMBy9k2Q7NSLvT7MxKTNPvbtqCcDB7eO/N/Cb77wZuhiMY9uxR+i499HPaQbVW6w7GHmVbyRiqaXQHVJPs/cl18s45uZ9L+ZS7MLWCtXE5x3Qf2CtUy0AZ+YlzKPKSolfSdjhpmHnD/EvMSDTQLiqxb/DrXJvAUfFuDNUzi2L6yR4b6CpNVug4pE21c2vU2jgMSntyVrGw3mYYYOZlY3NKrWKaXNomt8UutVDNo3fnQ5x9bcgWUK04b7dt9fIsnauNjLdWBFVg0ojJOROoXjl7ChzLhjz7ujYrFI7BoWnZtdqMfGaSKMrFX6+9zMUvo5ax/aA3W5bks9rMWBeog3sYwuh2AIvHj4QDTsqyv8EgxP7hewyjwQiGzep9CVE/RK9UIKw6/QX7EM5gGwIAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "prod-pto-public-ue2/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "PublicWebsiteBucketName984B4B01": {
+   "Description": "Name of the S3 bucket",
+   "Value": {
+    "Ref": "PublicWebsiteWebsiteBucket4AB85198"
+   }
+  },
+  "PublicWebsiteDistributionIdCEEA35BC": {
+   "Description": "CloudFront Distribution ID",
+   "Value": {
+    "Ref": "PublicWebsiteDistributionC2C47F9F"
+   }
+  },
+  "PublicWebsiteDistributionDomainNameAA3DD007": {
+   "Description": "CloudFront Distribution Domain Name",
+   "Value": {
+    "Fn::GetAtt": [
+     "PublicWebsiteDistributionC2C47F9F",
+     "DomainName"
+    ]
+   }
+  },
+  "PublicWebsiteWebsiteUrl54B24A3A": {
+   "Description": "Website URL",
+   "Value": "https://public.thirdopinion.io"
+  },
+  "PublicWebsiteHostedZoneIdF663A11F": {
+   "Description": "Route53 Hosted Zone ID",
+   "Value": {
+    "Ref": "PublicWebsiteHostedZone6112A7E1"
+   }
+  },
+  "JwkLambdaFunctionArn29515B4E": {
+   "Description": "JWK Generator Lambda Function ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "JwkLambdaFunction27563E2B",
+     "Arn"
+    ]
+   }
+  },
+  "JwkLambdaFunctionNameE0481F74": {
+   "Description": "JWK Generator Lambda Function Name",
+   "Value": {
+    "Ref": "JwkLambdaFunction27563E2B"
+   }
+  },
+  "StackName": {
+   "Description": "Stack name",
+   "Value": "prod-pto-public-ue2"
+  },
+  "Region": {
+   "Description": "AWS Region",
+   "Value": "us-east-2"
+  }
+ },
+ "Mappings": {
+  "AWSCloudFrontPartitionHostedZoneIdMap": {
+   "aws": {
+    "zoneId": "Z2FDTNDATAQYW2"
+   },
+   "aws-cn": {
+    "zoneId": "Z3RFFRIM2A3IF5"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
