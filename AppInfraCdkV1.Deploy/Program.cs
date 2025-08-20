@@ -126,13 +126,21 @@ public abstract class Program
 
     private static void DeployLakeFormationOrOtherApp(App app, string appName, DeploymentContext context, EnvironmentConfig environmentConfig, string environmentName)
     {
+        // LakeFormation deployment has been moved to a separate internal app
+        // Deploy using: cd AppInfraCdkV1.InternalApps/LakeFormation && dotnet run
         if (appName.ToLower() == "lakeformation")
         {
-            StackFactory.DeployLakeFormationStacks(app, context, environmentConfig, environmentName);
+            throw new ArgumentException(
+                "❌ LakeFormation deployment has been moved to a separate internal application.\n" +
+                "   To deploy LakeFormation stacks, use:\n" +
+                "   cd AppInfraCdkV1.InternalApps/LakeFormation\n" +
+                "   dotnet run -- --environment=Development\n"
+            );
+            // StackFactory.DeployLakeFormationStacks(app, context, environmentConfig, environmentName);
         }
         else
         {
-            throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch, LakeFormation");
+            throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch");
         }
         
         app.Synth();
