@@ -44,6 +44,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ],
     "VersioningConfiguration": {
@@ -173,6 +177,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ],
     "Name": "public.thirdopinion.io."
@@ -226,6 +234,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ]
    },
@@ -325,6 +337,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ],
     "Timeout": 900
@@ -361,7 +377,8 @@
      "Application": "PublicThirdOpinion",
      "Environment": "Production",
      "ManagedBy": "CDK",
-     "Repository": "AppInfraCdkV1"
+     "Repository": "AppInfraCdkV1",
+     "StackType": "Main"
     }
    },
    "UpdateReplacePolicy": "Delete",
@@ -458,6 +475,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ]
    },
@@ -516,6 +537,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ]
    },
@@ -572,6 +597,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ]
    },
@@ -667,7 +696,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-442042533707-us-east-2",
-     "S3Key": "0c8730a61619346efe075e8c371c1a7da5b75626ae98d179a8a099cefc3779a2.zip"
+     "S3Key": "08a707978c03aeeeb13039141c22257c204ed67736d3b6065e50aa30b77a15d1.zip"
     },
     "Description": "Lambda function to generate JWK key pairs for FHIR R4 authentication",
     "Environment": {
@@ -710,6 +739,10 @@
      {
       "Key": "Repository",
       "Value": "AppInfraCdkV1"
+     },
+     {
+      "Key": "StackType",
+      "Value": "Main"
      }
     ],
     "Timeout": 300
@@ -720,7 +753,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "prod-pto-public-ue2/JwkLambda/Function/Resource",
-    "aws:asset:path": "asset.0c8730a61619346efe075e8c371c1a7da5b75626ae98d179a8a099cefc3779a2",
+    "aws:asset:path": "asset.08a707978c03aeeeb13039141c22257c204ed67736d3b6065e50aa30b77a15d1",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }

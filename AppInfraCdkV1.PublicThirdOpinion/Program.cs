@@ -57,28 +57,76 @@ namespace AppInfraCdkV1.PublicThirdOpinion
                 Environment = environmentConfig
             };
 
+            // Check if we're deploying certificate stack or main stack
+            var stackType = app.Node.TryGetContext("stack-type")?.ToString() 
+                ?? System.Environment.GetEnvironmentVariable("PTO_STACK_TYPE") 
+                ?? "main";
+
             // Generate stack name using naming convention
             var envPrefix = NamingConvention.GetEnvironmentPrefix(environment);
             var regionCode = NamingConvention.GetRegionCode(region);
-            var stackName = $"{envPrefix}-pto-public-{regionCode}";
-
-            // Create the stack
-            var stack = new PublicThirdOpinionStack(app, stackName, deploymentContext, new StackProps
+            
+            if (stackType.ToLower() == "certificate")
             {
-                Env = new Amazon.CDK.Environment
+                // Deploy certificate stack first for manual DNS validation
+                var certStackName = $"{envPrefix}-pto-cert-{regionCode}";
+                System.Console.WriteLine($"📜 Deploying Certificate Stack: {certStackName}");
+                System.Console.WriteLine($"   This stack creates the certificate and hosted zone only.");
+                System.Console.WriteLine($"   After deployment, configure DNS delegation and wait for validation.");
+                
+                var certStack = new CertificateStack(app, certStackName, deploymentContext, new StackProps
                 {
-                    Account = accountId,
-                    Region = region
-                },
-                Description = $"PublicThirdOpinion infrastructure for {environment} environment",
-                StackName = stackName
-            });
+                    Env = new Amazon.CDK.Environment
+                    {
+                        Account = accountId,
+                        Region = region
+                    },
+                    Description = $"Certificate and DNS for PublicThirdOpinion {environment} environment",
+                    StackName = certStackName
+                });
+                
+                Tags.Of(certStack).Add("Application", "PublicThirdOpinion");
+                Tags.Of(certStack).Add("Environment", environment);
+                Tags.Of(certStack).Add("ManagedBy", "CDK");
+                Tags.Of(certStack).Add("Repository", "AppInfraCdkV1");
+                Tags.Of(certStack).Add("StackType", "Certificate");
+            }
+            else
+            {
+                // Deploy main stack (with or without certificate import)
+                var mainStackName = $"{envPrefix}-pto-public-{regionCode}";
+                var useCertificateStack = app.Node.TryGetContext("use-cert-stack")?.ToString()?.ToLower() == "true"
+                    || System.Environment.GetEnvironmentVariable("PTO_USE_CERT_STACK")?.ToLower() == "true";
+                
+                if (useCertificateStack)
+                {
+                    System.Console.WriteLine($"🚀 Deploying Main Stack with Certificate Import: {mainStackName}");
+                    System.Console.WriteLine($"   Using certificate from {envPrefix}-pto-cert-{regionCode}");
+                }
+                else
+                {
+                    System.Console.WriteLine($"🚀 Deploying Full Stack: {mainStackName}");
+                }
 
-            // Add tags
-            Tags.Of(stack).Add("Application", "PublicThirdOpinion");
-            Tags.Of(stack).Add("Environment", environment);
-            Tags.Of(stack).Add("ManagedBy", "CDK");
-            Tags.Of(stack).Add("Repository", "AppInfraCdkV1");
+                // Create the main stack
+                var stack = new PublicThirdOpinionStack(app, mainStackName, deploymentContext, new StackProps
+                {
+                    Env = new Amazon.CDK.Environment
+                    {
+                        Account = accountId,
+                        Region = region
+                    },
+                    Description = $"PublicThirdOpinion infrastructure for {environment} environment",
+                    StackName = mainStackName
+                }, useCertificateStack);
+
+                // Add tags
+                Tags.Of(stack).Add("Application", "PublicThirdOpinion");
+                Tags.Of(stack).Add("Environment", environment);
+                Tags.Of(stack).Add("ManagedBy", "CDK");
+                Tags.Of(stack).Add("Repository", "AppInfraCdkV1");
+                Tags.Of(stack).Add("StackType", "Main");
+            }
 
             app.Synth();
         }

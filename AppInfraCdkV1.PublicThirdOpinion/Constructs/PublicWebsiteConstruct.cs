@@ -11,6 +11,7 @@ using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Naming;
 using AppInfraCdkV1.Core.Enums;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
 {
@@ -21,10 +22,20 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
         public IHostedZone HostedZone { get; private set; }
         public ICertificate Certificate { get; private set; }
 
-        public PublicWebsiteConstruct(Construct scope, string id, DeploymentContext context)
+        /// <summary>
+        /// Creates public website infrastructure
+        /// </summary>
+        /// <param name="scope">CDK scope</param>
+        /// <param name="id">Construct ID</param>
+        /// <param name="context">Deployment context</param>
+        /// <param name="existingCertificateArn">Optional: ARN of existing certificate from CertificateStack</param>
+        /// <param name="existingHostedZoneId">Optional: ID of existing hosted zone from CertificateStack</param>
+        public PublicWebsiteConstruct(Construct scope, string id, DeploymentContext context, 
+            string? existingCertificateArn = null, string? existingHostedZoneId = null)
             : base(scope, id)
         {
             var resourceNamer = new ResourceNamer(context);
+            var stack = Stack.Of(this);
             
             // Determine domain name based on environment
             var domainName = context.Environment.Name.ToLower() == "production" 
@@ -69,25 +80,81 @@ namespace AppInfraCdkV1.PublicThirdOpinion.Constructs
             // Grant read permissions to CloudFront OAI
             WebsiteBucket.GrantRead(oai);
 
-            // Create hosted zone
-            HostedZone = new HostedZone(this, "HostedZone", new HostedZoneProps
+            // Try to find existing hosted zone by domain name
+            IHostedZone? existingZone = null;
+            if (string.IsNullOrEmpty(existingHostedZoneId))
             {
-                ZoneName = domainName,
-                Comment = $"Hosted zone for {context.Application.Name} {context.Environment.Name}"
-            });
+                try
+                {
+                    // Try to lookup existing hosted zone by domain name
+                    existingZone = Amazon.CDK.AWS.Route53.HostedZone.FromLookup(this, "LookupHostedZone", new HostedZoneProviderProps
+                    {
+                        DomainName = domainName
+                    });
+                }
+                catch
+                {
+                    // Hosted zone not found, will create new one
+                }
+            }
 
-            // Create ACM certificate for HTTPS
-            // Note: For CloudFront, the certificate must be in us-east-1
-            // We'll use DnsValidatedCertificate despite deprecation warning as it supports cross-region
-            Certificate = new DnsValidatedCertificate(this, "Certificate", new DnsValidatedCertificateProps
+            // Use existing hosted zone if provided or found
+            if (!string.IsNullOrEmpty(existingHostedZoneId))
             {
-                DomainName = domainName,
-                HostedZone = HostedZone,
-                SubjectAlternativeNames = new[] { $"*.{domainName}" },
-                // CloudFront requires certificates to be in us-east-1
-                Region = "us-east-1",
-                Validation = CertificateValidation.FromDns(HostedZone)
-            });
+                HostedZone = Amazon.CDK.AWS.Route53.HostedZone.FromHostedZoneAttributes(this, "ImportedHostedZone", new HostedZoneAttributes
+                {
+                    HostedZoneId = existingHostedZoneId,
+                    ZoneName = domainName
+                });
+            }
+            else if (existingZone != null)
+            {
+                HostedZone = existingZone;
+            }
+            else
+            {
+                // Create hosted zone
+                HostedZone = new HostedZone(this, "HostedZone", new HostedZoneProps
+                {
+                    ZoneName = domainName,
+                    Comment = $"Hosted zone for {context.Application.Name} {context.Environment.Name}"
+                });
+            }
+
+            // Try to find existing certificate by domain name
+            ICertificate? existingCert = null;
+            if (string.IsNullOrEmpty(existingCertificateArn))
+            {
+                // Note: CDK doesn't provide a direct lookup for certificates by domain name
+                // We would need to use custom resources or context lookups for this
+                // For now, we'll skip automatic certificate discovery
+                // Users can provide certificate ARN explicitly if they want to reuse existing ones
+            }
+
+            // Use existing certificate if provided or found
+            if (!string.IsNullOrEmpty(existingCertificateArn))
+            {
+                Certificate = Amazon.CDK.AWS.CertificateManager.Certificate.FromCertificateArn(this, "ImportedCertificate", existingCertificateArn);
+            }
+            else if (existingCert != null)
+            {
+                Certificate = existingCert;
+            }
+            else
+            {
+                // Create ACM certificate for HTTPS
+                // Note: For CloudFront, the certificate must be in us-east-1
+                // We'll use DnsValidatedCertificate despite deprecation warning as it supports cross-region
+                Certificate = new DnsValidatedCertificate(this, "Certificate", new DnsValidatedCertificateProps
+                {
+                    DomainName = domainName,
+                    HostedZone = HostedZone,
+                    SubjectAlternativeNames = new[] { $"*.{domainName}" },
+                    // CloudFront requires certificates to be in us-east-1
+                    Region = "us-east-1",
+                    Validation = CertificateValidation.FromDns(HostedZone)
+                });
+            }
 
             // Create CloudFront distribution using ResourceNamer for custom naming
             var distributionName = resourceNamer.Custom("cloudfront", ResourcePurpose.PublicWebsite);

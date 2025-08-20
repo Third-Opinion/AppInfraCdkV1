@@ -19,12 +19,13 @@
           "Application": "PublicThirdOpinion",
           "Environment": "Production",
           "ManagedBy": "CDK",
-          "Repository": "AppInfraCdkV1"
+          "Repository": "AppInfraCdkV1",
+          "StackType": "Main"
         },
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-deploy-role-442042533707-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-cfn-exec-role-442042533707-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-442042533707-us-east-2/7572dcc0d91c439938dc25ed0f84b4fa868eee809df5e345fdc7195676b7f7a6.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-442042533707-us-east-2/80f832072ea181c7e3506cc6942cf892d785b39e9b574d7a59b27655714dd461.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -59,6 +60,10 @@
               {
                 "Key": "Repository",
                 "Value": "AppInfraCdkV1"
+              },
+              {
+                "Key": "StackType",
+                "Value": "Main"
               }
             ]
           }

@@ -2,7 +2,7 @@
   "version": "44.0.0",
   "files": {
     "b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8": {
-      "displayName": "PublicWebsite/Certificate/CertificateRequestorFunction/Code",
+      "displayName": "Certificate/CertificateRequestorFunction/Code",
       "source": {
         "path": "asset.b073cebcf4d61fb152a30f5a5e57a94df7f980a549fdf1a79a0b18c5750522d8",
         "packaging": "zip"
@@ -16,31 +16,16 @@
         }
       }
     },
-    "08a707978c03aeeeb13039141c22257c204ed67736d3b6065e50aa30b77a15d1": {
-      "displayName": "JwkLambda/Function/Code",
+    "26f96a1bcc953c4daa19f5d32c70e2117d40fa742900aaf459ccd2700ad4bc25": {
+      "displayName": "prod-pto-cert-ue2 Template",
       "source": {
-        "path": "asset.08a707978c03aeeeb13039141c22257c204ed67736d3b6065e50aa30b77a15d1",
-        "packaging": "zip"
-      },
-      "destinations": {
-        "442042533707-us-east-2": {
-          "bucketName": "cdk-hnb659fds-assets-442042533707-us-east-2",
-          "objectKey": "08a707978c03aeeeb13039141c22257c204ed67736d3b6065e50aa30b77a15d1.zip",
-          "region": "us-east-2",
-          "assumeRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-file-publishing-role-442042533707-us-east-2"
-        }
-      }
-    },
-    "80f832072ea181c7e3506cc6942cf892d785b39e9b574d7a59b27655714dd461": {
-      "displayName": "prod-pto-public-ue2 Template",
-      "source": {
-        "path": "prod-pto-public-ue2.template.json",
+        "path": "prod-pto-cert-ue2.template.json",
         "packaging": "file"
       },
       "destinations": {
         "442042533707-us-east-2": {
           "bucketName": "cdk-hnb659fds-assets-442042533707-us-east-2",
-          "objectKey": "80f832072ea181c7e3506cc6942cf892d785b39e9b574d7a59b27655714dd461.json",
+          "objectKey": "26f96a1bcc953c4daa19f5d32c70e2117d40fa742900aaf459ccd2700ad4bc25.json",
           "region": "us-east-2",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::442042533707:role/cdk-hnb659fds-file-publishing-role-442042533707-us-east-2"
         }
