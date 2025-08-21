@@ -46,6 +46,9 @@ public class ConfigurationLoader
         // Validate the ECS configuration
         ValidateConfiguration(config.EcsConfiguration);
         
+        // Validate base stack configuration
+        ValidateBaseStackConfiguration(config);
+        
         return config;
     }
     
@@ -96,6 +99,33 @@ public class ConfigurationLoader
             if (duplicateNames.Count > 0)
             {
                 throw new InvalidOperationException($"Duplicate container names found in task '{taskDef.TaskDefinitionName}': {string.Join(", ", duplicateNames)}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Validate the base stack configuration requirements
+    /// </summary>
+    public void ValidateBaseStackConfiguration(EcsTaskConfigurationWrapper config)
+    {
+        if (config.UseDedicatedBaseStack)
+        {
+            if (string.IsNullOrWhiteSpace(config.BaseStackType))
+            {
+                throw new InvalidOperationException("BaseStackType is required when UseDedicatedBaseStack is true");
+            }
+            
+            var validBaseStackTypes = new[] { "TrialMatch", "TrialFinderV2" };
+            if (!validBaseStackTypes.Contains(config.BaseStackType))
+            {
+                throw new InvalidOperationException($"Invalid BaseStackType '{config.BaseStackType}'. Must be one of: {string.Join(", ", validBaseStackTypes)}");
+            }
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(config.BaseStackType))
+            {
+                throw new InvalidOperationException("BaseStackType should not be specified when UseDedicatedBaseStack is false");
             }
         }
     }
@@ -248,7 +278,8 @@ public class ConfigurationLoader
 // Configuration wrapper and data classes for JSON deserialization
 public class EcsTaskConfigurationWrapper  
 {
-    public string? VpcNamePattern { get; set; }
+    public bool UseDedicatedBaseStack { get; set; } = false;
+    public string? BaseStackType { get; set; }
     public EcsTaskConfiguration? EcsConfiguration { get; set; }
 }
 

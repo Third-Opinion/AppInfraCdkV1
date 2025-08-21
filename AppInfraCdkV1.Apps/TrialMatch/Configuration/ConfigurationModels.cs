@@ -3,7 +3,8 @@ namespace AppInfraCdkV1.Apps.TrialMatch.Configuration;
 // Configuration wrapper and data classes for JSON deserialization
 public class EcsTaskConfigurationWrapper
 {
-    public string? VpcNamePattern { get; set; }
+    public bool UseDedicatedBaseStack { get; set; } = false;
+    public string? BaseStackType { get; set; }
     public EcsTaskConfiguration? EcsConfiguration { get; set; }
     public FrontendEnvironmentVariables? FrontendEnvironmentVariables { get; set; }
 }

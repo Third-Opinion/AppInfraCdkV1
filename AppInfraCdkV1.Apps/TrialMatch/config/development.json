@@ -1,5 +1,6 @@
 {
-  "vpcNamePattern": "dev-shared-vpc-ue2-main",
+  "useDedicatedBaseStack": true,
+  "baseStackType": "TrialMatch",
   "ecsConfiguration": {
     "services": [
       {

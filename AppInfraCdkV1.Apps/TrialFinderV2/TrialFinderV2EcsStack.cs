@@ -23,12 +23,17 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2;
 /// - Integration with Application Load Balancer
 /// - Environment-specific resource sizing
 /// - Comprehensive IAM roles and permissions
+/// - Dedicated base stack infrastructure for complete isolation
 /// 
 /// Secret Management:
 /// The stack checks if secrets already exist in AWS Secrets Manager before creating new ones.
 /// This prevents CDK from attempting to recreate secrets that already exist, which would cause
 /// deployment failures. Existing secrets are imported and referenced, while missing secrets
 /// are created with generated values.
+/// 
+/// Base Stack Integration:
+/// This stack now uses the dedicated TrialFinderV2 base stack for VPC, security groups,
+/// database, and other shared infrastructure, ensuring complete isolation from other applications.
 /// </summary>
 public class TrialFinderV2EcsStack : Stack
 {
@@ -69,11 +74,11 @@ public class TrialFinderV2EcsStack : Stack
         _ecsServiceFactory = new EcsServiceFactory(this, "EcsServiceFactory", context, 
             _secretManager, _ecrRepositoryManager, _loggingManager, _outputExporter, _iamRoleBuilder, _containerConfigurationService);
 
-        // Load configuration including VPC name pattern
+        // Load configuration including base stack configuration
         var fullConfig = _configLoader.LoadFullConfig(context.Environment.Name);
 
-        // Create VPC reference using dynamic lookup by name
-        var vpc = CreateVpcReference(fullConfig.VpcNamePattern, context);
+        // Create VPC reference using dedicated TrialFinderV2 base stack
+        var vpc = CreateDedicatedVpcReference(context);
 
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
@@ -99,27 +104,35 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Create VPC reference using shared stack exports
+    /// Create VPC reference using dedicated TrialFinderV2 base stack exports
     /// </summary>
-    private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
+    private IVpc CreateDedicatedVpcReference(DeploymentContext context)
     {
-        // Import VPC attributes from shared stack
-        var vpcId = Fn.ImportValue($"{context.Environment.Name}-vpc-id");
-        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr");
-        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3);
-        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3);
-        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
-        var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
+        // Import VPC attributes from dedicated TrialFinderV2 base stack
+        var vpcId = Fn.ImportValue($"tf2-{context.Environment.Name}-vpc-id");
         
-        // Use VPC attributes to create reference
-        return Vpc.FromVpcAttributes(this, "SharedVpc", new VpcAttributes
+        // Import individual subnet IDs (assuming 3 AZs)
+        var publicSubnet1 = Fn.ImportValue($"tf2-{context.Environment.Name}-public-subnet-1-id");
+        var publicSubnet2 = Fn.ImportValue($"tf2-{context.Environment.Name}-public-subnet-2-id");
+        var publicSubnet3 = Fn.ImportValue($"tf2-{context.Environment.Name}-public-subnet-3-id");
+        
+        var privateSubnet1 = Fn.ImportValue($"tf2-{context.Environment.Name}-private-subnet-1-id");
+        var privateSubnet2 = Fn.ImportValue($"tf2-{context.Environment.Name}-private-subnet-2-id");
+        var privateSubnet3 = Fn.ImportValue($"tf2-{context.Environment.Name}-private-subnet-3-id");
+        
+        var isolatedSubnet1 = Fn.ImportValue($"tf2-{context.Environment.Name}-isolated-subnet-1-id");
+        var isolatedSubnet2 = Fn.ImportValue($"tf2-{context.Environment.Name}-isolated-subnet-2-id");
+        var isolatedSubnet3 = Fn.ImportValue($"tf2-{context.Environment.Name}-isolated-subnet-3-id");
+        
+        // Use VPC attributes to create reference with individual subnet IDs
+        return Vpc.FromVpcAttributes(this, "TrialFinderV2DedicatedVpc", new VpcAttributes
         {
             VpcId = vpcId,
-            VpcCidrBlock = vpcCidr,
-            AvailabilityZones = availabilityZones,
-            PublicSubnetIds = publicSubnetIds,
-            PrivateSubnetIds = privateSubnetIds,
-            IsolatedSubnetIds = isolatedSubnetIds
+            VpcCidrBlock = "10.0.0.0/16", // Known CIDR from our base stack
+            AvailabilityZones = new[] { "us-east-2a", "us-east-2b", "us-east-2c" },
+            PublicSubnetIds = new[] { publicSubnet1, publicSubnet2, publicSubnet3 },
+            PrivateSubnetIds = new[] { privateSubnet1, privateSubnet2, privateSubnet3 },
+            IsolatedSubnetIds = new[] { isolatedSubnet1, isolatedSubnet2, isolatedSubnet3 }
         });
     }
 

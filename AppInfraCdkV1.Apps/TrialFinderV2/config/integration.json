@@ -1,5 +1,6 @@
 {
-  "vpcNamePattern": "int-shared-vpc-ue2-main",
+  "useDedicatedBaseStack": true,
+  "baseStackType": "TrialFinderV2",
   "ecsConfiguration": {
     "taskDefinition": [
       {
@@ -50,7 +51,6 @@
               "options": {
                 "awslogs-group": "/ecs/trial-finder-v2",
                 "mode": "non-blocking",
-                "awslogs-create-group": "true",
                 "max-buffer-size": "25m",
                 "awslogs-region": "us-east-2",
                 "awslogs-stream-prefix": "ecs"
@@ -98,7 +98,6 @@
               "options": {
                 "awslogs-group": "/ecs/trial-finder-v2-loader",
                 "mode": "non-blocking",
-                "awslogs-create-group": "true",
                 "max-buffer-size": "25m",
                 "awslogs-region": "us-east-2",
                 "awslogs-stream-prefix": "ecs"

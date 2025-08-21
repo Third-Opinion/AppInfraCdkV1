@@ -23,6 +23,8 @@ public abstract class Program
             bool showNamesOnly = HasFlag(args, "--show-names-only");
             bool listEnvironments = HasFlag(args, "--list-environments");
             bool deployBase = HasFlag(args, "--deploy-base") || Environment.GetEnvironmentVariable("CDK_DEPLOY_BASE") == "true";
+            bool deployAppBase = HasFlag(args, "--deploy-app-base") || Environment.GetEnvironmentVariable("CDK_DEPLOY_APP_BASE") == "true";
+            bool deployAllStacks = HasFlag(args, "--deploy-all-stacks") || Environment.GetEnvironmentVariable("CDK_DEPLOY_ALL_STACKS") == "true";
 
             if (listEnvironments)
             {
@@ -63,7 +65,7 @@ public abstract class Program
 
             if (deployBase)
             {
-                // Deploy base stack for shared environment resources
+                // Deploy shared base stack for shared environment resources
                 string baseStackName = GenerateBaseStackName(context);
                 var baseStack = new EnvironmentBaseStack(app, baseStackName, new StackProps
                 {
@@ -74,6 +76,15 @@ public abstract class Program
                 }, context);
                 
                 Console.WriteLine($"✅ Base stack '{baseStackName}' configured successfully");
+                app.Synth();
+                return;
+            }
+
+            if (deployAppBase)
+            {
+                // Deploy application-specific base stack
+                var (baseStack, baseStackName) = CreateApplicationBaseStack(app, context, environmentConfig, appName, environmentName);
+                Console.WriteLine($"✅ Application base stack '{baseStackName}' configured successfully");
                 app.Synth();
                 return;
             }
@@ -90,12 +101,25 @@ public abstract class Program
                 return;
             }
 
+            if (deployAllStacks && (appName.ToLower() == "trialfinderv2" || appName.ToLower() == "trialmatch"))
+            {
+                // Deploy all stacks for one application
+                var stacks = CreateAllApplicationStacks(app, context, environmentConfig, appName, environmentName);
+                Console.WriteLine($"✅ All {stacks.Count} stacks for {appName} configured successfully");
+                app.Synth();
+                return;
+            }
+
             // Require explicit stack type for supported applications - no monolithic deployments
             if (appName.ToLower() == "trialfinderv2" || appName.ToLower() == "trialmatch")
             {
                 var supportedTypes = appName.ToLower() == "trialfinderv2" ? "ALB, ECS, DATA, COGNITO" : "ALB, ECS, DATA, COGNITO";
                 throw new ArgumentException(
-                    $"{appName} requires explicit stack type. Set CDK_STACK_TYPE environment variable to one of: {supportedTypes}");
+                    $"{appName} requires explicit stack type or deployment flag. Use one of:\n" +
+                    $"  --stack-type=<TYPE> for specific stack (ALB, ECS, DATA, COGNITO)\n" +
+                    $"  --deploy-all-stacks for all application stacks\n" +
+                    $"  --deploy-app-base for application base stack\n" +
+                    $"  --deploy-base for shared base stack");
             }
 
             // Default behavior for other applications (if any)
@@ -269,6 +293,84 @@ public abstract class Program
             default:
                 throw new ArgumentException($"Unknown TrialMatch stack type: {stackType}. Supported types: ALB, ECS, DATA, COGNITO");
         }
+    }
+
+    private static (Stack stack, string stackName) CreateApplicationBaseStack(
+        App app,
+        DeploymentContext context,
+        EnvironmentConfig environmentConfig,
+        string appName,
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var appCode = NamingConvention.GetApplicationCode(appName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        
+        string baseStackName = $"{envPrefix}-{appCode}-base-{regionCode}";
+        
+        switch (appName.ToLower())
+        {
+            case "trialfinderv2":
+                var tf2BaseStack = new TrialFinderV2BaseStack(app, baseStackName, new StackProps
+                {
+                    Env = environmentConfig.ToAwsEnvironment(),
+                    Description = $"TrialFinderV2 base infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                    Tags = context.GetCommonTags(),
+                    StackName = baseStackName
+                }, context);
+                return (tf2BaseStack, baseStackName);
+                
+            case "trialmatch":
+                var tmBaseStack = new TrialMatchBaseStack(app, baseStackName, new StackProps
+                {
+                    Env = environmentConfig.ToAwsEnvironment(),
+                    Description = $"TrialMatch base infrastructure for {environmentName} environment (Account: {environmentConfig.AccountType})",
+                    Tags = context.GetCommonTags(),
+                    StackName = baseStackName
+                }, context);
+                return (tmBaseStack, baseStackName);
+                
+            default:
+                throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch");
+        }
+    }
+
+    private static List<(Stack stack, string stackName)> CreateAllApplicationStacks(
+        App app,
+        DeploymentContext context,
+        EnvironmentConfig environmentConfig,
+        string appName,
+        string environmentName)
+    {
+        var envPrefix = NamingConvention.GetEnvironmentPrefix(environmentName);
+        var appCode = NamingConvention.GetApplicationCode(appName);
+        var regionCode = NamingConvention.GetRegionCode(environmentConfig.Region);
+        
+        var stacks = new List<(Stack stack, string stackName)>();
+        
+        switch (appName.ToLower())
+        {
+            case "trialfinderv2":
+                // Create all TrialFinderV2 stacks
+                stacks.Add(CreateTrialFinderV2Stack(app, "ALB", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                stacks.Add(CreateTrialFinderV2Stack(app, "ECS", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                stacks.Add(CreateTrialFinderV2Stack(app, "DATA", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                stacks.Add(CreateTrialFinderV2Stack(app, "COGNITO", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                break;
+                
+            case "trialmatch":
+                // Create all TrialMatch stacks
+                stacks.Add(CreateTrialMatchStack(app, "ALB", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                stacks.Add(CreateTrialMatchStack(app, "ECS", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                stacks.Add(CreateTrialMatchStack(app, "DATA", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                stacks.Add(CreateTrialMatchStack(app, "COGNITO", context, environmentConfig, appName, environmentName, envPrefix, appCode, regionCode));
+                break;
+                
+            default:
+                throw new ArgumentException($"Unknown application: {appName}. Supported applications: TrialFinderV2, TrialMatch");
+        }
+        
+        return stacks;
     }
 
     private static void ValidateNamingConventions(DeploymentContext context)

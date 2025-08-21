@@ -119,17 +119,29 @@ public class ContainerConfigurationService : Construct
         ContainerImage containerImage;
         Dictionary<string, string> environmentVars;
         
-        if (!string.IsNullOrWhiteSpace(containerConfig.Image))
+        if (!string.IsNullOrWhiteSpace(containerConfig.Image) && containerConfig.Image != "placeholder")
         {
             // Use specified image
             containerImage = ContainerImage.FromRegistry(containerConfig.Image);
             environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
         }
+        else if (containerConfig.Image == "placeholder" && containerConfig.Repository?.Type != null)
+        {
+            // Use ECR repository for placeholder images
+            var repositoryName = context.Namer.EcrRepository(containerConfig.Repository.Type);
+            var accountId = context.Environment.AccountId;
+            var region = context.Environment.Region;
+            var ecrImageUri = $"{accountId}.dkr.ecr.{region}.amazonaws.com/{repositoryName}:latest";
+            containerImage = ContainerImage.FromRegistry(ecrImageUri);
+            environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
+            Console.WriteLine($"  🔄 Using ECR image for placeholder: {ecrImageUri}");
+        }
         else
         {
-            // Use placeholder image for development/testing
+            // Fallback to nginx placeholder image for development/testing
             containerImage = ContainerImage.FromRegistry("public.ecr.aws/docker/library/nginx:alpine");
             environmentVars = GetEnvironmentVariables(containerConfig, context, containerName);
+            Console.WriteLine($"  ⚠️  No ECR repository configured, using nginx placeholder");
         }
 
         // Create container definition
@@ -137,13 +149,12 @@ public class ContainerConfigurationService : Construct
         {
             Image = containerImage,
             Essential = containerConfig.Essential ?? true,
-            MemoryLimitMiB = containerConfig.Cpu ?? 512, // Use Cpu as MemoryLimitMiB since MemoryLimitMiB doesn't exist
+            MemoryLimitMiB = 512, // Use default memory value since config doesn't have memory property
             Cpu = containerConfig.Cpu ?? 256,
             Logging = LogDrivers.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
-                StreamPrefix = containerName,
-                LogRetention = GetLogRetention(context.Environment.AccountType)
+                StreamPrefix = containerName
             }),
             Environment = environmentVars,
             HealthCheck = GetContainerHealthCheck(containerConfig, containerName),
@@ -174,8 +185,7 @@ public class ContainerConfigurationService : Construct
             Logging = LogDrivers.AwsLogs(new AwsLogDriverProps
             {
                 LogGroup = logGroup,
-                StreamPrefix = "app",
-                LogRetention = GetLogRetention(context.Environment.AccountType)
+                StreamPrefix = "app"
             }),
             PortMappings = new[]
             {
