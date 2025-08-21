@@ -338,7 +338,7 @@ public class TrialFinderV2BaseStack : Stack
         new CfnOutput(this, "TrialFinderV2VpcId", new CfnOutputProps
         {
             Value = Vpc.VpcId,
-            ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-vpc-id",
+            ExportName = $"tf2-{_context.Environment.Name}-vpc-id",
             Description = $"TrialFinderV2 VPC ID for {_context.Environment.Name}"
         });
 
@@ -353,7 +353,7 @@ public class TrialFinderV2BaseStack : Stack
             new CfnOutput(this, $"TrialFinderV2PublicSubnet{i + 1}Id", new CfnOutputProps
             {
                 Value = publicSubnets[i].SubnetId,
-                ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-public-subnet-{i + 1}-id",
+                ExportName = $"tf2-{_context.Environment.Name}-public-subnet-{i + 1}-id",
                 Description = $"TrialFinderV2 public subnet {i + 1} ID for {_context.Environment.Name}"
             });
         }
@@ -364,7 +364,7 @@ public class TrialFinderV2BaseStack : Stack
             new CfnOutput(this, $"TrialFinderV2PrivateSubnet{i + 1}Id", new CfnOutputProps
             {
                 Value = privateSubnets[i].SubnetId,
-                ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-private-subnet-{i + 1}-id",
+                ExportName = $"tf2-{_context.Environment.Name}-private-subnet-{i + 1}-id",
                 Description = $"TrialFinderV2 private subnet {i + 1} ID for {_context.Environment.Name}"
             });
         }
@@ -375,7 +375,7 @@ public class TrialFinderV2BaseStack : Stack
             new CfnOutput(this, $"TrialFinderV2IsolatedSubnet{i + 1}Id", new CfnOutputProps
             {
                 Value = isolatedSubnets[i].SubnetId,
-                ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-isolated-subnet-{i + 1}-id",
+                ExportName = $"tf2-{_context.Environment.Name}-isolated-subnet-{i + 1}-id",
                 Description = $"TrialFinderV2 isolated subnet {i + 1} ID for {_context.Environment.Name}"
             });
         }
@@ -386,7 +386,7 @@ public class TrialFinderV2BaseStack : Stack
             new CfnOutput(this, $"TrialFinderV2{kvp.Key}SecurityGroupId", new CfnOutputProps
             {
                 Value = kvp.Value.SecurityGroupId,
-                ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-{kvp.Key}-sg-id",
+                ExportName = $"tf2-{_context.Environment.Name}-{kvp.Key}-sg-id",
                 Description = $"TrialFinderV2 {kvp.Key} security group ID for {_context.Environment.Name}"
             });
         }
@@ -397,14 +397,14 @@ public class TrialFinderV2BaseStack : Stack
             new CfnOutput(this, "TrialFinderV2DatabaseEndpoint", new CfnOutputProps
             {
                 Value = SharedDatabaseCluster.ClusterEndpoint.Hostname,
-                ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-db-endpoint",
+                ExportName = $"tf2-{_context.Environment.Name}-db-endpoint",
                 Description = $"TrialFinderV2 database endpoint for {_context.Environment.Name}"
             });
             
             new CfnOutput(this, "TrialFinderV2DatabasePort", new CfnOutputProps
             {
                 Value = SharedDatabaseCluster.ClusterEndpoint.Port.ToString(),
-                ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-db-port",
+                ExportName = $"tf2-{_context.Environment.Name}-db-port",
                 Description = $"TrialFinderV2 database port for {_context.Environment.Name}"
             });
         }
@@ -413,7 +413,7 @@ public class TrialFinderV2BaseStack : Stack
         new CfnOutput(this, "TrialFinderV2LogGroupName", new CfnOutputProps
         {
             Value = SharedLogGroup.LogGroupName,
-            ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-log-group-name",
+            ExportName = $"tf2-{_context.Environment.Name}-log-group-name",
             Description = $"TrialFinderV2 log group name for {_context.Environment.Name}"
         });
         
@@ -421,14 +421,14 @@ public class TrialFinderV2BaseStack : Stack
         new CfnOutput(this, "TrialFinderV2QuickSightApiEndpointId", new CfnOutputProps
         {
             Value = QuickSightApiEndpoint.VpcEndpointId,
-            ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-quicksight-api-endpoint-id",
+            ExportName = $"tf2-{_context.Environment.Name}-quicksight-api-endpoint-id",
             Description = $"TrialFinderV2 QuickSight API endpoint ID for {_context.Environment.Name}"
         });
         
         new CfnOutput(this, "TrialFinderV2QuickSightEmbeddingEndpointId", new CfnOutputProps
         {
             Value = QuickSightEmbeddingEndpoint.VpcEndpointId,
-            ExportName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-quicksight-embedding-endpoint-id",
+            ExportName = $"tf2-{_context.Environment.Name}-quicksight-embedding-endpoint-id",
             Description = $"TrialFinderV2 QuickSight embedding endpoint ID for {_context.Environment.Name}"
         });
         

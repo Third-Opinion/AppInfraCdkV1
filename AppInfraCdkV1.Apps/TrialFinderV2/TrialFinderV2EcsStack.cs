@@ -137,15 +137,17 @@ public class TrialFinderV2EcsStack : Stack
     }
 
     /// <summary>
-    /// Import outputs from the ALB stack
+    /// Import outputs from the ALB stack and base stack
     /// </summary>
     private AlbStackOutputs ImportAlbStackOutputs()
     {
         var targetGroupArn
             = Fn.ImportValue(
                 $"{_context.Environment.Name}-{_context.Application.Name}-target-group-arn");
+        
+        // Import ECS security group directly from base stack instead of ALB stack
         var ecsSecurityGroupId
-            = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-ecs-sg-id");
+            = Fn.ImportValue($"tf2-{_context.Environment.Name}-ecs-sg-id");
 
         return new AlbStackOutputs
         {
