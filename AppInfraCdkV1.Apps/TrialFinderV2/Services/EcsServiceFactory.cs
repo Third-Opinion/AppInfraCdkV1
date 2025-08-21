@@ -60,11 +60,18 @@ public class EcsServiceFactory : Construct
         var ecsConfig = _configLoader.LoadEcsConfig(_context.Environment.Name);
         ecsConfig = _configLoader.SubstituteVariables(ecsConfig, _context);
 
-        // Create web application service for each task definition
-        // Note: Current configuration only supports continuous services
-        foreach (var taskDef in ecsConfig.TaskDefinition)
-            {
-                CreateWebApplicationService(cluster, albOutputs, cognitoOutputs, taskDef);
+        // Create web application service for main task definition
+        var mainTaskDef = ecsConfig.TaskDefinition.FirstOrDefault(t => t.TaskDefinitionName == "main");
+        if (mainTaskDef != null)
+        {
+            CreateWebApplicationService(cluster, albOutputs, cognitoOutputs, mainTaskDef);
+        }
+
+        // Create scheduled job for loader task definition
+        var loaderTaskDef = ecsConfig.TaskDefinition.FirstOrDefault(t => t.TaskDefinitionName == "loader");
+        if (loaderTaskDef != null)
+        {
+            CreateScheduledJob(cluster, cognitoOutputs, loaderTaskDef);
         }
     }
 
@@ -157,6 +164,44 @@ public class EcsServiceFactory : Construct
         // Export outputs
         _outputExporter.ExportEcsOutputs(service, taskDefinition);
         _outputExporter.ExportIamRoleOutputs(taskRole, executionRole, null, "WebApp");
+    }
+
+    /// <summary>
+    /// Create scheduled ECS task for background jobs
+    /// </summary>
+    public void CreateScheduledJob(ICluster cluster, TrialFinderV2EcsStack.CognitoStackOutputs cognitoOutputs, TaskDefinitionConfig taskDef)
+    {
+        var logGroup = _loggingManager.CreateLogGroup("trial-finder-loader", ResourcePurpose.Internal);
+
+        var taskCpu = taskDef.Cpu ?? 256;
+        var taskMemory = taskDef.Memory ?? 512;
+
+        var taskDefinitionName = !string.IsNullOrWhiteSpace(taskDef.TaskDefinitionName)
+            ? _context.Namer.EcsTaskDefinition(taskDef.TaskDefinitionName)
+            : _context.Namer.EcsTaskDefinition(ResourcePurpose.Internal);
+
+        var taskRole = _iamRoleBuilder.CreateTaskRole("BackgroundJob");
+        var executionRole = _iamRoleBuilder.CreateTaskExecutionRole(logGroup, "BackgroundJob");
+
+        var taskDefinition = new FargateTaskDefinition(this, taskDefinitionName, new FargateTaskDefinitionProps
+        {
+            Family = taskDefinitionName,
+            MemoryLimitMiB = taskMemory,
+            Cpu = taskCpu,
+            TaskRole = taskRole,
+            ExecutionRole = executionRole,
+            RuntimePlatform = new RuntimePlatform
+            {
+                OperatingSystemFamily = OperatingSystemFamily.LINUX,
+                CpuArchitecture = CpuArchitecture.X86_64
+            }
+        });
+
+        _containerConfigurationService.AddContainersFromConfiguration(taskDefinition, taskDef, logGroup, cognitoOutputs, _context);
+
+        // Export outputs for the scheduled task
+        _outputExporter.ExportEcsOutputs(null, taskDefinition);
+        _outputExporter.ExportIamRoleOutputs(taskRole, executionRole, null, "BackgroundJob");
     }
 }
 

@@ -5,6 +5,8 @@
     "taskDefinition": [
       {
         "taskDefinitionName": "main",
+        "cpu": 1024,
+        "memory": 2048,
         "containerDefinitions": [
           {
             "name": "trial-finder-v2",
@@ -67,7 +69,14 @@
                 "retries": 3
             },
             "systemControls": []
-          },
+          }
+        ]
+      },
+      {
+        "taskDefinitionName": "loader",
+        "cpu": 512,
+        "memory": 1024,
+        "containerDefinitions": [
           {
             "name": "trial-finder-v2-loader",
             "image": "placeholder",
@@ -79,7 +88,7 @@
             },
             "cpu": 0,
             "portMappings": [],
-            "essential": false,
+            "essential": true,
             "secrets": [
               "OpenAiOptions__ApiKey",
               "GoogleMaps__ApiKey",
