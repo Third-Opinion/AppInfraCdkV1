@@ -83,7 +83,7 @@ public class SecretManager : Construct
 
     /// <summary>
     /// Check if a secret exists in Secrets Manager using AWS SDK
-    /// This method performs a synchronous check to determine if a secret already exists
+    /// This method performs an asynchronous check to determine if a secret already exists
     /// before attempting to create it, preventing accidental overwrites.
     /// </summary>
     /// <param name="secretName">The full name of the secret to check</param>

@@ -200,7 +200,7 @@ public class EcsServiceFactory : Construct
         _containerConfigurationService.AddContainersFromConfiguration(taskDefinition, taskDef, logGroup, cognitoOutputs, _context);
 
         // Export outputs for the scheduled task
-        _outputExporter.ExportEcsOutputs(null, taskDefinition);
+        _outputExporter.ExportScheduledTaskOutputs(taskDefinition.TaskDefinitionArn, taskDefinition.Family);
         _outputExporter.ExportIamRoleOutputs(taskRole, executionRole, null, "BackgroundJob");
     }
 }

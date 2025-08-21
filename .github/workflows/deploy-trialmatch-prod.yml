@@ -1,17 +1,17 @@
-name: Deploy TrialMatch to Development
+name: Deploy TrialMatch to Production
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       - 'AppInfraCdkV1.Apps/TrialMatch/**'
       - 'AppInfraCdkV1.Core/**'
       - 'AppInfraCdkV1.Stacks/**'
       - 'AppInfraCdkV1.Deploy/**'
-      - '.github/workflows/deploy-trialmatch-dev.yml'
+      - '.github/workflows/deploy-trialmatch-prod.yml'
 
 env:
-  CDK_ENVIRONMENT: Development
+  CDK_ENVIRONMENT: Production
   AWS_REGION: us-east-2
   APP_NAME: TrialMatch
 
@@ -20,9 +20,9 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  deploy-trialmatch-base:
+  deploy-trialmatch-app-base:
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
     - uses: actions/checkout@v4
@@ -43,8 +43,8 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
-        role-session-name: GitHubActions-TrialMatch-Base-${{ github.run_id }}
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-TrialMatch-AppBase-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
     - name: Restore dependencies
@@ -59,28 +59,28 @@ jobs:
     - name: CDK Bootstrap (if needed)
       run: |
         cd AppInfraCdkV1.Deploy
-        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-base" \
+        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
                       --require-approval never
     
-    - name: Deploy TrialMatch Base Stack
+    - name: Deploy TrialMatch App Base Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying TrialMatch base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
-        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-base" \
+        echo "🚀 Deploying TrialMatch application base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
                   --require-approval never \
-                  --outputs-file trialmatch-base-outputs.json
-        echo "✅ TrialMatch base stack deployment completed successfully!"
+                  --outputs-file trialmatch-app-base-outputs.json
+        echo "✅ TrialMatch application base stack deployment completed successfully!"
     
-    - name: Upload base outputs
+    - name: Upload app base outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialmatch-base-outputs-dev
-        path: AppInfraCdkV1.Deploy/trialmatch-base-outputs.json
+        name: trialmatch-app-base-outputs-prod
+        path: AppInfraCdkV1.Deploy/trialmatch-app-base-outputs.json
 
   deploy-trialmatch-alb:
-    needs: deploy-trialmatch-base
+    needs: deploy-trialmatch-app-base
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
     - uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
         role-session-name: GitHubActions-TrialMatch-ALB-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -151,13 +151,13 @@ jobs:
     - name: Upload ALB deployment outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialmatch-alb-outputs-dev
+        name: trialmatch-alb-outputs-prod
         path: AppInfraCdkV1.Deploy/trialmatch-alb-outputs.json
 
   deploy-trialmatch-cognito:
     needs: deploy-trialmatch-alb
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
     - uses: actions/checkout@v4
@@ -178,7 +178,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
         role-session-name: GitHubActions-TrialMatch-Cognito-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -228,13 +228,13 @@ jobs:
     - name: Upload COGNITO deployment outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialmatch-cognito-outputs-dev
+        name: trialmatch-cognito-outputs-prod
         path: AppInfraCdkV1.Deploy/trialmatch-cognito-outputs.json
 
   deploy-trialmatch-ecs:
     needs: deploy-trialmatch-cognito
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
     - uses: actions/checkout@v4
@@ -255,7 +255,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
         role-session-name: GitHubActions-TrialMatch-ECS-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -305,13 +305,13 @@ jobs:
     - name: Upload ECS deployment outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialmatch-ecs-outputs-dev
+        name: trialmatch-ecs-outputs-prod
         path: AppInfraCdkV1.Deploy/trialmatch-ecs-outputs.json
 
   deploy-trialmatch-data:
     needs: deploy-trialmatch-ecs
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
     - uses: actions/checkout@v4
@@ -332,7 +332,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
         role-session-name: GitHubActions-TrialMatch-Data-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -382,13 +382,13 @@ jobs:
     - name: Upload DATA deployment outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialmatch-data-outputs-dev
+        name: trialmatch-data-outputs-prod
         path: AppInfraCdkV1.Deploy/trialmatch-data-outputs.json
 
   deployment-summary:
-    needs: [deploy-trialmatch-base, deploy-trialmatch-alb, deploy-trialmatch-cognito, deploy-trialmatch-ecs, deploy-trialmatch-data]
+    needs: [deploy-trialmatch-app-base, deploy-trialmatch-alb, deploy-trialmatch-cognito, deploy-trialmatch-ecs, deploy-trialmatch-data]
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     
     steps:
     - name: Download all artifacts
@@ -398,10 +398,10 @@ jobs:
     
     - name: Display Deployment Summary
       run: |
-        echo "🎉 TrialMatch Deployment to Development Completed Successfully!"
+        echo "🎉 TrialMatch Deployment to Production Completed Successfully!"
         echo ""
         echo "📋 Deployed Stacks:"
-        echo "✅ Base Infrastructure Stack"
+        echo "✅ TrialMatch Application Base Infrastructure Stack"
         echo "✅ Application Load Balancer (ALB) Stack"
         echo "✅ Amazon Cognito Stack"
         echo "✅ Amazon ECS Stack"
@@ -411,4 +411,3 @@ jobs:
         echo ""
         echo "📁 Artifacts generated:"
         ls -la artifacts/
-
