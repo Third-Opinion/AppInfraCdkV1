@@ -68,7 +68,7 @@ public class TrialFinderV2EcsStack : Stack
         _iamRoleBuilder = new IamRoleBuilder(this, "IamRoleBuilder", context);
         
         // Initialize ContainerConfigurationService
-        _containerConfigurationService = new ContainerConfigurationService(this, "ContainerConfigurationService", context);
+        _containerConfigurationService = new ContainerConfigurationService(this, "ContainerConfigurationService", context, _secretManager);
         
         // Initialize EcsServiceFactory with all dependencies
         _ecsServiceFactory = new EcsServiceFactory(this, "EcsServiceFactory", context, 

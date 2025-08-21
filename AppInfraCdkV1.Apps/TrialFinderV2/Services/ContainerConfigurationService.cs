@@ -17,10 +17,12 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2.Services;
 public class ContainerConfigurationService : Construct
 {
     private readonly DeploymentContext _context;
+    private readonly SecretManager _secretManager;
 
-    public ContainerConfigurationService(Construct scope, string id, DeploymentContext context) : base(scope, id)
+    public ContainerConfigurationService(Construct scope, string id, DeploymentContext context, SecretManager secretManager) : base(scope, id)
     {
         _context = context;
+        _secretManager = secretManager;
     }
 
     /// <summary>
@@ -39,6 +41,10 @@ public class ContainerConfigurationService : Construct
             AddPlaceholderContainer(taskDefinition, logGroup, context);
             return new ContainerInfo("app", 8080);
         }
+
+        // Collect all secret names from all containers first and build mapping once
+        Console.WriteLine("🔐 Collecting all secret names and building mapping...");
+        CollectAllSecretsAndBuildMapping(taskDefConfig, context);
 
         ContainerInfo? primaryContainer = null;
         var containersProcessed = 0;
@@ -105,6 +111,37 @@ public class ContainerConfigurationService : Construct
     }
 
     /// <summary>
+    /// Collect all secret names from all containers and build mapping once
+    /// </summary>
+    private void CollectAllSecretsAndBuildMapping(TaskDefinitionConfig? taskDefConfig, DeploymentContext context)
+    {
+        var allSecretNames = new HashSet<string>();
+        
+        // Collect secrets from container definitions
+        var containerDefinitions = taskDefConfig?.ContainerDefinitions;
+        if (containerDefinitions != null)
+        {
+            foreach (var containerConfig in containerDefinitions)
+            {
+                if (containerConfig.Secrets != null)
+                {
+                    foreach (var secretName in containerConfig.Secrets)
+                    {
+                        allSecretNames.Add(secretName);
+                    }
+                }
+            }
+        }
+        
+        // Add any hardcoded secrets (like test-secret)
+        allSecretNames.Add("test-secret");
+        
+        // Build mapping for all collected secrets
+        Console.WriteLine($"   Found {allSecretNames.Count} unique secret(s) across all containers");
+        _secretManager.BuildSecretNameMapping(allSecretNames.ToList());
+    }
+
+    /// <summary>
     /// Add a container based on configuration with comprehensive defaults
     /// </summary>
     public void AddConfiguredContainer(FargateTaskDefinition taskDefinition,
@@ -144,6 +181,9 @@ public class ContainerConfigurationService : Construct
             Console.WriteLine($"  ⚠️  No ECR repository configured, using nginx placeholder");
         }
 
+        // Get container secrets from SecretManager
+        var containerSecrets = GetContainerSecrets(containerConfig.Secrets, cognitoOutputs, context);
+
         // Create container definition
         var containerDefinition = taskDefinition.AddContainer(containerName, new ContainerDefinitionOptions
         {
@@ -157,16 +197,49 @@ public class ContainerConfigurationService : Construct
                 StreamPrefix = containerName
             }),
             Environment = environmentVars,
+            Secrets = containerSecrets,
             HealthCheck = GetContainerHealthCheck(containerConfig, containerName),
             PortMappings = GetPortMappings(containerConfig, containerName)
         });
 
-        // Add secrets if configured
+        // Log secrets configuration
         if (containerConfig.Secrets != null && containerConfig.Secrets.Count > 0)
         {
-            // This will be handled by the SecretManager service
             Console.WriteLine($"  🔐 Container '{containerName}' has {containerConfig.Secrets.Count} secrets configured");
+            foreach (var secretName in containerConfig.Secrets)
+            {
+                Console.WriteLine($"     - {secretName}");
+            }
         }
+    }
+
+    /// <summary>
+    /// Get container secrets from SecretManager
+    /// </summary>
+    private Dictionary<string, Amazon.CDK.AWS.ECS.Secret> GetContainerSecrets(List<string>? secretNames, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
+    {
+        var secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>();
+        
+        if (secretNames?.Count > 0)
+        {
+            Console.WriteLine($"     🔐 Processing {secretNames.Count} secret(s):");
+            foreach (var envVarName in secretNames)
+            {
+                // Use the mapping to get the secret name, or fall back to the original name
+                var secretName = _secretManager.GetSecretNameFromEnvVar(envVarName);
+                
+                var fullSecretName = _secretManager.BuildSecretName(secretName, context);
+                var secret = _secretManager.GetOrCreateSecret(secretName, fullSecretName, cognitoOutputs, context);
+                
+                // Use the original environment variable name from the configuration
+                secrets[envVarName] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(secret);
+                
+                Console.WriteLine($"        - Environment variable '{envVarName}' -> Secret '{secretName}'");
+                Console.WriteLine($"          Full secret path: {secret.SecretArn}");
+            }
+        }
+        
+        return secrets;
     }
 
     /// <summary>
@@ -261,6 +334,20 @@ public class ContainerConfigurationService : Construct
     {
         var envVars = new Dictionary<string, string>();
 
+        // Start with default environment variables (like in legacy version)
+        var defaults = CreateDefaultEnvironmentVariables(context);
+        foreach (var kvp in defaults)
+        {
+            envVars[kvp.Key] = kvp.Value;
+        }
+
+        // Add container-specific defaults
+        var containerDefaults = GetContainerSpecificEnvironmentDefaults(containerName, context);
+        foreach (var kvp in containerDefaults)
+        {
+            envVars[kvp.Key] = kvp.Value;
+        }
+
         // Add container-specific environment variables
         if (containerConfig.Environment != null)
         {
@@ -279,6 +366,50 @@ public class ContainerConfigurationService : Construct
         envVars["CONTAINER_NAME"] = containerName;
 
         return envVars;
+    }
+
+    /// <summary>
+    /// Create default environment variables (like in legacy version)
+    /// </summary>
+    private Dictionary<string, string> CreateDefaultEnvironmentVariables(DeploymentContext context)
+    {
+        return new Dictionary<string, string>
+        {
+            ["ENVIRONMENT"] = context.Environment.Name,
+            ["ACCOUNT_TYPE"] = context.Environment.AccountType.ToString(),
+            ["APP_VERSION"] = "1.0.0", // Static version to prevent unnecessary redeployments
+            ["PORT"] = "8080",
+            ["HEALTH_CHECK_PATH"] = "/health",
+            ["AWS_REGION"] = context.Environment.Region,
+            ["AWS_ACCOUNT_ID"] = context.Environment.AccountId
+        };
+    }
+
+    /// <summary>
+    /// Get container-specific default environment variables (like in legacy version)
+    /// </summary>
+    private Dictionary<string, string> GetContainerSpecificEnvironmentDefaults(string containerName, DeploymentContext context)
+    {
+        // Add ASPNETCORE_ENVIRONMENT for all containers (assuming they are .NET applications)
+        return new Dictionary<string, string>
+        {
+            ["ASPNETCORE_ENVIRONMENT"] = GetAspNetCoreEnvironment(context.Environment.Name)
+        };
+    }
+
+    /// <summary>
+    /// Map deployment environment to ASP.NET Core environment (like in legacy version)
+    /// </summary>
+    private string GetAspNetCoreEnvironment(string environmentName)
+    {
+        return environmentName.ToLowerInvariant() switch
+        {
+            "development" => "Development",
+            "staging" => "Staging",
+            "production" => "Production",
+            "integration" => "Integration",
+            _ => "Development"
+        };
     }
 
     /// <summary>
