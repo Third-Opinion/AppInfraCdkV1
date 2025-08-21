@@ -20,7 +20,7 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  deploy-trialfinder-v2-base:
+  deploy-trialfinder-v2-app-base:
     runs-on: ubuntu-latest
     environment: development
     
@@ -44,7 +44,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
-        role-session-name: GitHubActions-TrialFinderV2-Base-${{ github.run_id }}
+        role-session-name: GitHubActions-TrialFinderV2-AppBase-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
     - name: Restore dependencies
@@ -59,26 +59,26 @@ jobs:
     - name: CDK Bootstrap (if needed)
       run: |
         cd AppInfraCdkV1.Deploy
-        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-base" \
+        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
                       --require-approval never
     
-    - name: Deploy TrialFinderV2 Base Stack
+    - name: Deploy TrialFinderV2 App Base Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying TrialFinderV2 base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
-        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-base" \
+        echo "🚀 Deploying TrialFinderV2 application base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
                   --require-approval never \
-                  --outputs-file trialfinder-v2-base-outputs.json
-        echo "✅ TrialFinderV2 base stack deployment completed successfully!"
+                  --outputs-file trialfinder-v2-app-base-outputs.json
+        echo "✅ TrialFinderV2 application base stack deployment completed successfully!"
     
-    - name: Upload base outputs
+    - name: Upload app base outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialfinder-v2-base-outputs-dev
-        path: AppInfraCdkV1.Deploy/trialfinder-v2-base-outputs.json
+        name: trialfinder-v2-app-base-outputs-dev
+        path: AppInfraCdkV1.Deploy/trialfinder-v2-app-base-outputs.json
 
   deploy-trialfinder-v2-alb:
-    needs: deploy-trialfinder-v2-base
+    needs: deploy-trialfinder-v2-app-base
     runs-on: ubuntu-latest
     environment: development
     
@@ -386,7 +386,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/trialfinder-v2-data-outputs.json
 
   deployment-summary:
-    needs: [deploy-trialfinder-v2-base, deploy-trialfinder-v2-alb, deploy-trialfinder-v2-cognito, deploy-trialfinder-v2-ecs, deploy-trialfinder-v2-data]
+    needs: [deploy-trialfinder-v2-app-base, deploy-trialfinder-v2-alb, deploy-trialfinder-v2-cognito, deploy-trialfinder-v2-ecs, deploy-trialfinder-v2-data]
     runs-on: ubuntu-latest
     environment: development
     
@@ -401,7 +401,7 @@ jobs:
         echo "🎉 TrialFinderV2 Deployment to Development Completed Successfully!"
         echo ""
         echo "📋 Deployed Stacks:"
-        echo "✅ Base Infrastructure Stack"
+        echo "✅ TrialFinderV2 Application Base Infrastructure Stack"
         echo "✅ Application Load Balancer (ALB) Stack"
         echo "✅ Amazon Cognito Stack"
         echo "✅ Amazon ECS Stack"
@@ -411,3 +411,4 @@ jobs:
         echo ""
         echo "📁 Artifacts generated:"
         ls -la artifacts/
+
