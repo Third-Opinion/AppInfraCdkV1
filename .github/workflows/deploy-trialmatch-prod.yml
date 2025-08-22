@@ -1,0 +1,413 @@
+name: Deploy TrialMatch to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'AppInfraCdkV1.Apps/TrialMatch/**'
+      - 'AppInfraCdkV1.Core/**'
+      - 'AppInfraCdkV1.Stacks/**'
+      - 'AppInfraCdkV1.Deploy/**'
+      - '.github/workflows/deploy-trialmatch-prod.yml'
+
+env:
+  CDK_ENVIRONMENT: Production
+  AWS_REGION: us-east-2
+  APP_NAME: TrialMatch
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+jobs:
+  deploy-trialmatch-app-base:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-TrialMatch-AppBase-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Run tests
+      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    
+    - name: CDK Bootstrap (if needed)
+      run: |
+        cd AppInfraCdkV1.Deploy
+        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
+                      --require-approval never
+    
+    - name: Deploy TrialMatch App Base Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying TrialMatch application base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
+                  --require-approval never \
+                  --outputs-file trialmatch-app-base-outputs.json
+        echo "✅ TrialMatch application base stack deployment completed successfully!"
+    
+    - name: Upload app base outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: trialmatch-app-base-outputs-prod
+        path: AppInfraCdkV1.Deploy/trialmatch-app-base-outputs.json
+
+  deploy-trialmatch-alb:
+    needs: deploy-trialmatch-app-base
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-TrialMatch-ALB-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Validate Naming
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Validating naming for ${{ env.APP_NAME }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📝 Resource names that will be created for ALB stack:"
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+    
+    - name: CDK Diff for ALB Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking what changes will be made for ${{ env.APP_NAME }} ALB stack..."
+        export CDK_STACK_TYPE=ALB
+        cdk diff --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Deploy ALB Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ env.APP_NAME }} ALB stack to ${{ env.CDK_ENVIRONMENT }}..."
+        export CDK_STACK_TYPE=ALB
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file trialmatch-alb-outputs.json
+        echo "✅ ALB stack deployment completed successfully!"
+    
+    - name: Display Created ALB Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f trialmatch-alb-outputs.json ]; then
+          echo "📋 Resources created for ALB stack:"
+          cat trialmatch-alb-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat trialmatch-alb-outputs.json
+        fi
+    
+    - name: Upload ALB deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: trialmatch-alb-outputs-prod
+        path: AppInfraCdkV1.Deploy/trialmatch-alb-outputs.json
+
+  deploy-trialmatch-cognito:
+    needs: deploy-trialmatch-alb
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-TrialMatch-Cognito-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Validate Naming
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Validating naming for ${{ env.APP_NAME }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📝 Resource names that will be created for COGNITO stack:"
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+    
+    - name: CDK Diff for COGNITO Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking what changes will be made for ${{ env.APP_NAME }} COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Deploy COGNITO Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ env.APP_NAME }} COGNITO stack to ${{ env.CDK_ENVIRONMENT }}..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file trialmatch-cognito-outputs.json
+        echo "✅ COGNITO stack deployment completed successfully!"
+    
+    - name: Display Created COGNITO Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f trialmatch-cognito-outputs.json ]; then
+          echo "📋 Resources created for COGNITO stack:"
+          cat trialmatch-cognito-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat trialmatch-cognito-outputs.json
+        fi
+    
+    - name: Upload COGNITO deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: trialmatch-cognito-outputs-prod
+        path: AppInfraCdkV1.Deploy/trialmatch-cognito-outputs.json
+
+  deploy-trialmatch-ecs:
+    needs: deploy-trialmatch-cognito
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-TrialMatch-ECS-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Validate Naming
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Validating naming for ${{ env.APP_NAME }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📝 Resource names that will be created for ECS stack:"
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+    
+    - name: CDK Diff for ECS Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking what changes will be made for ${{ env.APP_NAME }} ECS stack..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Deploy ECS Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ env.APP_NAME }} ECS stack to ${{ env.CDK_ENVIRONMENT }}..."
+        export CDK_STACK_TYPE=ECS
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file trialmatch-ecs-outputs.json
+        echo "✅ ECS stack deployment completed successfully!"
+    
+    - name: Display Created ECS Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f trialmatch-ecs-outputs.json ]; then
+          echo "📋 Resources created for ECS stack:"
+          cat trialmatch-ecs-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat trialmatch-ecs-outputs.json
+        fi
+    
+    - name: Upload ECS deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: trialmatch-ecs-outputs-prod
+        path: AppInfraCdkV1.Deploy/trialmatch-ecs-outputs.json
+
+  deploy-trialmatch-data:
+    needs: deploy-trialmatch-ecs
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-TrialMatch-Data-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: Validate Naming
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Validating naming for ${{ env.APP_NAME }} in ${{ env.CDK_ENVIRONMENT }}..."
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --validate-only || exit 1
+    
+    - name: Display Resource Names
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📝 Resource names that will be created for DATA stack:"
+        dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --show-names-only
+    
+    - name: CDK Diff for DATA Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking what changes will be made for ${{ env.APP_NAME }} DATA stack..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Deploy DATA Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying ${{ env.APP_NAME }} DATA stack to ${{ env.CDK_ENVIRONMENT }}..."
+        export CDK_STACK_TYPE=DATA
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file trialmatch-data-outputs.json
+        echo "✅ DATA stack deployment completed successfully!"
+    
+    - name: Display Created DATA Resources
+      run: |
+        cd AppInfraCdkV1.Deploy
+        if [ -f trialmatch-data-outputs.json ]; then
+          echo "📋 Resources created for DATA stack:"
+          cat trialmatch-data-outputs.json | jq -r 'to_entries[] | "\(.key): \(.value)"' || cat trialmatch-data-outputs.json
+        fi
+    
+    - name: Upload DATA deployment outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: trialmatch-data-outputs-prod
+        path: AppInfraCdkV1.Deploy/trialmatch-data-outputs.json
+
+  deployment-summary:
+    needs: [deploy-trialmatch-app-base, deploy-trialmatch-alb, deploy-trialmatch-cognito, deploy-trialmatch-ecs, deploy-trialmatch-data]
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Display Deployment Summary
+      run: |
+        echo "🎉 TrialMatch Deployment to Production Completed Successfully!"
+        echo ""
+        echo "📋 Deployed Stacks:"
+        echo "✅ TrialMatch Application Base Infrastructure Stack"
+        echo "✅ Application Load Balancer (ALB) Stack"
+        echo "✅ Amazon Cognito Stack"
+        echo "✅ Amazon ECS Stack"
+        echo "✅ Data Stack"
+        echo ""
+        echo "🚀 All TrialMatch infrastructure is now deployed and ready!"
+        echo ""
+        echo "📁 Artifacts generated:"
+        ls -la artifacts/
