@@ -302,12 +302,12 @@ public class TrialFinderV2CognitoStack : Stack
             Description = "ID of the Cognito App Client"
         });
 
-        // Export App Client Secret (actual value for secret creation)
+        // Export App Client Secret (reference only, not the actual secret value)
         new CfnOutput(this, "AppClientSecret", new CfnOutputProps
         {
-            Value = appClient.UserPoolClientSecret.ToString(),
+            Value = "***SECRET***", // Don't expose the actual secret value
             ExportName = $"{context.Environment.Name}-{context.Application.Name}-app-client-secret",
-            Description = "Secret of the Cognito App Client (for secure secret creation)"
+            Description = "Secret of the Cognito App Client (value not exposed for security)"
         });
 
         // Export Domain URL
