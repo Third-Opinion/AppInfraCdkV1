@@ -257,34 +257,14 @@ public class EcsServiceFactory : Construct
         // Add the target to the rule - this is the key step!
         rule.AddTarget(ecsTarget);
         
-        // Create an immediate execution rule to run the job when deployed
-        var immediateRuleName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-loader-immediate";
-        var immediateConstructId = $"LoaderImmediateRule-{taskDef.TaskDefinitionName}";
-        
-        Console.WriteLine($"     🚀 Creating immediate execution rule with ID: {immediateConstructId}");
-        
-        var immediateRule = new Rule(this, immediateConstructId, new RuleProps
-        {
-            RuleName = immediateRuleName,
-            Description = $"Immediate execution of {taskDefinitionName} on deployment",
-            Schedule = Amazon.CDK.AWS.Events.Schedule.Expression("rate(1 minute)"), // Will trigger within 1 minute of deployment
-            Enabled = true
-        });
-        
-        // Add the same ECS task target to the immediate rule
-        immediateRule.AddTarget(ecsTarget);
-        
         Console.WriteLine($"     ✅ Created EventBridge rule '{ruleName}' with ECS task target");
-        Console.WriteLine($"     🚀 Created immediate execution rule '{immediateRuleName}'");
-        Console.WriteLine($"     📅 Schedule: {scheduleExpression} (every 30 minutes)");
+        Console.WriteLine($"     📅 Schedule: {scheduleExpression}");
         if (!string.IsNullOrEmpty(securityGroupId))
         {
             Console.WriteLine($"     🔒 Using security group: {securityGroupId}");
         }
         Console.WriteLine($"     🔍 Rule construct path: {rule.Node.Path}");
         Console.WriteLine($"     🔍 Rule construct ID: {rule.Node.Id}");
-        Console.WriteLine($"     🔍 Immediate rule construct path: {immediateRule.Node.Path}");
-        Console.WriteLine($"     🔍 Immediate rule construct ID: {immediateRule.Node.Id}");
 
         // Export outputs for the scheduled task
         _outputExporter.ExportScheduledTaskOutputs(taskDefinition.TaskDefinitionArn, taskDefinition.Family);
