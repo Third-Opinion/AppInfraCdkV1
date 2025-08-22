@@ -199,6 +199,22 @@ public class SecretManager : Construct
     }
 
     /// <summary>
+    /// Generate a consistent construct ID that matches the original CDK pattern
+    /// This ensures the same logical ID is used across deployments to prevent resource recreation
+    /// </summary>
+    /// <param name="secretName">The secret name to generate ID for</param>
+    /// <returns>A consistent construct ID that matches CDK's original pattern</returns>
+    private string GenerateConsistentConstructId(string secretName)
+    {
+        // Remove hyphens and underscores, capitalize first letter of each word
+        // This matches the pattern CDK originally used: SecretManagerSecretopenaioptionsapikey
+        var cleanName = secretName.Replace("-", "").Replace("_", "");
+        
+        // Add the "SecretManagerSecret" prefix that CDK originally used
+        return $"SecretManagerSecret{cleanName}";
+    }
+
+    /// <summary>
     /// Get or create a secret in Secrets Manager
     /// This method uses AWS SDK to check if secrets exist before creating them.
     /// If a secret exists, it imports the existing secret reference to preserve manual values.
@@ -226,7 +242,7 @@ public class SecretManager : Construct
             if (!string.IsNullOrEmpty(completeArn))
             {
                 // Use the complete ARN to import the secret with proper unique identifier
-                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretCompleteArn(this, $"ImportedSecret-{secretName}", completeArn);
+                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretCompleteArn(this, GenerateConsistentConstructId(secretName), completeArn);
                 
                 // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
                 Tags.Of(existingSecret).Add("CDKManaged", "true");
@@ -238,7 +254,7 @@ public class SecretManager : Construct
             {
                 // Fallback to name-based import if we can't get the ARN
                 Console.WriteLine($"          ⚠️  Could not get complete ARN for existing secret '{fullSecretName}', using name-based import");
-                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, GenerateConsistentConstructId(secretName), fullSecretName);
                 
                 // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
                 Tags.Of(existingSecret).Add("CDKManaged", "true");
@@ -265,7 +281,7 @@ public class SecretManager : Construct
                     Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
                     
                     // Create secret with actual Cognito value
-                    var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+                    var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, GenerateConsistentConstructId(secretName), new SecretProps
                     {
                         SecretName = fullSecretName,
                         Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
@@ -285,7 +301,7 @@ public class SecretManager : Construct
             }
             
             // Regular secret with generated values (fallback for Cognito secrets without actual values)
-            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            var secret = new Amazon.CDK.AWS.SecretsManager.Secret(this, GenerateConsistentConstructId(secretName), new SecretProps
             {
                 SecretName = fullSecretName,
                 Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
@@ -363,7 +379,7 @@ public class SecretManager : Construct
             Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
             
             // Create secret with actual Cognito value
-            var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, $"Secret-{secretName}", new SecretProps
+            var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, GenerateConsistentConstructId(secretName), new SecretProps
             {
                 SecretName = fullSecretName,
                 Description = $"Cognito secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
