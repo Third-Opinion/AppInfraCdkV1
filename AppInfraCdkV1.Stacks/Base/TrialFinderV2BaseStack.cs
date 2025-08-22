@@ -246,6 +246,9 @@ public class TrialFinderV2BaseStack : Stack
             }
         });
         
+        // Add the CDKManaged tag required by IAM policy for access
+        Amazon.CDK.Tags.Of(databaseSecret).Add("CDKManaged", "true");
+        
         // Create database subnet group for isolated subnets
         var dbSubnetGroup = new CfnDBSubnetGroup(this, "TrialFinderV2DbSubnetGroup", new CfnDBSubnetGroupProps
         {

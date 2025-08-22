@@ -30,7 +30,9 @@ public class IamRoleBuilder : Construct
     public IRole CreateTaskExecutionRole(ILogGroup logGroup, string? uniqueId = null)
     {
         // Follow naming convention: {environment}-{service}-execution-role
-        var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role";
+        var roleName = string.IsNullOrEmpty(uniqueId) 
+            ? $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role"
+            : $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-{uniqueId.ToLowerInvariant()}-execution-role";
         
         // Create unique construct ID to avoid duplicates
         var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderExecutionRole" : $"TrialFinderExecutionRole{uniqueId}";
@@ -108,7 +110,9 @@ public class IamRoleBuilder : Construct
     public IRole CreateTaskRole(string? uniqueId = null)
     {
         // Follow naming convention: {environment}-{service}-task-role
-        var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role";
+        var roleName = string.IsNullOrEmpty(uniqueId) 
+            ? $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role"
+            : $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-{uniqueId.ToLowerInvariant()}-task-role";
         
         // Create unique construct ID to avoid duplicates
         var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderTaskRole" : $"TrialFinderTaskRole{uniqueId}";

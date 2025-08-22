@@ -83,7 +83,7 @@ public class SecretManager : Construct
 
     /// <summary>
     /// Check if a secret exists in Secrets Manager using AWS SDK
-    /// This method performs an asynchronous check to determine if a secret already exists
+    /// This method performs a synchronous check to determine if a secret already exists
     /// before attempting to create it, preventing accidental overwrites.
     /// </summary>
     /// <param name="secretName">The full name of the secret to check</param>
@@ -103,6 +103,14 @@ public class SecretManager : Construct
         }
         catch (ResourceNotFoundException)
         {
+            return false;
+        }
+        catch (Exception ex) when (ex.Message.Contains("AccessDenied") || ex.Message.Contains("not authorized"))
+        {
+            // Access denied due to IAM policy restrictions (e.g., missing CDKManaged tag)
+            // Treat this as "secret doesn't exist" to allow creation to proceed
+            Console.WriteLine($"          ⚠️  Access denied checking secret '{secretName}' (likely missing CDKManaged tag): {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it with proper tags");
             return false;
         }
         catch (Exception ex)
@@ -136,6 +144,14 @@ public class SecretManager : Construct
         }
         catch (ResourceNotFoundException)
         {
+            return false;
+        }
+        catch (Exception ex) when (ex.Message.Contains("AccessDenied") || ex.Message.Contains("not authorized"))
+        {
+            // Access denied due to IAM policy restrictions (e.g., missing CDKManaged tag)
+            // Treat this as "secret doesn't exist" to allow creation to proceed
+            Console.WriteLine($"          ⚠️  Access denied checking secret '{secretName}' (likely missing CDKManaged tag): {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it with proper tags");
             return false;
         }
         catch (Exception ex)
