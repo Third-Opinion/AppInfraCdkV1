@@ -43,7 +43,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
         role-session-name: GitHubActions-TrialFinderV2-AppBase-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
