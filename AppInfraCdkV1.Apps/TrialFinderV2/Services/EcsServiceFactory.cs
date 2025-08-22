@@ -91,7 +91,7 @@ public class EcsServiceFactory : Construct
         if (loaderTaskDef != null)
         {
             Console.WriteLine($"     ⏰ Creating scheduled job for loader task definition");
-            CreateScheduledJob(cluster, cognitoOutputs, loaderTaskDef);
+            CreateScheduledJob(cluster, cognitoOutputs, loaderTaskDef, albOutputs.EcsSecurityGroupId);
         }
         else
         {
@@ -193,7 +193,7 @@ public class EcsServiceFactory : Construct
     /// <summary>
     /// Create scheduled ECS task for background jobs
     /// </summary>
-    public void CreateScheduledJob(ICluster cluster, TrialFinderV2EcsStack.CognitoStackOutputs cognitoOutputs, TaskDefinitionConfig taskDef)
+    public void CreateScheduledJob(ICluster cluster, TrialFinderV2EcsStack.CognitoStackOutputs cognitoOutputs, TaskDefinitionConfig taskDef, string? securityGroupId = null)
     {
         var logGroup = _loggingManager.CreateLogGroup("trial-finder-loader", ResourcePurpose.Internal);
 
@@ -247,7 +247,11 @@ public class EcsServiceFactory : Construct
             Cluster = cluster,
             TaskDefinition = taskDefinition,
             TaskCount = 1,
-            LaunchType = LaunchType.FARGATE
+            LaunchType = LaunchType.FARGATE,
+            // Add security group configuration if provided
+            SecurityGroups = !string.IsNullOrEmpty(securityGroupId) 
+                ? new[] { SecurityGroup.FromSecurityGroupId(this, $"LoaderSecurityGroup-{taskDef.TaskDefinitionName}", securityGroupId) }
+                : null
         });
         
         // Add the target to the rule - this is the key step!
@@ -273,6 +277,10 @@ public class EcsServiceFactory : Construct
         Console.WriteLine($"     ✅ Created EventBridge rule '{ruleName}' with ECS task target");
         Console.WriteLine($"     🚀 Created immediate execution rule '{immediateRuleName}'");
         Console.WriteLine($"     📅 Schedule: {scheduleExpression} (every 30 minutes)");
+        if (!string.IsNullOrEmpty(securityGroupId))
+        {
+            Console.WriteLine($"     🔒 Using security group: {securityGroupId}");
+        }
         Console.WriteLine($"     🔍 Rule construct path: {rule.Node.Path}");
         Console.WriteLine($"     🔍 Rule construct ID: {rule.Node.Id}");
         Console.WriteLine($"     🔍 Immediate rule construct path: {immediateRule.Node.Path}");
