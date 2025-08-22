@@ -64,7 +64,7 @@ public class TrialFinderV2BaseStack : Stack
     {
         Console.WriteLine("🌐 Creating dedicated TrialFinderV2 VPC with tf2 naming...");
         
-        var vpcName = _context.Namer.SharedVpc(); // Will be updated to use tf2 prefix
+        var vpcName = _context.Namer.Vpc(ResourcePurpose.Main);
         
         // Create VPC with exact CIDR match for TrialFinderV2
         Vpc = new Vpc(this, "TrialFinderV2Vpc", new VpcProps
@@ -120,7 +120,7 @@ public class TrialFinderV2BaseStack : Stack
         var albSg = new SecurityGroup(this, "TrialFinderV2AlbSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = _context.Namer.SharedSecurityGroup("alb"), // Will be updated to use tf2 prefix
+            SecurityGroupName = _context.Namer.SecurityGroupForAlb(ResourcePurpose.Web),
             Description = "Dedicated ALB security group for TrialFinderV2",
             AllowAllOutbound = true
         });
@@ -135,7 +135,7 @@ public class TrialFinderV2BaseStack : Stack
         var ecsSg = new SecurityGroup(this, "TrialFinderV2ContainerFromAlbSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = _context.Namer.SharedSecurityGroup("ecs"), // Will be updated to use tf2 prefix
+            SecurityGroupName = _context.Namer.SecurityGroupForEcs(ResourcePurpose.Web),
             Description = "Security group for TrialFinderV2 ECS containers allowing traffic from ALB and internal communication",
             AllowAllOutbound = false
         });
@@ -193,7 +193,7 @@ public class TrialFinderV2BaseStack : Stack
         var vpcEndpointSg = new SecurityGroup(this, "TrialFinderV2VpcEndpointSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = _context.Namer.SharedSecurityGroup("vpc-endpoints"), // Will be updated to use tf2 prefix
+            SecurityGroupName = _context.Namer.SecurityGroupForLambda(ResourcePurpose.Main),
             Description = "Dedicated VPC endpoint security group for TrialFinderV2",
             AllowAllOutbound = false
         });
@@ -213,7 +213,7 @@ public class TrialFinderV2BaseStack : Stack
     {
         Console.WriteLine("📝 Creating dedicated TrialFinderV2 logging infrastructure...");
         
-        var logGroupName = _context.Namer.SharedLogGroup(); // Will be updated to use tf2 prefix
+        var logGroupName = _context.Namer.LogGroup(_context.Application.Name.ToLowerInvariant(), ResourcePurpose.Main);
         
         SharedLogGroup = new LogGroup(this, "TrialFinderV2SharedLogGroup", new LogGroupProps
         {
