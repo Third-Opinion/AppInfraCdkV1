@@ -164,6 +164,41 @@ public class SecretManager : Construct
     }
 
     /// <summary>
+    /// Get the complete ARN of an existing secret including the unique identifier
+    /// </summary>
+    /// <param name="secretName">The full name of the secret</param>
+    /// <returns>The complete ARN with unique identifier, or null if secret doesn't exist</returns>
+    public string? GetSecretCompleteArn(string secretName)
+    {
+        try
+        {
+            using var secretsManagerClient = new AmazonSecretsManagerClient();
+            var describeSecretRequest = new DescribeSecretRequest
+            {
+                SecretId = secretName
+            };
+            
+            var response = secretsManagerClient.DescribeSecretAsync(describeSecretRequest).GetAwaiter().GetResult();
+            return response?.ARN;
+        }
+        catch (ResourceNotFoundException)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex.Message.Contains("AccessDenied") || ex.Message.Contains("not authorized"))
+        {
+            // Access denied due to IAM policy restrictions
+            Console.WriteLine($"          ⚠️  Access denied getting ARN for secret '{secretName}' (likely missing CDKManaged tag): {ex.Message}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"          ⚠️  Error getting ARN for secret '{secretName}': {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Get or create a secret in Secrets Manager
     /// This method uses AWS SDK to check if secrets exist before creating them.
     /// If a secret exists, it imports the existing secret reference to preserve manual values.
@@ -185,13 +220,32 @@ public class SecretManager : Construct
         {
             // Secret exists - import it to preserve manual values
             Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
-            var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
             
-            // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
-            Tags.Of(existingSecret).Add("CDKManaged", "true");
-            
-            _createdSecrets[secretName] = existingSecret;
-            return existingSecret;
+            // Get the complete ARN including the unique identifier
+            var completeArn = GetSecretCompleteArn(fullSecretName);
+            if (!string.IsNullOrEmpty(completeArn))
+            {
+                // Use the complete ARN to import the secret with proper unique identifier
+                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretCompleteArn(this, $"ImportedSecret-{secretName}", completeArn);
+                
+                // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+                Tags.Of(existingSecret).Add("CDKManaged", "true");
+                
+                _createdSecrets[secretName] = existingSecret;
+                return existingSecret;
+            }
+            else
+            {
+                // Fallback to name-based import if we can't get the ARN
+                Console.WriteLine($"          ⚠️  Could not get complete ARN for existing secret '{fullSecretName}', using name-based import");
+                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, $"ImportedSecret-{secretName}", fullSecretName);
+                
+                // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
+                Tags.Of(existingSecret).Add("CDKManaged", "true");
+                
+                _createdSecrets[secretName] = existingSecret;
+                return existingSecret;
+            }
         }
         else
         {
