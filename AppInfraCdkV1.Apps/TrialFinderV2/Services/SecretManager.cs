@@ -260,7 +260,7 @@ public class SecretManager : Construct
         return secretName.ToLowerInvariant() switch
         {
             "cognito-clientid" => cognitoOutputs.AppClientId,
-            "cognito-clientsecret" => null, // Client secret is not exposed in outputs for security
+            "cognito-clientsecret" => cognitoOutputs.AppClientSecret, // Now exposed in outputs
             "cognito-userpoolid" => cognitoOutputs.UserPoolId,
             "cognito-domain" => cognitoOutputs.DomainUrl, //use url instead of domain name
             "cognito-domainurl" => cognitoOutputs.DomainUrl,

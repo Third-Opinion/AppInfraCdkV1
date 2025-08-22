@@ -7,6 +7,10 @@ using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.ApplicationAutoScaling;
+using Amazon.CDK.AWS.Events;
+using Amazon.CDK.AWS.Events.Targets;
+
+
 using AppInfraCdkV1.Apps.TrialFinderV2.Builders;
 using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Core.Enums;
@@ -60,18 +64,38 @@ public class EcsServiceFactory : Construct
         var ecsConfig = _configLoader.LoadEcsConfig(_context.Environment.Name);
         ecsConfig = _configLoader.SubstituteVariables(ecsConfig, _context);
 
+        Console.WriteLine($"     🔍 Loaded ECS configuration with {ecsConfig.TaskDefinition?.Count ?? 0} task definition(s)");
+        
+        if (ecsConfig.TaskDefinition != null)
+        {
+            foreach (var taskDef in ecsConfig.TaskDefinition)
+            {
+                Console.WriteLine($"     📋 Found task definition: '{taskDef.TaskDefinitionName}' (CPU: {taskDef.Cpu}, Memory: {taskDef.Memory})");
+            }
+        }
+
         // Create web application service for main task definition
-        var mainTaskDef = ecsConfig.TaskDefinition.FirstOrDefault(t => t.TaskDefinitionName == "main");
+        var mainTaskDef = ecsConfig.TaskDefinition?.FirstOrDefault(t => t.TaskDefinitionName == "main");
         if (mainTaskDef != null)
         {
+            Console.WriteLine($"     🚀 Creating web application service for main task definition");
             CreateWebApplicationService(cluster, albOutputs, cognitoOutputs, mainTaskDef);
+        }
+        else
+        {
+            Console.WriteLine($"     ⚠️  Main task definition not found in configuration");
         }
 
         // Create scheduled job for loader task definition
-        var loaderTaskDef = ecsConfig.TaskDefinition.FirstOrDefault(t => t.TaskDefinitionName == "loader");
+        var loaderTaskDef = ecsConfig.TaskDefinition?.FirstOrDefault(t => t.TaskDefinitionName == "loader");
         if (loaderTaskDef != null)
         {
+            Console.WriteLine($"     ⏰ Creating scheduled job for loader task definition");
             CreateScheduledJob(cluster, cognitoOutputs, loaderTaskDef);
+        }
+        else
+        {
+            Console.WriteLine($"     ⚠️  Loader task definition not found in configuration");
         }
     }
 
@@ -198,6 +222,41 @@ public class EcsServiceFactory : Construct
         });
 
         _containerConfigurationService.AddContainersFromConfiguration(taskDefinition, taskDef, logGroup, cognitoOutputs, _context);
+
+        // Create EventBridge rule to schedule the task using high-level CDK constructs
+        var ruleName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-loader-schedule";
+        var constructId = $"LoaderScheduleRule-{taskDef.TaskDefinitionName}";
+        var scheduleExpression = taskDef.ScheduleExpression ?? "cron(0 * * * ? *)";
+        
+        Console.WriteLine($"     🔧 Creating EventBridge rule construct with ID: {constructId}");
+        Console.WriteLine($"     📅 Schedule expression: {scheduleExpression}");
+        Console.WriteLine($"     🎯 Target: ECS Task {taskDefinitionName} on cluster {cluster.ClusterName}");
+        
+        // Create EventBridge rule using high-level CDK constructs
+        var rule = new Rule(this, constructId, new RuleProps
+        {
+            RuleName = ruleName,
+            Description = $"Scheduled job for {taskDefinitionName}",
+            Schedule = Amazon.CDK.AWS.Events.Schedule.Expression(scheduleExpression),
+            Enabled = true
+        });
+        
+        // Create ECS task target using the proper CDK approach
+        var ecsTarget = new EcsTask(new EcsTaskProps
+        {
+            Cluster = cluster,
+            TaskDefinition = taskDefinition,
+            TaskCount = 1,
+            LaunchType = LaunchType.FARGATE
+        });
+        
+        // Add the target to the rule - this is the key step!
+        rule.AddTarget(ecsTarget);
+        
+        Console.WriteLine($"     ✅ Created EventBridge rule '{ruleName}' with ECS task target");
+        Console.WriteLine($"     📅 Schedule: {scheduleExpression} (every 30 minutes)");
+        Console.WriteLine($"     🔍 Rule construct path: {rule.Node.Path}");
+        Console.WriteLine($"     🔍 Rule construct ID: {rule.Node.Id}");
 
         // Export outputs for the scheduled task
         _outputExporter.ExportScheduledTaskOutputs(taskDefinition.TaskDefinitionArn, taskDefinition.Family);

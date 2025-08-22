@@ -163,6 +163,7 @@ public class TrialFinderV2EcsStack : Stack
     {
         var userPoolId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-id");
         var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
+        var appClientSecret = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-secret");
         var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
         var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
         var userPoolArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-user-pool-arn");
@@ -171,6 +172,7 @@ public class TrialFinderV2EcsStack : Stack
         {
             UserPoolId = userPoolId,
             AppClientId = appClientId,
+            AppClientSecret = appClientSecret,
             DomainUrl = domainUrl,
             DomainName = domainName,
             UserPoolArn = userPoolArn
@@ -208,6 +210,7 @@ public class TrialFinderV2EcsStack : Stack
     {
         public string UserPoolId { get; set; } = "";
         public string AppClientId { get; set; } = "";
+        public string AppClientSecret { get; set; } = "";
         public string DomainUrl { get; set; } = "";
         public string DomainName { get; set; } = "";
         public string UserPoolArn { get; set; } = "";

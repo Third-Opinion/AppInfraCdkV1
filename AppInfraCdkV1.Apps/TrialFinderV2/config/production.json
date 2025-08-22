@@ -76,6 +76,7 @@
         "taskDefinitionName": "loader",
         "cpu": 2048,
         "memory": 4096,
+        "scheduleExpression": "cron(0 0 ? * FRI *)",
         "containerDefinitions": [
           {
             "name": "trial-finder-v2-loader",

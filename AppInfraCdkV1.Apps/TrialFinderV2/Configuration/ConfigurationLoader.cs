@@ -295,6 +295,7 @@ public class TaskDefinitionConfig
     public int? Cpu { get; set; }
     public int? Memory { get; set; }
     public List<ContainerDefinitionConfig>? ContainerDefinitions { get; set; }
+    public string? ScheduleExpression { get; set; }
 }
 
 public class ContainerRepositoryConfig
