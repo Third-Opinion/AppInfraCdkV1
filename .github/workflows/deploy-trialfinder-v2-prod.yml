@@ -43,7 +43,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-tfv2-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::442042533707:role/github-actions-prod-deploy
         role-session-name: GitHubActions-TrialFinderV2-AppBase-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -101,7 +101,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::442042533707:role/github-actions-prod-deploy
         role-session-name: GitHubActions-TrialFinderV2-ALB-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -178,7 +178,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::442042533707:role/github-actions-prod-deploy
         role-session-name: GitHubActions-TrialFinderV2-Cognito-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -255,7 +255,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::442042533707:role/github-actions-prod-deploy
         role-session-name: GitHubActions-TrialFinderV2-ECS-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
@@ -332,7 +332,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/prod-cdk-role-ue2-github-actions
+        role-to-assume: arn:aws:iam::442042533707:role/github-actions-prod-deploy
         role-session-name: GitHubActions-TrialFinderV2-Data-${{ github.run_id }}
         aws-region: ${{ env.AWS_REGION }}
     
