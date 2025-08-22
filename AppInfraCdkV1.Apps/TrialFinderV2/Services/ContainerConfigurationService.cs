@@ -290,16 +290,28 @@ public class ContainerConfigurationService : Construct
         }
 
         var healthCheck = containerConfig.HealthCheck;
-        var healthCheckPath = GetHealthCheckPath(containerConfig);
         
-        if (string.IsNullOrWhiteSpace(healthCheckPath))
+        // Use the command from configuration if provided, otherwise fall back to default
+        string[] command;
+        if (healthCheck.Command?.Count > 0)
         {
-            return null;
+            // Use the exact command from configuration
+            command = healthCheck.Command.ToArray();
+        }
+        else
+        {
+            // Fall back to default health check using curl
+            var healthCheckPath = GetHealthCheckPath(containerConfig);
+            if (string.IsNullOrWhiteSpace(healthCheckPath))
+            {
+                return null;
+            }
+            command = new[] { "CMD-SHELL", $"curl -f {healthCheckPath} || exit 1" };
         }
 
         return new Amazon.CDK.AWS.ECS.HealthCheck
         {
-            Command = new[] { "CMD-SHELL", $"curl -f {healthCheckPath} || exit 1" },
+            Command = command,
             Interval = Duration.Seconds(healthCheck.Interval ?? 30),
             Timeout = Duration.Seconds(healthCheck.Timeout ?? 5),
             Retries = healthCheck.Retries ?? 3,
