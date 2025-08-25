@@ -8,6 +8,7 @@ using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Apps.TrialMatch.Configuration;
+using AppInfraCdkV1.Core.Naming;
 using Constructs;
 
 namespace AppInfraCdkV1.Apps.TrialMatch.Builders;
@@ -295,8 +296,11 @@ public class IamRoleBuilder : Construct
             },
             Resources = new[]
             {
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/dev-tm-role-ue2-ecs-task-*",
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/dev-tm-role-ue2-ecs-exec-*"
+                // Allow passing ECS task roles with unique IDs (needed for dynamic role creation)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsTask)}-*",
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsExecution)}-*",
+                // Allow passing any role that follows the application naming pattern (env-app-*)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{NamingConvention.GetEnvironmentPrefix(_context.Environment.Name)}-{NamingConvention.GetApplicationCode(_context.Application.Name)}-*"
             }
         }));
 

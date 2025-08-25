@@ -8,6 +8,7 @@ using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
+using AppInfraCdkV1.Core.Naming;
 using Constructs;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2.Builders;
@@ -311,7 +312,13 @@ public class IamRoleBuilder : Construct
                 // Allow passing ECS service factory roles (needed for EventBridge targets)
                 $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.Service)}",
                 // Allow passing roles that follow the naming convention pattern
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.GithubActionsDeploy).Replace("github-actions-deploy", "*")}"
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.GithubActionsDeploy).Replace("github-actions-deploy", "*")}",
+                // Allow passing ECS task roles with unique IDs (needed for dynamic role creation)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsTask)}-*",
+                // Allow passing ECS execution roles with unique IDs
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsExecution)}-*",
+                // Allow passing any role that follows the application naming pattern (env-app-*)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{NamingConvention.GetEnvironmentPrefix(_context.Environment.Name)}-{NamingConvention.GetApplicationCode(_context.Application.Name)}-*"
             }
         }));
 
