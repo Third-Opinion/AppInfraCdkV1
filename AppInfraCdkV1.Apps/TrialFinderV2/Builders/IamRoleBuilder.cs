@@ -29,10 +29,10 @@ public class IamRoleBuilder : Construct
     /// </summary>
     public IRole CreateTaskExecutionRole(ILogGroup logGroup, string? uniqueId = null)
     {
-        // Follow naming convention: {environment}-{service}-execution-role
+        // Use ResourceNamer for consistent naming convention
         var roleName = string.IsNullOrEmpty(uniqueId) 
-            ? $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role"
-            : $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-{uniqueId.ToLowerInvariant()}-execution-role";
+            ? _context.Namer.IamRole(IamPurpose.EcsExecution)
+            : $"{_context.Namer.IamRole(IamPurpose.EcsExecution)}-{uniqueId.ToLowerInvariant()}";
         
         // Create unique construct ID to avoid duplicates
         var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderExecutionRole" : $"TrialFinderExecutionRole{uniqueId}";
@@ -109,10 +109,10 @@ public class IamRoleBuilder : Construct
     /// </summary>
     public IRole CreateTaskRole(string? uniqueId = null)
     {
-        // Follow naming convention: {environment}-{service}-task-role
+        // Use ResourceNamer for consistent naming convention
         var roleName = string.IsNullOrEmpty(uniqueId) 
-            ? $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role"
-            : $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-{uniqueId.ToLowerInvariant()}-task-role";
+            ? _context.Namer.IamRole(IamPurpose.EcsTask)
+            : $"{_context.Namer.IamRole(IamPurpose.EcsTask)}-{uniqueId.ToLowerInvariant()}";
         
         // Create unique construct ID to avoid duplicates
         var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderTaskRole" : $"TrialFinderTaskRole{uniqueId}";

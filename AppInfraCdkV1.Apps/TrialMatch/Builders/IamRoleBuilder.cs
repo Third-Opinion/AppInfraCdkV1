@@ -6,6 +6,7 @@ using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Models;
+using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Apps.TrialMatch.Configuration;
 using Constructs;
 
@@ -30,7 +31,7 @@ public class IamRoleBuilder : Construct
     {
         var role = new Role(this, $"TrialMatchTaskRole-{serviceName}", new RoleProps
         {
-            RoleName = $"TrialMatchTaskRole-{serviceName}",
+            RoleName = _context.Namer.IamRole(IamPurpose.EcsTask),
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             Description = $"IAM role for TrialMatch {serviceName} ECS task execution"
         });
@@ -53,7 +54,7 @@ public class IamRoleBuilder : Construct
     {
         var role = new Role(this, $"TrialMatchExecutionRole-{serviceName}", new RoleProps
         {
-            RoleName = $"TrialMatchExecutionRole-{serviceName}",
+            RoleName = _context.Namer.IamRole(IamPurpose.EcsExecution),
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             Description = $"IAM role for TrialMatch {serviceName} ECS task execution"
         });
@@ -226,8 +227,8 @@ public class IamRoleBuilder : Construct
             },
             Resources = new[]
             {
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/TrialMatchTaskRole-*",
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/TrialMatchExecutionRole-*"
+                _context.Namer.IamRoleArn(IamPurpose.EcsTask),
+                _context.Namer.IamRoleArn(IamPurpose.EcsExecution)
             }
         }));
 
