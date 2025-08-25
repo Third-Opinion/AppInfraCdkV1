@@ -305,7 +305,12 @@ public class IamRoleBuilder : Construct
             },
             Resources = new[]
             {
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-*"
+                // Allow passing the application-specific roles
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-*",
+                // Allow passing ECS task execution roles (needed for EventBridge targets)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-ecs-*",
+                // Allow passing the specific ECS service factory role pattern
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-ecs-*"
             }
         }));
 
