@@ -132,9 +132,9 @@ public class EcsServiceFactory : Construct
 
         var primary = _containerConfigurationService.AddContainersFromConfiguration(taskDefinition, taskDef, logGroup, cognitoOutputs, _context);
 
-        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "ImportedEcsSecurityGroup", albOutputs.EcsSecurityGroupId);
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialFinderEcsSecurityGroup", albOutputs.EcsSecurityGroupId);
 
-        var service = new FargateService(this, "TrialFinderService", new FargateServiceProps
+        var service = new FargateService(this, "TrialFinderWebService", new FargateServiceProps
         {
             Cluster = cluster,
             ServiceName = _context.Namer.EcsService(ResourcePurpose.Web),
@@ -151,7 +151,7 @@ public class EcsServiceFactory : Construct
         if (primary.ContainerPort > 0)
         {
             var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
-                "ImportedTargetGroup", new TargetGroupAttributes
+                "TrialFinderTargetGroup", new TargetGroupAttributes
                 {
                     TargetGroupArn = albOutputs.TargetGroupArn,
                     LoadBalancerArns = albOutputs.TargetGroupArn
@@ -224,16 +224,15 @@ public class EcsServiceFactory : Construct
         _containerConfigurationService.AddContainersFromConfiguration(taskDefinition, taskDef, logGroup, cognitoOutputs, _context);
 
         // Create EventBridge rule to schedule the task using high-level CDK constructs
-        var ruleName = $"{_context.Application.Name.ToLowerInvariant()}-{_context.Environment.Name}-loader-schedule";
-        var constructId = $"LoaderScheduleRule-{taskDef.TaskDefinitionName}";
+        var ruleName = _context.Namer.Custom("events-rule", ResourcePurpose.Internal);
         var scheduleExpression = taskDef.ScheduleExpression ?? "cron(0 * * * ? *)";
         
-        Console.WriteLine($"     🔧 Creating EventBridge rule construct with ID: {constructId}");
+        Console.WriteLine($"     🔧 Creating EventBridge rule with name: {ruleName}");
         Console.WriteLine($"     📅 Schedule expression: {scheduleExpression}");
         Console.WriteLine($"     🎯 Target: ECS Task {taskDefinitionName} on cluster {cluster.ClusterName}");
         
-        // Create EventBridge rule using high-level CDK constructs
-        var rule = new Rule(this, constructId, new RuleProps
+        // Create EventBridge rule using high-level CDK constructs with proper naming
+        var rule = new Rule(this, "TrialFinderLoaderScheduleRule", new RuleProps
         {
             RuleName = ruleName,
             Description = $"Scheduled job for {taskDefinitionName}",
@@ -250,7 +249,7 @@ public class EcsServiceFactory : Construct
             LaunchType = LaunchType.FARGATE,
             // Add security group configuration if provided
             SecurityGroups = !string.IsNullOrEmpty(securityGroupId) 
-                ? new[] { SecurityGroup.FromSecurityGroupId(this, $"LoaderSecurityGroup-{taskDef.TaskDefinitionName}", securityGroupId) }
+                ? new[] { SecurityGroup.FromSecurityGroupId(this, "TrialFinderLoaderSecurityGroup", securityGroupId) }
                 : null
         });
         
