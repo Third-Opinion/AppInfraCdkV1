@@ -309,6 +309,29 @@ public class IamRoleBuilder : Construct
             }
         }));
 
+        // Add CloudWatch Events (EventBridge) permissions for deployment
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowCloudWatchEvents",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "events:ListRules",
+                "events:DescribeRule",
+                "events:ListTargetsByRule",
+                "events:ListEventBuses",
+                "events:DescribeEventBus",
+                "events:PutTargets",
+                "events:RemoveTargets",
+                "events:DescribeRule"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:events:{_context.Environment.Region}:{_context.Environment.AccountId}:rule/*",
+                $"arn:aws:events:{_context.Environment.Region}:{_context.Environment.AccountId}:event-bus/*"
+            }
+        }));
+
         // Add Secrets Manager permissions for secret existence checking
         deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
