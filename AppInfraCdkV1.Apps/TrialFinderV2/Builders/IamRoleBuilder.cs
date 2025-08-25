@@ -305,12 +305,13 @@ public class IamRoleBuilder : Construct
             },
             Resources = new[]
             {
-                // Allow passing the application-specific roles
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-*",
-                // Allow passing ECS task execution roles (needed for EventBridge targets)
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-ecs-*",
-                // Allow passing the specific ECS service factory role pattern
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-ecs-*"
+                // Allow passing the application-specific roles using the naming convention
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsTask)}",
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsExecution)}",
+                // Allow passing ECS service factory roles (needed for EventBridge targets)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.Service)}",
+                // Allow passing roles that follow the naming convention pattern
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.GithubActionsDeploy).Replace("github-actions-deploy", "*")}"
             }
         }));
 
@@ -362,6 +363,8 @@ public class IamRoleBuilder : Construct
 
         return deploymentRole;
     }
+
+
 
     /// <summary>
     /// Add Secrets Manager permissions to IAM role with environment-specific scoping
