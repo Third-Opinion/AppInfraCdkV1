@@ -342,14 +342,16 @@ public class EcrRepositoryManager : Construct
             var repositoryName = kvp.Key;
             var repository = kvp.Value;
 
-            new CfnOutput(this, $"EcrRepositoryArn-{repositoryName}", new CfnOutputProps
+            // Export ECR Repository ARN with simple, predictable key
+            new CfnOutput(this, $"EcrRepositoryArn{char.ToUpper(repositoryName[0]) + repositoryName[1..]}", new CfnOutputProps
             {
                 Value = repository.RepositoryArn,
                 Description = $"TrialFinderV2 ECR Repository ARN for {repositoryName}",
                 ExportName = $"{_context.Environment.Name}-trial-finder-v2-{repositoryName}-ecr-repository-arn"
             });
 
-            new CfnOutput(this, $"EcrRepositoryName-{repositoryName}", new CfnOutputProps
+            // Export ECR Repository Name with simple, predictable key
+            new CfnOutput(this, $"EcrRepositoryName{char.ToUpper(repositoryName[0]) + repositoryName[1..]}", new CfnOutputProps
             {
                 Value = repository.RepositoryName,
                 Description = $"TrialFinderV2 ECR Repository Name for {repositoryName}",
@@ -373,4 +375,6 @@ public class EcrRepositoryManager : Construct
     {
         return _ecrRepositories.TryGetValue(key, out var repository) ? repository : null;
     }
+
+
 }
