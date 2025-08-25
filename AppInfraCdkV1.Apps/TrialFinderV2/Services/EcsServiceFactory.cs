@@ -132,9 +132,9 @@ public class EcsServiceFactory : Construct
 
         var primary = _containerConfigurationService.AddContainersFromConfiguration(taskDefinition, taskDef, logGroup, cognitoOutputs, _context);
 
-        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, _context.Namer.SecurityGroupForEcs(ResourcePurpose.Web), albOutputs.EcsSecurityGroupId);
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialFinderEcsSecurityGroup", albOutputs.EcsSecurityGroupId);
 
-        var service = new FargateService(this, _context.Namer.EcsService(ResourcePurpose.Web), new FargateServiceProps
+        var service = new FargateService(this, "TrialFinderWebService", new FargateServiceProps
         {
             Cluster = cluster,
             ServiceName = _context.Namer.EcsService(ResourcePurpose.Web),
@@ -151,7 +151,7 @@ public class EcsServiceFactory : Construct
         if (primary.ContainerPort > 0)
         {
             var targetGroup = ApplicationTargetGroup.FromTargetGroupAttributes(this,
-                _context.Namer.Custom("target-group", ResourcePurpose.Web), new TargetGroupAttributes
+                "TrialFinderTargetGroup", new TargetGroupAttributes
                 {
                     TargetGroupArn = albOutputs.TargetGroupArn,
                     LoadBalancerArns = albOutputs.TargetGroupArn
@@ -232,7 +232,7 @@ public class EcsServiceFactory : Construct
         Console.WriteLine($"     🎯 Target: ECS Task {taskDefinitionName} on cluster {cluster.ClusterName}");
         
         // Create EventBridge rule using high-level CDK constructs with proper naming
-        var rule = new Rule(this, ruleName, new RuleProps
+        var rule = new Rule(this, "TrialFinderLoaderScheduleRule", new RuleProps
         {
             RuleName = ruleName,
             Description = $"Scheduled job for {taskDefinitionName}",
@@ -249,7 +249,7 @@ public class EcsServiceFactory : Construct
             LaunchType = LaunchType.FARGATE,
             // Add security group configuration if provided
             SecurityGroups = !string.IsNullOrEmpty(securityGroupId) 
-                ? new[] { SecurityGroup.FromSecurityGroupId(this, _context.Namer.SecurityGroupForEcs(ResourcePurpose.Internal), securityGroupId) }
+                ? new[] { SecurityGroup.FromSecurityGroupId(this, "TrialFinderLoaderSecurityGroup", securityGroupId) }
                 : null
         });
         
