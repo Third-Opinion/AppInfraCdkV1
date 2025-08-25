@@ -8,6 +8,7 @@ using Amazon.CDK.AWS.SecretsManager;
 using AppInfraCdkV1.Core.Models;
 using AppInfraCdkV1.Core.Enums;
 using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
+using AppInfraCdkV1.Core.Naming;
 using Constructs;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2.Builders;
@@ -29,8 +30,10 @@ public class IamRoleBuilder : Construct
     /// </summary>
     public IRole CreateTaskExecutionRole(ILogGroup logGroup, string? uniqueId = null)
     {
-        // Follow naming convention: {environment}-{service}-execution-role
-        var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-execution-role";
+        // Use ResourceNamer for consistent naming convention
+        var roleName = string.IsNullOrEmpty(uniqueId) 
+            ? _context.Namer.IamRole(IamPurpose.EcsExecution)
+            : $"{_context.Namer.IamRole(IamPurpose.EcsExecution)}-{uniqueId.ToLowerInvariant()}";
         
         // Create unique construct ID to avoid duplicates
         var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderExecutionRole" : $"TrialFinderExecutionRole{uniqueId}";
@@ -107,8 +110,10 @@ public class IamRoleBuilder : Construct
     /// </summary>
     public IRole CreateTaskRole(string? uniqueId = null)
     {
-        // Follow naming convention: {environment}-{service}-task-role
-        var roleName = $"{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-task-role";
+        // Use ResourceNamer for consistent naming convention
+        var roleName = string.IsNullOrEmpty(uniqueId) 
+            ? _context.Namer.IamRole(IamPurpose.EcsTask)
+            : $"{_context.Namer.IamRole(IamPurpose.EcsTask)}-{uniqueId.ToLowerInvariant()}";
         
         // Create unique construct ID to avoid duplicates
         var constructId = string.IsNullOrEmpty(uniqueId) ? "TrialFinderTaskRole" : $"TrialFinderTaskRole{uniqueId}";
@@ -301,7 +306,42 @@ public class IamRoleBuilder : Construct
             },
             Resources = new[]
             {
-                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Environment.Name}-{_context.Application.Name.ToLowerInvariant()}-*"
+                // Allow passing the application-specific roles using the naming convention
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsTask)}",
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsExecution)}",
+                // Allow passing ECS service factory roles (needed for EventBridge targets)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.Service)}",
+                // Allow passing roles that follow the naming convention pattern
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.GithubActionsDeploy).Replace("github-actions-deploy", "*")}",
+                // Allow passing ECS task roles with unique IDs (needed for dynamic role creation)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsTask)}-*",
+                // Allow passing ECS execution roles with unique IDs
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{_context.Namer.IamRole(IamPurpose.EcsExecution)}-*",
+                // Allow passing any role that follows the application naming pattern (env-app-*)
+                $"arn:aws:iam::{_context.Environment.AccountId}:role/{NamingConvention.GetEnvironmentPrefix(_context.Environment.Name)}-{NamingConvention.GetApplicationCode(_context.Application.Name)}-*"
+            }
+        }));
+
+        // Add CloudWatch Events (EventBridge) permissions for deployment
+        deploymentRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "AllowCloudWatchEvents",
+            Effect = Effect.ALLOW,
+            Actions = new[]
+            {
+                "events:ListRules",
+                "events:DescribeRule",
+                "events:ListTargetsByRule",
+                "events:ListEventBuses",
+                "events:DescribeEventBus",
+                "events:PutTargets",
+                "events:RemoveTargets",
+                "events:DescribeRule"
+            },
+            Resources = new[]
+            {
+                $"arn:aws:events:{_context.Environment.Region}:{_context.Environment.AccountId}:rule/*",
+                $"arn:aws:events:{_context.Environment.Region}:{_context.Environment.AccountId}:event-bus/*"
             }
         }));
 
@@ -330,6 +370,8 @@ public class IamRoleBuilder : Construct
 
         return deploymentRole;
     }
+
+
 
     /// <summary>
     /// Add Secrets Manager permissions to IAM role with environment-specific scoping

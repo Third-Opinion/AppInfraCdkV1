@@ -32,12 +32,17 @@ namespace AppInfraCdkV1.Apps.TrialMatch;
 /// - Integration with Application Load Balancer
 /// - Environment-specific resource sizing
 /// - Comprehensive IAM roles and permissions
+/// - Dedicated base stack infrastructure for complete isolation
 /// 
 /// Secret Management:
 /// The stack checks if secrets already exist in AWS Secrets Manager before creating new ones.
 /// This prevents CDK from attempting to recreate secrets that already exist, which would cause
 /// deployment failures. Existing secrets are imported and referenced, while missing secrets
 /// are created with generated values.
+/// 
+/// Base Stack Integration:
+/// This stack now uses the dedicated TrialMatch base stack for VPC, security groups,
+/// database, and other shared infrastructure, ensuring complete isolation from other applications.
 /// </summary>
 public class TrialMatchEcsStack : Stack
 {
@@ -70,11 +75,11 @@ public class TrialMatchEcsStack : Stack
         _securityGroupManager = new SecurityGroupManager(this, "SecurityGroupManager", context);
         _iamRoleBuilder = new IamRoleBuilder(this, "IamRoleBuilder", context);
 
-        // Load configuration including VPC name pattern
+        // Load configuration including base stack configuration
         var fullConfig = _configLoader.LoadFullConfig(context.Environment.Name);
 
-        // Create VPC reference using dynamic lookup by name
-        var vpc = CreateVpcReference(fullConfig.VpcNamePattern, context);
+        // Create VPC reference using dedicated TrialMatch base stack
+        var vpc = CreateDedicatedVpcReference(context);
 
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
@@ -105,25 +110,20 @@ public class TrialMatchEcsStack : Stack
     }
 
     /// <summary>
-    /// Create VPC reference using shared stack exports
+    /// Create VPC reference using dedicated TrialMatch base stack exports
     /// </summary>
-    private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
+    private IVpc CreateDedicatedVpcReference(DeploymentContext context)
     {
-        if (string.IsNullOrWhiteSpace(vpcNamePattern))
-        {
-            throw new ArgumentException("VPC name pattern is required for VPC lookup", nameof(vpcNamePattern));
-        }
-
-        // Import VPC attributes from shared stack
-        var vpcId = Fn.ImportValue($"{context.Environment.Name}-vpc-id");
-        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr");
-        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3);
-        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3);
+        // Import VPC attributes from dedicated TrialMatch base stack
+        var vpcId = Fn.ImportValue($"tm-{context.Environment.Name}-vpc-id");
+        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr"); // Keep existing CIDR export for compatibility
+        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3); // Keep existing AZ export for compatibility
+        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3); // Keep existing subnet exports for compatibility
         var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
         var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
         
         // Use VPC attributes to create reference
-        var vpc = Vpc.FromVpcAttributes(this, "SharedVpc", new VpcAttributes
+        var vpc = Vpc.FromVpcAttributes(this, "TrialMatchDedicatedVpc", new VpcAttributes
         {
             VpcId = vpcId,
             VpcCidrBlock = vpcCidr,
@@ -133,7 +133,7 @@ public class TrialMatchEcsStack : Stack
             IsolatedSubnetIds = isolatedSubnetIds
         });
 
-        Console.WriteLine($"🔗 Using VPC: {vpc.VpcId}");
+        Console.WriteLine($"🔗 Using dedicated TrialMatch VPC: {vpc.VpcId}");
         return vpc;
     }
 

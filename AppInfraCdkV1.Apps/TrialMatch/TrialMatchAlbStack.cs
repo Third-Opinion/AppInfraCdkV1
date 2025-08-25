@@ -11,6 +11,20 @@ using Constructs;
 
 namespace AppInfraCdkV1.Apps.TrialMatch;
 
+/// <summary>
+/// ALB Stack for TrialMatch application
+/// 
+/// This stack manages Application Load Balancer with the following features:
+/// - SSL/TLS termination with environment-specific certificates
+/// - S3 access logging with lifecycle management
+/// - Integration with dedicated TrialMatch base stack
+/// - Security group management for ALB and ECS services
+/// - Environment-specific resource configuration
+/// 
+/// Base Stack Integration:
+/// This stack now uses the dedicated TrialMatch base stack for VPC and security groups,
+/// ensuring complete isolation from other applications.
+/// </summary>
 public class TrialMatchAlbStack : Stack
 {
     private readonly DeploymentContext _context;
@@ -25,11 +39,11 @@ public class TrialMatchAlbStack : Stack
         _context = context;
         _configLoader = new ConfigurationLoader();
 
-        // Load configuration including VPC name pattern
+        // Load configuration including base stack configuration
         var fullConfig = _configLoader.LoadFullConfig(context.Environment.Name);
 
-        // Create VPC reference using dynamic lookup by name
-        var vpc = CreateVpcReference(fullConfig.VpcNamePattern, context);
+        // Create VPC reference using dedicated TrialMatch base stack
+        var vpc = CreateDedicatedVpcReference(context);
         
         // Create security groups
         var securityGroups = CreateSecurityGroups(vpc, context);
@@ -48,17 +62,17 @@ public class TrialMatchAlbStack : Stack
     }
 
     /// <summary>
-    /// Import security groups from shared stack
+    /// Import security groups from dedicated TrialMatch base stack
     /// </summary>
     private (ISecurityGroup AlbSecurityGroup, ISecurityGroup EcsSecurityGroup) CreateSecurityGroups(IVpc vpc, DeploymentContext context)
     {
-        // Import ALB Security Group from shared stack
-        var albSecurityGroupId = Fn.ImportValue($"{context.Environment.Name}-sg-alb-id");
-        var albSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "SharedAlbSecurityGroup", albSecurityGroupId);
+        // Import ALB Security Group from dedicated TrialMatch base stack
+        var albSecurityGroupId = Fn.ImportValue($"tm-{context.Environment.Name}-sg-alb-id");
+        var albSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialMatchAlbSecurityGroup", albSecurityGroupId);
 
-        // Import ECS Security Group from shared stack
-        var ecsSecurityGroupId = Fn.ImportValue($"{context.Environment.Name}-sg-ecs-id");
-        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "SharedEcsSecurityGroup", ecsSecurityGroupId);
+        // Import ECS Security Group from dedicated TrialMatch base stack
+        var ecsSecurityGroupId = Fn.ImportValue($"tm-{context.Environment.Name}-sg-ecs-id");
+        var ecsSecurityGroup = SecurityGroup.FromSecurityGroupId(this, "TrialMatchEcsSecurityGroup", ecsSecurityGroupId);
 
         return (albSecurityGroup, ecsSecurityGroup);
     }
@@ -299,20 +313,20 @@ public class TrialMatchAlbStack : Stack
     }
 
     /// <summary>
-    /// Create VPC reference using shared stack exports
+    /// Create VPC reference using dedicated TrialMatch base stack exports
     /// </summary>
-    private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
+    private IVpc CreateDedicatedVpcReference(DeploymentContext context)
     {
-        // Import VPC attributes from shared stack
-        var vpcId = Fn.ImportValue($"{context.Environment.Name}-vpc-id");
-        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr");
-        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3);
-        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3);
+        // Import VPC attributes from dedicated TrialMatch base stack
+        var vpcId = Fn.ImportValue($"tm-{context.Environment.Name}-vpc-id");
+        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr"); // Keep existing CIDR export for compatibility
+        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3); // Keep existing AZ export for compatibility
+        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3); // Keep existing subnet exports for compatibility
         var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
         var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
         
         // Use VPC attributes to create reference
-        return Vpc.FromVpcAttributes(this, "SharedVpc", new VpcAttributes
+        return Vpc.FromVpcAttributes(this, "TrialMatchDedicatedVpc", new VpcAttributes
         {
             VpcId = vpcId,
             VpcCidrBlock = vpcCidr,

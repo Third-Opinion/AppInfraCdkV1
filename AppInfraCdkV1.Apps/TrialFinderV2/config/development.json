@@ -1,10 +1,10 @@
 {
-  "vpcNamePattern": "dev-shared-vpc-ue2-main",
+  "useDedicatedBaseStack": true,
+  "baseStackType": "TrialFinderV2",
   "ecsConfiguration": {
     "taskDefinition": [
       {
-        "taskDefinitionName": "web-application",
-        "taskType": "WebApplication",
+        "taskDefinitionName": "main",
         "cpu": 1024,
         "memory": 2048,
         "containerDefinitions": [
@@ -53,7 +53,6 @@
               "options": {
                 "awslogs-group": "/ecs/trial-finder-v2",
                 "mode": "non-blocking",
-                "awslogs-create-group": "true",
                 "max-buffer-size": "25m",
                 "awslogs-region": "us-east-2",
                 "awslogs-stream-prefix": "ecs"
@@ -74,29 +73,17 @@
         ]
       },
       {
-        "taskDefinitionName": "loader-scheduled-job",
-        "taskType": "ScheduledJob",
-        "scheduleExpression": "cron(0 */6 * * * *)",
-        "jobTimeout": 3600,
+        "taskDefinitionName": "loader",
         "cpu": 512,
         "memory": 1024,
-        "retryPolicy": {
-          "maxRetryAttempts": 3,
-          "retryDelaySeconds": 300,
-          "useExponentialBackoff": true,
-          "maxRetryDelaySeconds": 3600
-        },
-        "deadLetterQueue": {
-          "enabled": false,
-          "maxReceiveCount": 3
-        },
+        "scheduleExpression": "cron(0/15 * * * ? *)",
         "containerDefinitions": [
           {
             "name": "trial-finder-v2-loader",
             "image": "placeholder",
             "repository": {
               "type": "loader",
-              "description": "Background loader service for scheduled data processing",
+              "description": "Background loader service",
               "imageScanOnPush": true,
               "removalPolicy": "RETAIN"
             },
@@ -121,7 +108,6 @@
               "options": {
                 "awslogs-group": "/ecs/trial-finder-v2-loader",
                 "mode": "non-blocking",
-                "awslogs-create-group": "true",
                 "max-buffer-size": "25m",
                 "awslogs-region": "us-east-2",
                 "awslogs-stream-prefix": "ecs"

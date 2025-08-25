@@ -1,4 +1,4 @@
-namespace AppInfraCdkV1.Core.Enums;
+﻿namespace AppInfraCdkV1.Core.Enums;
 
 /// <summary>
 /// Types of ECS tasks for different execution patterns

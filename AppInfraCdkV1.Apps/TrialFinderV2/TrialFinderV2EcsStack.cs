@@ -2,6 +2,9 @@ using System.Linq;
 using Amazon.CDK;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECS;
+using Amazon.CDK.AWS.ElasticLoadBalancingV2;
+using Amazon.CDK.AWS.IAM;
+using Amazon.CDK.AWS.Logs;
 using AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 using AppInfraCdkV1.Apps.TrialFinderV2.Services;
 using AppInfraCdkV1.Apps.TrialFinderV2.Builders;
@@ -15,31 +18,38 @@ namespace AppInfraCdkV1.Apps.TrialFinderV2;
 /// ECS Stack for TrialFinder V2 application
 /// 
 /// This stack manages ECS Fargate services with the following features:
-/// - Modular architecture using focused service classes
-/// - Two-task architecture: web application + scheduled loader
 /// - Automatic secret management with existence checking
 /// - Container configuration from JSON files
 /// - Integration with Application Load Balancer
 /// - Environment-specific resource sizing
 /// - Comprehensive IAM roles and permissions
+/// - Dedicated base stack infrastructure for complete isolation
 /// 
-/// Architecture:
-/// - Web Application: Continuous ECS service with ALB integration
-/// - Loader: ECS scheduled task using EventBridge rules
-/// - All logic delegated to specialized service classes
+/// Secret Management:
+/// The stack checks if secrets already exist in AWS Secrets Manager before creating new ones.
+/// This prevents CDK from attempting to recreate secrets that already exist, which would cause
+/// deployment failures. Existing secrets are imported and referenced, while missing secrets
+/// are created with generated values.
+/// 
+/// Base Stack Integration:
+/// This stack now uses the dedicated TrialFinderV2 base stack for VPC, security groups,
+/// database, and other shared infrastructure, ensuring complete isolation from other applications.
 /// </summary>
 public class TrialFinderV2EcsStack : Stack
 {
     private readonly DeploymentContext _context;
     private readonly ConfigurationLoader _configLoader;
+    
+    // Service dependencies
     private readonly SecretManager _secretManager;
     private readonly EcrRepositoryManager _ecrRepositoryManager;
-    private readonly EcsServiceFactory _ecsServiceFactory;
-    private readonly SecurityGroupManager _securityGroupManager;
-    private readonly IamRoleBuilder _iamRoleBuilder;
-    private readonly OutputExporter _outputExporter;
     private readonly LoggingManager _loggingManager;
-    private ICluster? _cluster;
+    private readonly OutputExporter _outputExporter;
+    private readonly IamRoleBuilder _iamRoleBuilder;
+    private readonly ContainerConfigurationService _containerConfigurationService;
+    private readonly EcsServiceFactory _ecsServiceFactory;
+    
+    private IRole? _githubActionsRole;
 
     public TrialFinderV2EcsStack(Construct scope,
         string id,
@@ -53,17 +63,22 @@ public class TrialFinderV2EcsStack : Stack
         // Initialize services
         _secretManager = new SecretManager(this, "SecretManager", context);
         _ecrRepositoryManager = new EcrRepositoryManager(this, "EcrRepositoryManager", context);
-        _outputExporter = new OutputExporter(this, "OutputExporter", context);
         _loggingManager = new LoggingManager(this, "LoggingManager", context);
-        _ecsServiceFactory = new EcsServiceFactory(this, "EcsServiceFactory", context, _secretManager, _ecrRepositoryManager, _loggingManager, _outputExporter);
-        _securityGroupManager = new SecurityGroupManager(this, "SecurityGroupManager", context);
+        _outputExporter = new OutputExporter(this, "OutputExporter", context);
         _iamRoleBuilder = new IamRoleBuilder(this, "IamRoleBuilder", context);
+        
+        // Initialize ContainerConfigurationService
+        _containerConfigurationService = new ContainerConfigurationService(this, "ContainerConfigurationService", context, _secretManager);
+        
+        // Initialize EcsServiceFactory with all dependencies
+        _ecsServiceFactory = new EcsServiceFactory(this, "EcsServiceFactory", context, 
+            _secretManager, _ecrRepositoryManager, _loggingManager, _outputExporter, _iamRoleBuilder, _containerConfigurationService);
 
-        // Load configuration including VPC name pattern
+        // Load configuration including base stack configuration
         var fullConfig = _configLoader.LoadFullConfig(context.Environment.Name);
 
-        // Create VPC reference using dynamic lookup by name
-        var vpc = CreateVpcReference(fullConfig.VpcNamePattern, context);
+        // Create VPC reference using dedicated TrialFinderV2 base stack
+        var vpc = CreateDedicatedVpcReference(context);
 
         // Import ALB stack outputs
         var albOutputs = ImportAlbStackOutputs();
@@ -72,83 +87,69 @@ public class TrialFinderV2EcsStack : Stack
         var cognitoOutputs = ImportCognitoStackOutputs();
 
         // Create ECS cluster
-        _cluster = CreateEcsCluster(vpc, context);
+        var cluster = CreateEcsCluster(vpc, context);
 
-        // Create ECR repositories for TrialFinder containers
+        // Create ECR repositories from configuration (using service)
         _ecrRepositoryManager.CreateEcrRepositories(context);
 
-        // Create ECS services with containers from configuration
-        _ecsServiceFactory.CreateServicesAndTasks(_cluster, albOutputs, cognitoOutputs);
+        // Create GitHub Actions deployment role (using service)
+        _githubActionsRole = _iamRoleBuilder.CreateGitHubActionsRole();
 
-        // Export secret ARNs for all created secrets
+        // Create ECS service using the factory service
+        _ecsServiceFactory.CreateServicesAndTasks(cluster, albOutputs, cognitoOutputs);
+
+        // Export outputs using services
         _secretManager.ExportSecretArns();
-
-        // Export cluster information
-        _outputExporter.ExportClusterOutputs(_cluster);
-
-        // Export ECR repository information
         _ecrRepositoryManager.ExportEcrRepositoryOutputs();
-
-        // Create GitHub Actions ECS deployment role
-        CreateGitHubActionsEcsDeployRole(context);
     }
 
     /// <summary>
-    /// Create GitHub Actions ECS deployment role using IamRoleBuilder
+    /// Create VPC reference using dedicated TrialFinderV2 base stack exports
     /// </summary>
-    private void CreateGitHubActionsEcsDeployRole(DeploymentContext context)
+    private IVpc CreateDedicatedVpcReference(DeploymentContext context)
     {
-        var role = _iamRoleBuilder.CreateGitHubActionsRole();
-
-        // Export the role ARN using OutputExporter service
-        _outputExporter.ExportGitHubActionsEcsDeployRole(role);
-    }
-
-    /// <summary>
-    /// Create VPC reference using shared stack exports
-    /// </summary>
-    private IVpc CreateVpcReference(string? vpcNamePattern, DeploymentContext context)
-    {
-        if (string.IsNullOrWhiteSpace(vpcNamePattern))
-        {
-            throw new ArgumentException("VPC name pattern is required for VPC lookup", nameof(vpcNamePattern));
-        }
-
-        // Import VPC attributes from shared stack
-        var vpcId = Fn.ImportValue($"{context.Environment.Name}-vpc-id");
-        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr");
-        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3);
-        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3);
-        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
-        var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
+        // Import VPC attributes from dedicated TrialFinderV2 base stack
+        var vpcId = Fn.ImportValue($"tf2-{context.Environment.Name}-vpc-id");
         
-        // Use VPC attributes to create reference
-        var vpc = Vpc.FromVpcAttributes(this, "SharedVpc", new VpcAttributes
+        // Import individual subnet IDs (assuming 3 AZs)
+        var publicSubnet1 = Fn.ImportValue($"tf2-{context.Environment.Name}-public-subnet-1-id");
+        var publicSubnet2 = Fn.ImportValue($"tf2-{context.Environment.Name}-public-subnet-2-id");
+        var publicSubnet3 = Fn.ImportValue($"tf2-{context.Environment.Name}-public-subnet-3-id");
+        
+        var privateSubnet1 = Fn.ImportValue($"tf2-{context.Environment.Name}-private-subnet-1-id");
+        var privateSubnet2 = Fn.ImportValue($"tf2-{context.Environment.Name}-private-subnet-2-id");
+        var privateSubnet3 = Fn.ImportValue($"tf2-{context.Environment.Name}-private-subnet-3-id");
+        
+        var isolatedSubnet1 = Fn.ImportValue($"tf2-{context.Environment.Name}-isolated-subnet-1-id");
+        var isolatedSubnet2 = Fn.ImportValue($"tf2-{context.Environment.Name}-isolated-subnet-2-id");
+        var isolatedSubnet3 = Fn.ImportValue($"tf2-{context.Environment.Name}-isolated-subnet-3-id");
+        
+        // Use VPC attributes to create reference with individual subnet IDs
+        return Vpc.FromVpcAttributes(this, "TrialFinderV2DedicatedVpc", new VpcAttributes
         {
             VpcId = vpcId,
-            VpcCidrBlock = vpcCidr,
-            AvailabilityZones = availabilityZones,
-            PublicSubnetIds = publicSubnetIds,
-            PrivateSubnetIds = privateSubnetIds,
-            IsolatedSubnetIds = isolatedSubnetIds
+            VpcCidrBlock = "10.0.0.0/16", // Known CIDR from our base stack
+            AvailabilityZones = new[] { "us-east-2a", "us-east-2b", "us-east-2c" },
+            PublicSubnetIds = new[] { publicSubnet1, publicSubnet2, publicSubnet3 },
+            PrivateSubnetIds = new[] { privateSubnet1, privateSubnet2, privateSubnet3 },
+            IsolatedSubnetIds = new[] { isolatedSubnet1, isolatedSubnet2, isolatedSubnet3 }
         });
-
-        Console.WriteLine($"🔗 Using VPC: {vpc.VpcId}");
-        return vpc;
     }
 
     /// <summary>
-    /// Import outputs from the ALB stack
+    /// Import outputs from the ALB stack and base stack
     /// </summary>
-    private AppInfraCdkV1.Apps.TrialFinderV2.Services.AlbStackOutputs ImportAlbStackOutputs()
+    private AlbStackOutputs ImportAlbStackOutputs()
     {
         var targetGroupArn
             = Fn.ImportValue(
                 $"{_context.Environment.Name}-{_context.Application.Name}-target-group-arn");
+        
+        // Import ECS security group directly from base stack instead of ALB stack
         var ecsSecurityGroupId
-            = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-ecs-sg-id");
+            = Fn.ImportValue($"tf2-{_context.Environment.Name}-ecs-sg-id");
 
-        return new AppInfraCdkV1.Apps.TrialFinderV2.Services.AlbStackOutputs
+        return new AlbStackOutputs
         {
             TargetGroupArn = targetGroupArn,
             EcsSecurityGroupId = ecsSecurityGroupId
@@ -158,18 +159,20 @@ public class TrialFinderV2EcsStack : Stack
     /// <summary>
     /// Import outputs from the Cognito stack
     /// </summary>
-    private AppInfraCdkV1.Apps.TrialFinderV2.Services.CognitoStackOutputs ImportCognitoStackOutputs()
+    private CognitoStackOutputs ImportCognitoStackOutputs()
     {
         var userPoolId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-id");
         var appClientId = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-id");
+        var appClientSecret = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-app-client-secret");
         var domainUrl = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-url");
         var domainName = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-domain-name");
-        var userPoolArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-user-pool-arn");
+        var userPoolArn = Fn.ImportValue($"{_context.Environment.Name}-{_context.Application.Name}-cognito-user-pool-arn");
 
-        return new AppInfraCdkV1.Apps.TrialFinderV2.Services.CognitoStackOutputs
+        return new CognitoStackOutputs
         {
             UserPoolId = userPoolId,
             AppClientId = appClientId,
+            AppClientSecret = appClientSecret,
             DomainUrl = domainUrl,
             DomainName = domainName,
             UserPoolArn = userPoolArn
@@ -181,10 +184,35 @@ public class TrialFinderV2EcsStack : Stack
     /// </summary>
     private ICluster CreateEcsCluster(IVpc vpc, DeploymentContext context)
     {
-        return new Cluster(this, "TrialFinderCluster", new ClusterProps
+        var cluster = new Cluster(this, "Cluster", new ClusterProps
         {
-            Vpc = vpc,
-            ClusterName = context.Namer.EcsCluster()
+            ClusterName = context.Namer.EcsCluster(),
+            Vpc = vpc
         });
+
+        // Fargate capacity is enabled by default for ECS clusters
+        return cluster;
+    }
+
+    /// <summary>
+    /// Helper class to hold ALB stack outputs
+    /// </summary>
+    public class AlbStackOutputs
+    {
+        public string TargetGroupArn { get; set; } = "";
+        public string EcsSecurityGroupId { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Helper class to hold Cognito stack outputs
+    /// </summary>
+    public class CognitoStackOutputs
+    {
+        public string UserPoolId { get; set; } = "";
+        public string AppClientId { get; set; } = "";
+        public string AppClientSecret { get; set; } = "";
+        public string DomainUrl { get; set; } = "";
+        public string DomainName { get; set; } = "";
+        public string UserPoolArn { get; set; } = "";
     }
 }

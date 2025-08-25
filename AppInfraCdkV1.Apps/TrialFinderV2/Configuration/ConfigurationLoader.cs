@@ -1,6 +1,5 @@
 using System.Text.Json;
 using AppInfraCdkV1.Core.Models;
-using AppInfraCdkV1.Core.Enums;
 
 namespace AppInfraCdkV1.Apps.TrialFinderV2.Configuration;
 
@@ -47,6 +46,9 @@ public class ConfigurationLoader
         // Validate the ECS configuration
         ValidateConfiguration(config.EcsConfiguration);
         
+        // Validate base stack configuration
+        ValidateBaseStackConfiguration(config);
+        
         return config;
     }
     
@@ -66,12 +68,6 @@ public class ConfigurationLoader
             if (string.IsNullOrWhiteSpace(taskDef.TaskDefinitionName))
             {
                 throw new InvalidOperationException("TaskDefinitionName is required in the configuration");
-            }
-            
-            // Validate scheduled job configuration if applicable
-            if (taskDef.IsScheduledJob)
-            {
-                ValidateScheduledJobConfiguration(taskDef);
             }
             
             var containerDefinitions = taskDef.ContainerDefinitions;
@@ -108,30 +104,29 @@ public class ConfigurationLoader
     }
     
     /// <summary>
-    /// Validate scheduled job configuration
+    /// Validate the base stack configuration requirements
     /// </summary>
-    private void ValidateScheduledJobConfiguration(TaskDefinitionConfig taskDef)
+    public void ValidateBaseStackConfiguration(EcsTaskConfigurationWrapper config)
     {
-        if (string.IsNullOrWhiteSpace(taskDef.ScheduleExpression))
+        if (config.UseDedicatedBaseStack)
         {
-            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' requires a ScheduleExpression");
+            if (string.IsNullOrWhiteSpace(config.BaseStackType))
+            {
+                throw new InvalidOperationException("BaseStackType is required when UseDedicatedBaseStack is true");
+            }
+            
+            var validBaseStackTypes = new[] { "TrialMatch", "TrialFinderV2" };
+            if (!validBaseStackTypes.Contains(config.BaseStackType))
+            {
+                throw new InvalidOperationException($"Invalid BaseStackType '{config.BaseStackType}'. Must be one of: {string.Join(", ", validBaseStackTypes)}");
+            }
         }
-        
-        // Validate cron expression format (basic validation)
-        if (!taskDef.ScheduleExpression.StartsWith("cron(", StringComparison.OrdinalIgnoreCase) || 
-            !taskDef.ScheduleExpression.EndsWith(")", StringComparison.OrdinalIgnoreCase))
+        else
         {
-            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' has invalid ScheduleExpression format. Expected format: 'cron(0 */6 * * ? *)'");
-        }
-        
-        if (taskDef.JobTimeout <= 0)
-        {
-            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' has invalid JobTimeout. Must be greater than 0 seconds");
-        }
-        
-        if (taskDef.JobTimeout > 86400) // 24 hours
-        {
-            throw new InvalidOperationException($"Scheduled job task '{taskDef.TaskDefinitionName}' has invalid JobTimeout. Must be less than or equal to 86400 seconds (24 hours)");
+            if (!string.IsNullOrWhiteSpace(config.BaseStackType))
+            {
+                throw new InvalidOperationException("BaseStackType should not be specified when UseDedicatedBaseStack is false");
+            }
         }
     }
     
@@ -283,7 +278,8 @@ public class ConfigurationLoader
 // Configuration wrapper and data classes for JSON deserialization
 public class EcsTaskConfigurationWrapper  
 {
-    public string? VpcNamePattern { get; set; }
+    public bool UseDedicatedBaseStack { get; set; } = false;
+    public string? BaseStackType { get; set; }
     public EcsTaskConfiguration? EcsConfiguration { get; set; }
 }
 
@@ -299,36 +295,7 @@ public class TaskDefinitionConfig
     public int? Cpu { get; set; }
     public int? Memory { get; set; }
     public List<ContainerDefinitionConfig>? ContainerDefinitions { get; set; }
-    
-    /// <summary>
-    /// Type of task (WebApplication or ScheduledJob)
-    /// </summary>
-    public string? TaskType { get; set; } = "WebApplication";
-    
-    /// <summary>
-    /// Whether this is a scheduled job task
-    /// </summary>
-    public bool IsScheduledJob => TaskType?.Equals("ScheduledJob", StringComparison.OrdinalIgnoreCase) == true;
-    
-    /// <summary>
-    /// Schedule expression for cron-based scheduling (e.g., "cron(0 */6 * * ? *)")
-    /// </summary>
     public string? ScheduleExpression { get; set; }
-    
-    /// <summary>
-    /// Job timeout in seconds for scheduled tasks
-    /// </summary>
-    public int? JobTimeout { get; set; } = 3600; // 1 hour default
-    
-    /// <summary>
-    /// Retry policy configuration for scheduled jobs
-    /// </summary>
-    public RetryPolicyConfig? RetryPolicy { get; set; }
-    
-    /// <summary>
-    /// Dead letter queue configuration for scheduled jobs
-    /// </summary>
-    public DeadLetterQueueConfig? DeadLetterQueue { get; set; }
 }
 
 public class ContainerRepositoryConfig

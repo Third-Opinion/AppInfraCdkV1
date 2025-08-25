@@ -46,6 +46,9 @@ public class ConfigurationLoader
         // Validate the ECS configuration
         ValidateConfiguration(config.EcsConfiguration);
         
+        // Validate base stack configuration
+        ValidateBaseStackConfiguration(config);
+        
         return config;
     }
     
@@ -125,6 +128,33 @@ public class ConfigurationLoader
                 {
                     throw new InvalidOperationException($"Duplicate container names found in task '{taskDef.TaskDefinitionName}' for service '{service.ServiceName}': {string.Join(", ", duplicateNames)}");
                 }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Validate the base stack configuration requirements
+    /// </summary>
+    public void ValidateBaseStackConfiguration(EcsTaskConfigurationWrapper config)
+    {
+        if (config.UseDedicatedBaseStack)
+        {
+            if (string.IsNullOrWhiteSpace(config.BaseStackType))
+            {
+                throw new InvalidOperationException("BaseStackType is required when UseDedicatedBaseStack is true");
+            }
+            
+            var validBaseStackTypes = new[] { "TrialMatch", "TrialFinderV2" };
+            if (!validBaseStackTypes.Contains(config.BaseStackType))
+            {
+                throw new InvalidOperationException($"Invalid BaseStackType '{config.BaseStackType}'. Must be one of: {string.Join(", ", validBaseStackTypes)}");
+            }
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(config.BaseStackType))
+            {
+                throw new InvalidOperationException("BaseStackType should not be specified when UseDedicatedBaseStack is false");
             }
         }
     }
