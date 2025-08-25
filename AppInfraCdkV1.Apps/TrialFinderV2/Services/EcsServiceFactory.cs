@@ -160,13 +160,11 @@ public class EcsServiceFactory : Construct
             service.AttachToApplicationTargetGroup(targetGroup);
         }
 
-        // Configure auto-scaling based on environment
-        var (minCapacity, maxCapacity, desiredCapacity) = AppInfraCdkV1.Core.Configuration.EnvironmentSizing.GetAutoScalingConfig(_context.Environment.Name);
-        
+        // Configure auto-scaling with maximum 1 task
         var scaling = service.AutoScaleTaskCount(new EnableScalingProps
         {
-            MinCapacity = minCapacity,
-            MaxCapacity = maxCapacity
+            MinCapacity = 1,
+            MaxCapacity = 1
         });
 
         // Scale up when CPU utilization is high
