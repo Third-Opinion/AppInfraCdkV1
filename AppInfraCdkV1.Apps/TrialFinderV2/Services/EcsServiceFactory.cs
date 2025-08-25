@@ -188,9 +188,6 @@ public class EcsServiceFactory : Construct
         // Export outputs
         _outputExporter.ExportEcsOutputs(service, taskDefinition);
         _outputExporter.ExportIamRoleOutputs(taskRole, executionRole, null, "WebApp");
-        
-        // Export ECR repository outputs for GitHub Actions
-        _ecrRepositoryManager.ExportEcrRepositoryOutputs();
     }
 
     /// <summary>
@@ -272,9 +269,6 @@ public class EcsServiceFactory : Construct
         // Export outputs for the scheduled task
         _outputExporter.ExportScheduledTaskOutputs(taskDefinition.TaskDefinitionArn, taskDefinition.Family);
         _outputExporter.ExportIamRoleOutputs(taskRole, executionRole, null, "BackgroundJob");
-        
-        // Export ECR repository outputs for GitHub Actions
-        _ecrRepositoryManager.ExportEcrRepositoryOutputs();
     }
 }
 
