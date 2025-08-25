@@ -217,8 +217,13 @@ public class SecretManager : Construct
     /// <summary>
     /// Get or create a secret in Secrets Manager
     /// This method uses AWS SDK to check if secrets exist before creating them.
-    /// If a secret exists, it imports the existing secret reference to preserve manual values.
+    /// If a secret exists, it creates a CloudFormation-managed secret with the same name
+    /// to ensure proper lifecycle management while preserving existing values.
     /// If a secret doesn't exist, it creates a new secret with generated values.
+    /// 
+    /// IMPORTANT: This approach ensures that all secrets are properly managed by CloudFormation
+    /// and will appear in the CloudFormation resources section, preventing them from disappearing
+    /// when the stack is updated or redeployed.
     /// </summary>
     public ISecret GetOrCreateSecret(string secretName, string fullSecretName, CognitoStackOutputs? cognitoOutputs, DeploymentContext context)
     {
@@ -229,43 +234,76 @@ public class SecretManager : Construct
             return _createdSecrets[secretName];
         }
 
-        // Use AWS SDK to check if secret exists
+        // Use AWS SDK to check if secret exists and get its current value
         Console.WriteLine($"          🔍 Checking if secret '{fullSecretName}' exists using AWS SDK...");
         
-        if (SecretExists(fullSecretName))
+        var (secretExists, secretArn, currentValue) = GetSecretWithValue(fullSecretName);
+        
+        if (secretExists)
         {
-            // Secret exists - import it to preserve manual values
-            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - importing reference (preserving manual values)");
+            // Secret exists - create a CloudFormation-managed secret with the same name
+            // This ensures proper lifecycle management while preserving existing values
+            Console.WriteLine($"          ✅ Found existing secret '{fullSecretName}' - creating CloudFormation-managed secret (preserving existing values)");
             
-            // Get the complete ARN including the unique identifier
-            var completeArn = GetSecretCompleteArn(fullSecretName);
-            if (!string.IsNullOrEmpty(completeArn))
+            // For Cognito secrets, use actual values if available
+            if (cognitoOutputs != null && IsCognitoSecret(secretName))
             {
-                // Use the complete ARN to import the secret with proper unique identifier
-                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretCompleteArn(this, GenerateConsistentConstructId(secretName), completeArn);
+                Console.WriteLine($"          🔐 Creating Cognito secret '{secretName}' with actual Cognito values");
                 
-                // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
-                Tags.Of(existingSecret).Add("CDKManaged", "true");
+                string? actualValue = GetCognitoActualValue(secretName, cognitoOutputs);
                 
-                _createdSecrets[secretName] = existingSecret;
-                return existingSecret;
+                if (!string.IsNullOrEmpty(actualValue))
+                {
+                    Console.WriteLine($"          ✅ Using actual Cognito value for '{secretName}': {actualValue}");
+                    
+                    var cognitoSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, GenerateConsistentConstructId(secretName), new SecretProps
+                    {
+                        SecretName = fullSecretName,
+                        Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                        SecretStringValue = SecretValue.UnsafePlainText(actualValue)
+                    });
+
+                    // Add the CDKManaged tag required by IAM policy
+                    Tags.Of(cognitoSecret).Add("CDKManaged", "true");
+
+                    _createdSecrets[secretName] = cognitoSecret;
+                    return cognitoSecret;
+                }
+                else
+                {
+                    Console.WriteLine($"          ⚠️  Could not determine actual value for Cognito secret '{secretName}', using generated value");
+                }
+            }
+            
+            // For existing secrets, create a CloudFormation-managed secret with the same name
+            // This will either preserve existing values or create new ones if the secret was deleted
+            if (ShouldPreserveExistingValue(secretName, currentValue))
+            {
+                Console.WriteLine($"          🔄 Preserving existing value for secret '{secretName}'");
             }
             else
             {
-                // Fallback to name-based import if we can't get the ARN
-                Console.WriteLine($"          ⚠️  Could not get complete ARN for existing secret '{fullSecretName}', using name-based import");
-                var existingSecret = Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, GenerateConsistentConstructId(secretName), fullSecretName);
-                
-                // Add the CDKManaged tag to existing secrets to ensure IAM policy compliance
-                Tags.Of(existingSecret).Add("CDKManaged", "true");
-                
-                _createdSecrets[secretName] = existingSecret;
-                return existingSecret;
+                Console.WriteLine($"          🔄 Creating new value for existing secret '{secretName}' (not preserving current value)");
             }
+            
+            var existingSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, GenerateConsistentConstructId(secretName), new SecretProps
+            {
+                SecretName = fullSecretName,
+                Description = $"Secret '{secretName}' for {context.Application.Name} in {context.Environment.Name}",
+                SecretStringValue = ShouldPreserveExistingValue(secretName, currentValue)
+                    ? SecretValue.UnsafePlainText(currentValue!)
+                    : SecretValue.UnsafePlainText($"{{\"secretName\":\"{secretName}\",\"managedBy\":\"CDK\",\"environment\":\"{context.Environment.Name}\",\"existingSecret\":\"true\",\"value\":\"{Guid.NewGuid():N}\"}}")
+            });
+
+            // Add the CDKManaged tag required by IAM policy
+            Tags.Of(existingSecret).Add("CDKManaged", "true");
+
+            _createdSecrets[secretName] = existingSecret;
+            return existingSecret;
         }
         else
         {
-            // Secret doesn't exist - create it with generated values
+            // Secret doesn't exist - create it with generated values or Cognito values
             Console.WriteLine($"          ✨ Creating new secret '{fullSecretName}' with generated values");
             
             // For Cognito secrets, create them with actual values if available
@@ -453,6 +491,95 @@ public class SecretManager : Construct
         }
         
         return secrets;
+    }
+
+    /// <summary>
+    /// Get secret information from AWS Secrets Manager using AWS SDK
+    /// Returns a tuple with (exists, arn, currentValue) where arn and currentValue are null if secret doesn't exist
+    /// </summary>
+    private async Task<(bool exists, string? arn, string? currentValue)> GetSecretWithValueAsync(string secretName)
+    {
+        // Validate input
+        if (string.IsNullOrWhiteSpace(secretName))
+        {
+            Console.WriteLine($"          ⚠️  Secret name is null or empty");
+            return (false, null, null);
+        }
+
+        try
+        {
+            using var secretsManagerClient = new AmazonSecretsManagerClient();
+            
+            Console.WriteLine($"          🔍 Checking secret with name: {secretName}");
+            
+            var describeSecretRequest = new DescribeSecretRequest
+            {
+                SecretId = secretName
+            };
+            
+            var response = await secretsManagerClient.DescribeSecretAsync(describeSecretRequest);
+            
+            // Try to get the current secret value
+            string? currentValue = null;
+            try
+            {
+                var getSecretValueRequest = new GetSecretValueRequest
+                {
+                    SecretId = secretName
+                };
+                
+                var secretValueResponse = await secretsManagerClient.GetSecretValueAsync(getSecretValueRequest);
+                currentValue = secretValueResponse.SecretString;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"          ⚠️  Could not retrieve current secret value: {ex.Message}");
+                // Continue without the current value
+            }
+            
+            return (true, response.ARN, currentValue);
+        }
+        catch (ResourceNotFoundException)
+        {
+            return (false, null, null);
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the deployment
+            Console.WriteLine($"          ⚠️  Error checking if secret '{secretName}' exists: {ex.Message}");
+            Console.WriteLine($"          ℹ️  Assuming secret doesn't exist and will create it");
+            return (false, null, null);
+        }
+    }
+
+    /// <summary>
+    /// Get secret information from AWS Secrets Manager using AWS SDK (synchronous wrapper)
+    /// </summary>
+    private (bool exists, string? arn, string? currentValue) GetSecretWithValue(string secretName)
+    {
+        // Use GetAwaiter().GetResult() instead of Task.Run().Result to avoid potential deadlocks
+        return GetSecretWithValueAsync(secretName).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Determine if we should preserve existing secret values
+    /// </summary>
+    private bool ShouldPreserveExistingValue(string secretName, string? currentValue)
+    {
+        // Don't preserve if no current value exists
+        if (string.IsNullOrEmpty(currentValue))
+            return false;
+            
+        // Don't preserve Cognito secrets as they should use actual Cognito values
+        if (IsCognitoSecret(secretName))
+            return false;
+            
+        // Don't preserve test secrets
+        if (secretName.Equals("test-secret", StringComparison.OrdinalIgnoreCase))
+            return false;
+            
+        // Preserve other existing secrets
+        return true;
     }
 }
 
