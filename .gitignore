@@ -38,3 +38,4 @@ node_modules/
 /AppInfraCdkV1.InternalApps/LakeFormation/sampledata/synthea/
 /TestResults/
 /AppInfraCdkV1.PublicThirdOpinion/Lambda/publish/
+/AppInfraCdkV1.PublicThirdOpinion/cdk.out/
