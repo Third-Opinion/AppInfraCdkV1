@@ -312,6 +312,7 @@ public class ContainerDefinitionConfig
     public string? Image { get; set; }
     public ContainerRepositoryConfig? Repository { get; set; }
     public int? Cpu { get; set; }
+    public int? Memory { get; set; }
     public bool? Essential { get; set; }
     public List<PortMapping>? PortMappings { get; set; }
     public List<EnvironmentVariable>? Environment { get; set; }

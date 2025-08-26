@@ -189,7 +189,7 @@ public class ContainerConfigurationService : Construct
         {
             Image = containerImage,
             Essential = containerConfig.Essential ?? true,
-            MemoryLimitMiB = 512, // Use default memory value since config doesn't have memory property
+            MemoryLimitMiB = containerConfig.Memory ?? 512, // Use container memory from config, fallback to 512
             Cpu = containerConfig.Cpu ?? 256,
             Logging = LogDrivers.AwsLogs(new AwsLogDriverProps
             {

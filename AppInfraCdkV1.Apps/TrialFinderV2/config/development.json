@@ -18,6 +18,7 @@
               "removalPolicy": "RETAIN"
             },
             "cpu": 0,
+            "memory": 2048,
             "portMappings": [
               {
                 "name": "trial-finder-v2-8080-tcp",
@@ -88,6 +89,7 @@
               "removalPolicy": "RETAIN"
             },
             "cpu": 0,
+            "memory": 1024,
             "portMappings": [],
             "essential": true,
             "secrets": [
