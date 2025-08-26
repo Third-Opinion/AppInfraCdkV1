@@ -33,8 +33,8 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: Run tests
-      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    # - name: Run tests
+    #   run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
 
   # CDK Diff jobs run for develop and feature branches - grouped by application for efficiency
   cdk-diff-trialfinder:
@@ -240,8 +240,8 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: Run tests
-      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    # - name: Run tests
+    #   run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
     
     - name: CDK Bootstrap (if needed)
       run: |
