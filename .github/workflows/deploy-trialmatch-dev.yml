@@ -20,7 +20,7 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  deploy-trialmatch-base:
+  deploy-trialmatch-app-base:
     runs-on: ubuntu-latest
     environment: development
     
@@ -59,26 +59,26 @@ jobs:
     - name: CDK Bootstrap (if needed)
       run: |
         cd AppInfraCdkV1.Deploy
-        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-base" \
+        cdk bootstrap --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
                       --require-approval never
     
-    - name: Deploy TrialMatch Base Stack
+    - name: Deploy TrialMatch App Base Stack
       run: |
         cd AppInfraCdkV1.Deploy
-        echo "🚀 Deploying TrialMatch base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
-        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-base" \
+        echo "🚀 Deploying TrialMatch application base infrastructure to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy --app="dotnet run -- --app=${{ env.APP_NAME }} --environment=${{ env.CDK_ENVIRONMENT }} --deploy-app-base" \
                   --require-approval never \
-                  --outputs-file trialmatch-base-outputs.json
-        echo "✅ TrialMatch base stack deployment completed successfully!"
+                  --outputs-file trialmatch-app-base-outputs.json
+        echo "✅ TrialMatch application base stack deployment completed successfully!"
     
-    - name: Upload base outputs
+    - name: Upload app base outputs
       uses: actions/upload-artifact@v4
       with:
-        name: trialmatch-base-outputs-dev
-        path: AppInfraCdkV1.Deploy/trialmatch-base-outputs.json
+        name: trialmatch-app-base-outputs-dev
+        path: AppInfraCdkV1.Deploy/trialmatch-app-base-outputs.json
 
   deploy-trialmatch-alb:
-    needs: deploy-trialmatch-base
+    needs: deploy-trialmatch-app-base
     runs-on: ubuntu-latest
     environment: development
     
@@ -386,7 +386,7 @@ jobs:
         path: AppInfraCdkV1.Deploy/trialmatch-data-outputs.json
 
   deployment-summary:
-    needs: [deploy-trialmatch-base, deploy-trialmatch-alb, deploy-trialmatch-cognito, deploy-trialmatch-ecs, deploy-trialmatch-data]
+    needs: [deploy-trialmatch-app-base, deploy-trialmatch-alb, deploy-trialmatch-cognito, deploy-trialmatch-ecs, deploy-trialmatch-data]
     runs-on: ubuntu-latest
     environment: development
     
@@ -401,7 +401,7 @@ jobs:
         echo "🎉 TrialMatch Deployment to Development Completed Successfully!"
         echo ""
         echo "📋 Deployed Stacks:"
-        echo "✅ Base Infrastructure Stack"
+        echo "✅ TrialMatch Application Base Infrastructure Stack"
         echo "✅ Application Load Balancer (ALB) Stack"
         echo "✅ Amazon Cognito Stack"
         echo "✅ Amazon ECS Stack"
