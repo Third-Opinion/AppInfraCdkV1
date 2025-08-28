@@ -341,6 +341,44 @@ public class TrialMatchBaseStack : Stack
             ExportName = $"tm-{_context.Environment.Name}-vpc-id",
             Description = $"TrialMatch VPC ID for {_context.Environment.Name}"
         });
+
+        // Export individual subnet IDs for ALB stack consumption
+        var publicSubnets = Vpc.PublicSubnets.ToArray();
+        var privateSubnets = Vpc.PrivateSubnets.ToArray();
+        var isolatedSubnets = Vpc.IsolatedSubnets.ToArray();
+
+        // Export public subnet IDs individually
+        for (int i = 0; i < publicSubnets.Length; i++)
+        {
+            new CfnOutput(this, $"TrialMatchPublicSubnet{i + 1}Id", new CfnOutputProps
+            {
+                Value = publicSubnets[i].SubnetId,
+                ExportName = $"tm-{_context.Environment.Name}-public-subnet-{i + 1}-id",
+                Description = $"TrialMatch public subnet {i + 1} ID for {_context.Environment.Name}"
+            });
+        }
+
+        // Export private subnet IDs individually
+        for (int i = 0; i < privateSubnets.Length; i++)
+        {
+            new CfnOutput(this, $"TrialMatchPrivateSubnet{i + 1}Id", new CfnOutputProps
+            {
+                Value = privateSubnets[i].SubnetId,
+                ExportName = $"tm-{_context.Environment.Name}-private-subnet-{i + 1}-id",
+                Description = $"TrialMatch private subnet {i + 1} ID for {_context.Environment.Name}"
+            });
+        }
+
+        // Export isolated subnet IDs individually
+        for (int i = 0; i < isolatedSubnets.Length; i++)
+        {
+            new CfnOutput(this, $"TrialMatchIsolatedSubnet{i + 1}Id", new CfnOutputProps
+            {
+                Value = isolatedSubnets[i].SubnetId,
+                ExportName = $"tm-{_context.Environment.Name}-isolated-subnet-{i + 1}-id",
+                Description = $"TrialMatch isolated subnet {i + 1} ID for {_context.Environment.Name}"
+            });
+        }
         
         // Export security groups
         foreach (var kvp in SharedSecurityGroups)

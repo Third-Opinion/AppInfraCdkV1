@@ -319,18 +319,35 @@ public class TrialMatchAlbStack : Stack
     {
         // Import VPC attributes from dedicated TrialMatch base stack
         var vpcId = Fn.ImportValue($"tm-{context.Environment.Name}-vpc-id");
-        var vpcCidr = Fn.ImportValue($"{context.Environment.Name}-vpc-cidr"); // Keep existing CIDR export for compatibility
-        var availabilityZones = Fn.ImportListValue($"{context.Environment.Name}-vpc-azs", 3); // Keep existing AZ export for compatibility
-        var publicSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-public-subnet-ids", 3); // Keep existing subnet exports for compatibility
-        var privateSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-private-subnet-ids", 3);
-        var isolatedSubnetIds = Fn.ImportListValue($"{context.Environment.Name}-isolated-subnet-ids", 3);
         
-        // Use VPC attributes to create reference
+        // Import subnet IDs from TrialMatch base stack
+        var publicSubnetIds = new[]
+        {
+            Fn.ImportValue($"tm-{context.Environment.Name}-public-subnet-1-id"),
+            Fn.ImportValue($"tm-{context.Environment.Name}-public-subnet-2-id"),
+            Fn.ImportValue($"tm-{context.Environment.Name}-public-subnet-3-id")
+        };
+        
+        var privateSubnetIds = new[]
+        {
+            Fn.ImportValue($"tm-{context.Environment.Name}-private-subnet-1-id"),
+            Fn.ImportValue($"tm-{context.Environment.Name}-private-subnet-2-id"),
+            Fn.ImportValue($"tm-{context.Environment.Name}-private-subnet-3-id")
+        };
+        
+        var isolatedSubnetIds = new[]
+        {
+            Fn.ImportValue($"tm-{context.Environment.Name}-isolated-subnet-1-id"),
+            Fn.ImportValue($"tm-{context.Environment.Name}-isolated-subnet-2-id"),
+            Fn.ImportValue($"tm-{context.Environment.Name}-isolated-subnet-3-id")
+        };
+        
+        // Create VPC reference using imported subnet IDs
         return Vpc.FromVpcAttributes(this, "TrialMatchDedicatedVpc", new VpcAttributes
         {
             VpcId = vpcId,
-            VpcCidrBlock = vpcCidr,
-            AvailabilityZones = availabilityZones,
+            VpcCidrBlock = "10.1.0.0/16", // TrialMatch VPC CIDR
+            AvailabilityZones = new[] { "us-east-2a", "us-east-2b", "us-east-2c" },
             PublicSubnetIds = publicSubnetIds,
             PrivateSubnetIds = privateSubnetIds,
             IsolatedSubnetIds = isolatedSubnetIds
