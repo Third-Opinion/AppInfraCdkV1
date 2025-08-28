@@ -30,9 +30,13 @@ public class IamRoleBuilder : Construct
     /// </summary>
     public IRole CreateTaskRole(string serviceName)
     {
+        // Generate unique role name for each service to prevent conflicts
+        var baseRoleName = _context.Namer.IamRole(IamPurpose.EcsTask);
+        var uniqueRoleName = $"{baseRoleName}-{serviceName.ToLowerInvariant()}";
+        
         var role = new Role(this, $"TrialMatchTaskRole-{serviceName}", new RoleProps
         {
-            RoleName = _context.Namer.IamRole(IamPurpose.EcsTask),
+            RoleName = uniqueRoleName, // Fixed: Use unique role name for each service
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             Description = $"IAM role for TrialMatch {serviceName} ECS task execution"
         });
@@ -53,9 +57,13 @@ public class IamRoleBuilder : Construct
     /// </summary>
     public IRole CreateExecutionRole(ILogGroup logGroup, string serviceName)
     {
+        // Generate unique role name for each service to prevent conflicts
+        var baseRoleName = _context.Namer.IamRole(IamPurpose.EcsExecution);
+        var uniqueRoleName = $"{baseRoleName}-{serviceName.ToLowerInvariant()}";
+        
         var role = new Role(this, $"TrialMatchExecutionRole-{serviceName}", new RoleProps
         {
-            RoleName = _context.Namer.IamRole(IamPurpose.EcsExecution),
+            RoleName = uniqueRoleName, // Fixed: Use unique role name for each service
             AssumedBy = new ServicePrincipal("ecs-tasks.amazonaws.com"),
             Description = $"IAM role for TrialMatch {serviceName} ECS task execution"
         });
