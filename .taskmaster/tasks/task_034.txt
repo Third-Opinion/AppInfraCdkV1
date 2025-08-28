@@ -1,0 +1,150 @@
+# Task ID: 34
+# Title: Configure slashdevops/idp-scim-sync for Google Workspace to IAM Identity Center Synchronization
+# Status: done
+# Dependencies: 24, 25
+# Priority: medium
+# Description: Set up and configure the SCIM synchronization tool to automatically sync users and groups from Google Workspace to AWS IAM Identity Center, ensuring Lake Formation groups are properly maintained. This includes comprehensive CDK C# deployment, configuration management, and operational procedures for the AppInfraCdkV1 infrastructure.
+# Details:
+**IDP SCIM Sync Integration Product Requirements Document**
+
+**Background:** Need for automated identity synchronization between Google Workspace and AWS IAM Identity Center to eliminate manual user and group management overhead while ensuring Lake Formation access control groups remain synchronized.
+
+**Problem Statement:** Manual management of identity synchronization creates operational overhead, increases risk of access control inconsistencies, and delays user provisioning/deprovisioning processes.
+
+**Goals and Objectives:** Implement automated, reliable, and secure identity synchronization that maintains data consistency, provides operational controls, and integrates seamlessly with existing AppInfraCdkV1 infrastructure.
+
+**Functional Requirements:**
+- REQ-1.1.1: Automated user synchronization from Google Workspace to AWS IAM Identity Center
+- REQ-1.1.2: Automated group synchronization with Lake Formation group preservation
+- REQ-1.1.3: Real-time provisioning and deprovisioning capabilities
+- REQ-1.2.1: Environment-specific configuration management (dev/staging/prod)
+- REQ-1.2.2: CDK C# integration within AppInfraCdkV1 project
+- REQ-1.2.3: Context variable configuration in cdk.json
+- REQ-1.3.1: Three-tier SCIM disable methodology (EventBridge, group filters, Identity Center)
+- REQ-1.3.2: Environment variable control system for SCIM functionality
+- REQ-1.3.3: Reversible operational procedures with rollback capabilities
+- REQ-1.4.1: NuGet package integration for AWS CDK libraries
+- REQ-1.4.2: ScimSyncStack implementation with proper resource management
+
+**Non-Functional Requirements:**
+- REQ-2.1.1: Secure service account configuration with minimal required permissions
+- REQ-2.1.2: IAM roles with least privilege access for Identity Center SCIM
+- REQ-2.1.3: Encrypted credential storage and transmission
+- REQ-2.2.1: Sync frequency optimization to balance consistency and performance
+- REQ-2.2.2: Efficient resource utilization across environments
+- REQ-2.3.1: Fault tolerance with automatic retry mechanisms
+- REQ-2.3.2: Data consistency validation and integrity checks
+- REQ-2.3.3: Disaster recovery and failover procedures
+- REQ-2.4.1: Comprehensive monitoring with CloudWatch integration
+- REQ-2.4.2: Alerting for sync failures and operational issues
+- REQ-2.4.3: Audit logging for all synchronization activities
+
+**Environment-Specific Requirements:**
+- REQ-3.1.1: Development environment with reduced sync frequency for testing
+- REQ-3.1.2: Staging environment mirroring production configuration
+- REQ-3.3.1: Production environment with high availability and monitoring
+- REQ-3.3.2: Production backup and recovery procedures
+
+**Integration Requirements:**
+- REQ-4.1.1: Google Workspace Directory API integration with service account
+- REQ-4.1.2: Group filtering and mapping configuration
+- REQ-4.2.1: AWS IAM Identity Center SCIM endpoint configuration
+- REQ-4.2.2: Permission set and account assignment management
+- REQ-4.3.1: Seamless integration with existing AppInfraCdkV1 stack architecture
+- REQ-4.3.2: Resource naming consistency with project conventions
+
+**Deployment and Maintenance Requirements:**
+- REQ-5.1: Automated deployment through CDK pipelines
+- REQ-5.2: Comprehensive resource documentation per environment
+- REQ-5.3: Operational best practices and safety procedures
+- REQ-5.4: Troubleshooting and management procedures
+- REQ-5.5: Cleanup and re-enabling workflows
+
+**Success Criteria:** Successful automated synchronization with <5 minute sync latency, 99.9% sync reliability, zero manual intervention for routine operations, and complete operational control through documented procedures.
+
+**Dependencies:** External (Google Workspace Directory API, AWS IAM Identity Center), Internal (AppInfraCdkV1 infrastructure, Lake Formation groups), Technical (slashdevops/idp-scim-sync compatibility, CDK C# framework).
+
+**Assumptions:** Stable infrastructure foundation, API compatibility maintenance, and proper service account provisioning capabilities.
+
+# Test Strategy:
+Verify CDK deployment succeeds across all environments. Test initial SCIM sync and validate all Lake Formation groups sync correctly. Verify each of the three disable methods work properly. Test environment variable controls and confirm AWS resources are created as expected. Validate troubleshooting procedures and test re-enabling synchronization. Ensure safe operational sequences prevent data inconsistencies. Validate all functional and non-functional requirements are met per PRD specifications.
+
+# Subtasks:
+## 1. Add CDK C# SCIM Sync Stack to AppInfraCdkV1 [done]
+### Dependencies: None
+### Description: Create ScimSyncStack.cs and integrate with existing CDK infrastructure
+### Details:
+Add required NuGet packages (AWS CDK libraries for Lambda, EventBridge, IAM, SSM). Create ScimSyncStack.cs with Lambda function for SCIM sync, EventBridge scheduled rule, IAM roles and policies for Google Workspace and AWS Identity Center access. Update Program.cs to instantiate ScimSyncStack for each environment.
+
+## 2. Configure CDK Context Variables [done]
+### Dependencies: None
+### Description: Set up environment-specific configuration in cdk.json
+### Details:
+Add SCIM-specific context variables including Google Workspace domain, service account credentials path, AWS Identity Center SCIM endpoint URLs, sync frequency settings, and group filters for each environment (dev/staging/prod).
+
+## 3. Implement Three SCIM Disable Methods [done]
+### Dependencies: None
+### Description: Create comprehensive SCIM disabling capabilities
+### Details:
+Method 1: EventBridge rule disable/enable functionality. Method 2: Empty groups filter configuration to stop syncing specific groups. Method 3: Complete IAM Identity Center SCIM endpoint disabling. Each method should be reversible and include proper documentation.
+
+## 4. Configure Environment Variables Control System [done]
+### Dependencies: None
+### Description: Set up environment variables for SCIM functionality control
+### Details:
+Create SSM Parameter Store parameters for SCIM_ENABLED, SYNC_FREQUENCY, GROUP_FILTERS, and DEBUG_MODE. Implement Lambda function logic to read these parameters and adjust behavior accordingly.
+
+## 5. Document AWS Resources Per Environment [done]
+### Dependencies: None
+### Description: Create comprehensive resource documentation
+### Details:
+Document all AWS resources created by the SCIM stack including Lambda functions, IAM roles/policies, EventBridge rules, SSM parameters, and CloudWatch log groups for each environment. Include resource naming conventions and tagging strategies.
+
+## 6. Establish SCIM Best Practices and Safety Procedures [done]
+### Dependencies: None
+### Description: Create operational best practices documentation
+### Details:
+Document recommended sequences for safely disabling SCIM without causing data inconsistencies. Include pre-disable checklists, rollback procedures, and validation steps. Create troubleshooting guide for common disable/enable scenarios.
+
+## 7. Implement Troubleshooting and Management Procedures [done]
+### Dependencies: None
+### Description: Create comprehensive troubleshooting and stack management documentation
+### Details:
+Document common SCIM issues and solutions, CDK stack management procedures, cleanup processes for removing SCIM infrastructure, and step-by-step re-enabling procedures. Include monitoring and alerting setup for SCIM operations.
+
+## 8. Deploy and Test Complete SCIM Solution [done]
+### Dependencies: None
+### Description: End-to-end deployment and validation of SCIM infrastructure
+### Details:
+Deploy SCIM stack to all environments, validate Lake Formation group synchronization, test all disable/enable methods, verify environment variable controls, and confirm operational procedures work as documented.
+
+## 9. Add Required NuGet Packages for SCIM Sync Dependencies [done]
+### Dependencies: None
+### Description: Install and configure the necessary AWS CDK NuGet packages required for SCIM synchronization infrastructure including Lambda, EventBridge, IAM, SSM, and CloudWatch components
+### Details:
+Add NuGet package references to AppInfraCdkV1.csproj: Amazon.CDK.AWS.Lambda, Amazon.CDK.AWS.Events, Amazon.CDK.AWS.Events.Targets, Amazon.CDK.AWS.IAM, Amazon.CDK.AWS.SSM, Amazon.CDK.AWS.Logs, Amazon.CDK.AWS.CloudWatch. Update package versions to match existing CDK version in project. Verify package compatibility and resolve any version conflicts.
+
+## 10. Create ScimSyncStack CDK Infrastructure [done]
+### Dependencies: 34.9
+### Description: Implement ScimSyncStack.cs with complete AWS infrastructure for SCIM synchronization including Lambda function, EventBridge scheduling, IAM roles, and parameter storage
+### Details:
+Create ScimSyncStack.cs inheriting from Stack. Implement Lambda function using slashdevops/idp-scim-sync container image. Create EventBridge scheduled rule for sync frequency (configurable per environment). Define IAM roles with least privilege access for Google Workspace Directory API and AWS Identity Center SCIM. Create SSM parameters for configuration storage including Google service account key, Identity Center SCIM endpoint, and group filters. Add CloudWatch log group for monitoring.
+
+## 11. Integrate SCIM Stack with CDK Program and Context Variables [done]
+### Dependencies: 34.10
+### Description: Update Program.cs to instantiate ScimSyncStack for each environment and configure context variables in cdk.json for environment-specific SCIM settings
+### Details:
+Modify Program.cs to create ScimSyncStack instance for each environment (dev/prod). Add context variables to cdk.json for SCIM configuration: sync frequency per environment, Google Workspace domain, Identity Center instance ARN, group filtering rules, and enable/disable flags. Implement environment-specific parameter passing to ScimSyncStack constructor. Ensure proper stack naming conventions following project patterns.
+
+## 12. Implement Three-Tier SCIM Disable Methodology [done]
+### Dependencies: 34.11
+### Description: Create comprehensive disable mechanisms through EventBridge rule disabling, group filtering, and Identity Center configuration to provide multiple safety controls
+### Details:
+Implement EventBridge rule state management to pause/resume sync scheduling. Create group filter parameter in SSM to exclude specific groups from sync. Add Identity Center SCIM endpoint enable/disable configuration. Create environment variables and CDK context parameters for each disable method. Implement CloudFormation stack update procedures to modify these settings. Document the hierarchical disable approach and recovery procedures.
+
+## 13. Configure SCIM Sync Environment Variables and Operational Controls [done]
+### Dependencies: 34.12
+### Description: Set up comprehensive environment variable configuration system and create operational procedures for managing SCIM synchronization across all environments
+### Details:
+Create SSM parameter hierarchy for all SCIM configuration: Google Workspace service account credentials, Identity Center SCIM token and endpoint, group filtering rules, sync frequency settings, and feature flags. Implement environment-specific parameter naming conventions. Create operational scripts for common tasks: enabling/disabling sync, updating group filters, rotating credentials, and monitoring sync status. Document troubleshooting procedures and emergency response protocols.
+

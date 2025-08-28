@@ -1,0 +1,49 @@
+# Task ID: 31
+# Title: Create Permissions Management Scripts
+# Status: done
+# Dependencies: 30
+# Priority: medium
+# Description: Develop CDK constructs and infrastructure-as-code for Lake Formation permissions management and table tagging
+# Details:
+Create CDK constructs for LF-Tag creation, Glue table creation with comprehensive tagging (PHI, tenant ID, data type, sensitivity), and Lake Formation permission grants. Integrate with existing Lake Formation stack structure and maintain environment-specific configurations through CDK context and props. Build infrastructure-as-code approach that handles table-level permission granting based on PHI status, tenant-based querying capabilities, and environment-specific permission patterns.
+
+# Test Strategy:
+Deploy CDK constructs to dev environment, verify correct tags applied including tenant ID tags through CDK, test PHI vs non-PHI permission differences via infrastructure deployment, validate environment-specific access patterns through CDK context, and confirm tenant-based query filtering works through deployed infrastructure
+
+# Subtasks:
+## 1. Create LF-Tag management CDK construct [done]
+### Dependencies: None
+### Description: Develop CDK construct to create and manage Lake Formation tags for data classification (PHI, sensitivity levels, data types, tenant IDs)
+### Details:
+Create CDK construct that handles LF-Tag creation for PHI classification (true/false), sensitivity levels (public, internal, confidential, restricted), data types (clinical, research, operational), and tenant IDs for tenant-based querying. Use CDK context and props for environment-specific tag values with proper error handling for existing tags. Integrate with existing Lake Formation stack structure.
+
+## 2. Develop table permission granting CDK construct [done]
+### Dependencies: 31.1
+### Description: Create CDK construct to grant table-level permissions based on PHI status, group membership, and tenant access patterns
+### Details:
+Build CDK construct that reads group configurations and applies appropriate permissions using Lake Formation permissions resources. Handle table-level permissions for PHI vs non-PHI access patterns while supporting tenant-based data access through LF-Tags. Integrate with existing CDK stack structure and use props for configuration.
+
+## 3. Create sample table setup CDK construct [done]
+### Dependencies: 31.1
+### Description: Develop CDK construct to create sample Glue tables with various PHI classifications and tenant ID tags for testing
+### Details:
+Create CDK construct that generates sample tables in the healthlake_analytics database with different PHI tags and tenant ID tags applied. Include tables for different tenant partitions and data sensitivity levels to test permission scenarios and tenant-based querying capabilities. Use CDK Glue table resources with proper tagging.
+
+## 4. Implement environment-specific permission patterns in CDK [done]
+### Dependencies: 31.2
+### Description: Create CDK logic to handle different permission patterns between dev and prod environments with tenant considerations
+### Details:
+Extend CDK constructs to handle environment-specific access patterns through CDK context and props. Dev environment allows broader access while prod restricts PHI access to specific groups. Include validation for group membership, tenant access patterns, and cross-environment permission differences using CDK conditionals.
+
+## 5. Create PHI access control validation through CDK deployment [done]
+### Dependencies: 31.2, 31.3, 31.4
+### Description: Develop CDK-based validation to verify PHI access controls and tenant-based querying are properly implemented
+### Details:
+Create CDK custom resources or Lambda functions that validate PHI access patterns and tenant-based querying by testing table access with different group credentials. Verify that non-PHI groups cannot access PHI-tagged tables, that PHI groups have appropriate access levels, and that tenant-based filtering works correctly through infrastructure deployment.
+
+## 6. Implement tenant ID tag management CDK construct for comprehensive data classification [done]
+### Dependencies: 31.1
+### Description: Extend CDK LF-Tag management to include tenant ID tags for enabling tenant-based data querying and filtering
+### Details:
+Enhance existing CDK LF-Tag management construct to create and apply tenant ID tags alongside PHI, sensitivity, and data type tags. Ensure tenant tags support query filtering capabilities while maintaining role-based PHI access controls. Include CDK logic for mapping tenant identifiers to appropriate tag values through props and context.
+

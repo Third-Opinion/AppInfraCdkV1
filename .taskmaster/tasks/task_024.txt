@@ -1,0 +1,37 @@
+# Task ID: 24
+# Title: Create Google Workspace Groups for Lake Formation
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Create new Google Workspace security groups for Lake Formation data access control
+# Details:
+Manually create the following groups in Google Workspace: data-analysts-dev@thirdopinion.io, data-analysts-phi@thirdopinion.io, data-engineers-phi@thirdopinion.io. Assign initial users to appropriate groups and wait for Identity Center sync (up to 40 minutes).
+
+# Test Strategy:
+Verify groups appear in AWS Identity Center console and run prerequisites check script to confirm sync completion
+
+# Subtasks:
+## 1. Create data-analysts-dev@thirdopinion.io group [done]
+### Dependencies: None
+### Description: Create the development data analysts Google Workspace security group for non-PHI data access
+### Details:
+Log into Google Workspace Admin Console, navigate to Groups section, create new group with email data-analysts-dev@thirdopinion.io, set appropriate description indicating this group is for development environment data analysts accessing non-PHI data in Lake Formation
+
+## 2. Create data-analysts-phi@thirdopinion.io group [done]
+### Dependencies: None
+### Description: Create the PHI data analysts Google Workspace security group for protected health information access
+### Details:
+In Google Workspace Admin Console, create new group with email data-analysts-phi@thirdopinion.io, set description indicating this group provides access to PHI data in Lake Formation, configure appropriate security settings for sensitive data access
+
+## 3. Create data-engineers-phi@thirdopinion.io group and assign initial users [done]
+### Dependencies: 24.1, 24.2
+### Description: Create the data engineers PHI Google Workspace security group and populate with initial team members
+### Details:
+Create new group with email data-engineers-phi@thirdopinion.io, set description for data engineering team access to PHI data in Lake Formation resources, add initial data engineering team members to the group based on current team roster
+
+## 4. Verify Identity Center synchronization completion [done]
+### Dependencies: 24.3
+### Description: Monitor and confirm that all created groups have synchronized to AWS Identity Center
+### Details:
+Wait for AWS Identity Center sync (up to 40 minutes), monitor AWS Identity Center console to verify all three groups (data-analysts-dev, data-analysts-phi, data-engineers-phi) appear in the available groups list, run any prerequisites check script if available to confirm sync completion
+

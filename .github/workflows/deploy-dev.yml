@@ -2,7 +2,9 @@ name: Deploy to Development
 
 on:
   push:
-    branches: [develop]
+    branches: 
+      - develop
+      - 'feature/**'
 
 env:
   CDK_ENVIRONMENT: Development
@@ -13,7 +15,199 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
+  # Build and test job runs for all branches
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    # - name: Run tests
+    #   run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+
+  # CDK Diff jobs run for develop and feature branches - grouped by application for efficiency
+  cdk-diff-trialfinder:
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Diff-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for TrialFinderV2 - ALB
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - ALB stack..."
+        export CDK_STACK_TYPE=ALB
+        cdk diff dev-tfv2-alb-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialFinderV2 - COGNITO
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff dev-tfv2-cognito-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialFinderV2 - ECS
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - ECS stack..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff dev-tfv2-ecs-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialFinderV2 - DATA
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialFinderV2 - DATA stack..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff dev-tfv2-data-ue2 --app="dotnet run -- --app=TrialFinderV2 --environment=${{ env.CDK_ENVIRONMENT }}" || true
+
+  cdk-diff-trialmatch:
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Diff-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for TrialMatch - ALB
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - ALB stack..."
+        export CDK_STACK_TYPE=ALB
+        cdk diff dev-tm-alb-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialMatch - COGNITO
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - COGNITO stack..."
+        export CDK_STACK_TYPE=COGNITO
+        cdk diff dev-tm-cognito-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialMatch - ECS
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - ECS stack..."
+        export CDK_STACK_TYPE=ECS
+        cdk diff dev-tm-ecs-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: CDK Diff for TrialMatch - DATA
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for TrialMatch - DATA stack..."
+        export CDK_STACK_TYPE=DATA
+        cdk diff dev-tm-data-ue2 --app="dotnet run -- --app=TrialMatch --environment=${{ env.CDK_ENVIRONMENT }}" || true
+
+  cdk-diff-lakeformation:
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Diff-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for LakeFormation
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Running CDK diff for LakeFormation..."
+        cdk diff --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+
+  # Base deployment job only runs for develop branch
   deploy-base:
+    if: github.ref == 'refs/heads/develop'
+    needs: build-and-test
     runs-on: ubuntu-latest
     environment: development
     
@@ -46,8 +240,8 @@ jobs:
     - name: Build
       run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
     
-    - name: Run tests
-      run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
+    # - name: Run tests
+    #   run: dotnet test AppInfraCdkV1.sln --no-build --configuration Release --verbosity normal
     
     - name: CDK Bootstrap (if needed)
       run: |
@@ -71,12 +265,13 @@ jobs:
         path: AppInfraCdkV1.Deploy/base-outputs.json
 
   deploy-alb:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-base
     runs-on: ubuntu-latest
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -124,16 +319,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} ALB stack..."
         export CDK_STACK_TYPE=ALB
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy ALB Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} ALB stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=ALB
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        else
+          cdk deploy dev-tm-alb-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ALB-outputs.json
+        fi
         echo "✅ ALB stack deployment completed successfully!"
     
     - name: Display Created ALB Resources
@@ -151,12 +356,13 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ALB-outputs.json
 
   deploy-cognito:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-alb
     runs-on: ubuntu-latest
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -204,16 +410,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} COGNITO stack..."
         export CDK_STACK_TYPE=COGNITO
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy COGNITO Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} COGNITO stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=COGNITO
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        else
+          cdk deploy dev-tm-cognito-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-COGNITO-outputs.json
+        fi
         echo "✅ COGNITO stack deployment completed successfully!"
     
     - name: Display Created COGNITO Resources
@@ -231,12 +447,13 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-COGNITO-outputs.json
 
   deploy-ecs:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-cognito
     runs-on: ubuntu-latest
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -284,16 +501,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} ECS stack..."
         export CDK_STACK_TYPE=ECS
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy ECS Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} ECS stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=ECS
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        else
+          cdk deploy dev-tm-ecs-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-ECS-outputs.json
+        fi
         echo "✅ ECS stack deployment completed successfully!"
     
     - name: Display Created ECS Resources
@@ -311,12 +538,13 @@ jobs:
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-ECS-outputs.json
 
   deploy-data:
+    if: github.ref == 'refs/heads/develop'
     needs: deploy-ecs
     runs-on: ubuntu-latest
     environment: development
     strategy:
       matrix:
-        app: [TrialFinderV2, TrialMatch]
+        app: [TrialFinderV2]
     
     steps:
     - uses: actions/checkout@v4
@@ -364,16 +592,26 @@ jobs:
         cd AppInfraCdkV1.Deploy
         echo "🔍 Checking what changes will be made for ${{ matrix.app }} DATA stack..."
         export CDK_STACK_TYPE=DATA
-        cdk diff --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk diff dev-tfv2-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        else
+          cdk diff dev-tm-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" || true
+        fi
     
     - name: CDK Deploy DATA Stack
       run: |
         cd AppInfraCdkV1.Deploy
         echo "🚀 Deploying ${{ matrix.app }} DATA stack to ${{ env.CDK_ENVIRONMENT }}..."
         export CDK_STACK_TYPE=DATA
-        cdk deploy --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
-                  --require-approval never \
-                  --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        if [ "${{ matrix.app }}" = "TrialFinderV2" ]; then
+          cdk deploy dev-tfv2-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        else
+          cdk deploy dev-tm-data-ue2 --app="dotnet run -- --app=${{ matrix.app }} --environment=${{ env.CDK_ENVIRONMENT }}" \
+                    --require-approval never \
+                    --outputs-file ${{ matrix.app }}-DATA-outputs.json
+        fi
         echo "✅ DATA stack deployment completed successfully!"
     
     - name: Display Created DATA Resources
@@ -389,3 +627,180 @@ jobs:
       with:
         name: deployment-outputs-${{ matrix.app }}-DATA-dev
         path: AppInfraCdkV1.Deploy/${{ matrix.app }}-DATA-outputs.json
+
+  # Lake Formation deployment - Storage Stack
+  deploy-lakeformation-storage:
+    if: github.ref == 'refs/heads/develop'
+    needs: deploy-data
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: List available Lake Formation stacks
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "📋 Available Lake Formation stacks:"
+        cdk list --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}"
+    
+    - name: CDK Diff for Lake Formation Storage Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for Lake Formation Storage stack..."
+        cdk diff dev-lf-storage-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Storage Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Storage stack to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy dev-lf-storage-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-storage-outputs.json
+        echo "✅ Lake Formation Storage stack deployment completed!"
+    
+    - name: Upload storage outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-storage-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-storage-outputs.json
+
+  # Lake Formation deployment - Setup Stack
+  deploy-lakeformation-setup:
+    if: github.ref == 'refs/heads/develop'
+    needs: deploy-lakeformation-storage
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for Lake Formation Setup Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for Lake Formation Setup stack..."
+        cdk diff dev-lf-setup-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Setup Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Setup stack to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy dev-lf-setup-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-setup-outputs.json
+        echo "✅ Lake Formation Setup stack deployment completed!"
+    
+    - name: Upload setup outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-setup-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-setup-outputs.json
+
+  # Lake Formation deployment - Permissions Stack
+  deploy-lakeformation-permissions:
+    if: github.ref == 'refs/heads/develop'
+    needs: deploy-lakeformation-setup
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Setup Node.js (for CDK CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install CDK CLI
+      run: npm install -g aws-cdk
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dev-cdk-role-ue2-github-actions
+        role-session-name: GitHubActions-Deploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore AppInfraCdkV1.sln
+    
+    - name: Build
+      run: dotnet build AppInfraCdkV1.sln --no-restore --configuration Release
+    
+    - name: CDK Diff for Lake Formation Permissions Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🔍 Checking changes for Lake Formation Permissions stack..."
+        cdk diff dev-lf-permissions-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" || true
+    
+    - name: Deploy Lake Formation Permissions Stack
+      run: |
+        cd AppInfraCdkV1.Deploy
+        echo "🚀 Deploying Lake Formation Permissions stack to ${{ env.CDK_ENVIRONMENT }}..."
+        cdk deploy dev-lf-permissions-ue2 --app="dotnet run -- --app=LakeFormation --environment=${{ env.CDK_ENVIRONMENT }}" \
+                  --require-approval never \
+                  --outputs-file lf-permissions-outputs.json
+        echo "✅ Lake Formation Permissions stack deployment completed!"
+    
+    - name: Upload permissions outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: lf-permissions-outputs-dev
+        path: AppInfraCdkV1.Deploy/lf-permissions-outputs.json

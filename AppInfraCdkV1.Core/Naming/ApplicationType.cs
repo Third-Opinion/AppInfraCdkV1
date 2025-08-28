@@ -4,5 +4,7 @@ public enum ApplicationType
 {
     TrialFinderV2,
     TrialMatch,
-    Cdk
+    Cdk,
+    LakeFormation,
+    PublicThirdOpinion
 }

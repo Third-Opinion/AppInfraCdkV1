@@ -19,16 +19,23 @@ node_modules/
 # Environment variables
 .env
 # Editor directories and files
-.idea
+.idea/
 .vscode
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.DotSettings.user
+*.DotSettings.personal
 # OS specific
 .DS_Store
 
 # Task files
 # tasks.json
 # tasks/
+/AppInfraCdkV1.Tests/TestResults/
+/AppInfraCdkV1.InternalApps/LakeFormation/sampledata/synthea/
+/TestResults/
+/AppInfraCdkV1.PublicThirdOpinion/Lambda/publish/
+/AppInfraCdkV1.PublicThirdOpinion/cdk.out/

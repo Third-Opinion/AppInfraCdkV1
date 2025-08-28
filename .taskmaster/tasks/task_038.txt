@@ -1,0 +1,43 @@
+# Task ID: 38
+# Title: Implement CDK Native Optimization for deploy-dev.yml Workflow
+# Status: pending
+# Dependencies: 33, 37
+# Priority: medium
+# Description: Replace 9 separate deployment jobs with streamlined CDK approach using native deployment capabilities to reduce deployment time from 25-30 minutes to 15 minutes for full deployments and 5 minutes when no changes are present.
+# Details:
+Refactor the deploy-dev.yml GitHub Actions workflow to use CDK's built-in deployment optimization features: 1) Create consolidated deployment job for regular apps (TrialFinderV2, TrialMatch) using 'cdk deploy --all' with --concurrency 3 flag for parallel execution and --exclusively flag to skip unchanged stacks. 2) Create separate job for LakeFormation stacks deployment maintaining isolation from regular apps. 3) Implement --outputs-file flag to consolidate deployment outputs into single file for easier consumption by downstream jobs. 4) Add comprehensive error handling with proper exit codes and detailed logging for debugging failed deployments. 5) Maintain existing build-and-test and cdk-diff jobs for visibility and validation. 6) Configure job dependencies to ensure proper execution order while maximizing parallelization opportunities. 7) Add environment variables and matrix strategies to support different deployment scenarios. 8) Implement conditional deployment logic to skip unnecessary deployments when no changes are detected.
+
+# Test Strategy:
+Test the optimized workflow in dev environment by triggering deployments with various change scenarios: full deployment with all stacks changed, partial deployment with only some stacks changed, and no-change deployment to verify --exclusively flag works correctly. Measure and document deployment times for each scenario to confirm 15-minute target for full deployments and 5-minute target for no-change deployments. Verify that error handling properly reports failures and that logs provide sufficient detail for debugging. Test that regular apps and LakeFormation deployments maintain proper isolation and that consolidated outputs file contains all necessary deployment information.
+
+# Subtasks:
+## 1. Create consolidated regular apps deployment job [pending]
+### Dependencies: None
+### Description: Replace separate ALB, ECS, DATA, and COGNITO deployment jobs for TrialFinderV2 and TrialMatch with a single consolidated job that uses CDK's native --all deployment capability
+### Details:
+Modify deploy-dev.yml to create a new 'deploy-regular-apps' job that replaces deploy-alb, deploy-cognito, deploy-ecs, and deploy-data jobs. Use matrix strategy for apps [TrialFinderV2, TrialMatch] and implement cdk deploy --all command with --concurrency 3 flag for parallel execution and --exclusively flag to skip unchanged stacks. Configure proper job dependencies to run after deploy-base. Add comprehensive error handling with proper exit codes and detailed logging.
+
+## 2. Implement optimized LakeFormation deployment job [pending]
+### Dependencies: 38.1
+### Description: Consolidate the three separate LakeFormation deployment jobs (storage, setup, permissions) into a single optimized job while maintaining proper dependency order
+### Details:
+Replace deploy-lakeformation-storage, deploy-lakeformation-setup, and deploy-lakeformation-permissions jobs with a single 'deploy-lakeformation' job. Use cdk deploy with multiple stack names in dependency order (dev-lf-storage-ue2 dev-lf-setup-ue2 dev-lf-permissions-ue2) and implement --outputs-file flag for consolidated output. Maintain isolation from regular apps by having separate job dependency chain. Add error handling specific to LakeFormation deployment requirements.
+
+## 3. Add conditional deployment logic and change detection [pending]
+### Dependencies: 38.1, 38.2
+### Description: Implement logic to skip unnecessary deployments when no changes are detected using CDK's built-in change detection capabilities
+### Details:
+Add conditional deployment logic using CDK diff output to determine if deployments are needed. Implement workflow logic that uses 'cdk diff --quiet' exit codes to conditionally run deployment steps. Add environment variables and conditions to skip deployment jobs when no changes are detected. Configure proper workflow outputs to communicate skip status to downstream jobs. Ensure build-and-test and cdk-diff jobs always run for visibility and validation.
+
+## 4. Implement consolidated outputs and comprehensive error handling [pending]
+### Dependencies: 38.1, 38.2
+### Description: Add --outputs-file flag usage and implement comprehensive error handling with proper exit codes and detailed logging across all deployment jobs
+### Details:
+Implement --outputs-file flag for all CDK deploy commands to consolidate deployment outputs into single files for easier consumption by downstream jobs. Add comprehensive error handling with specific exit codes for different failure scenarios (build failures, deployment failures, validation failures). Implement detailed logging with timestamps and deployment status indicators. Configure artifact upload for consolidated output files. Add timeout configurations and retry logic for deployment operations.
+
+## 5. Optimize job dependencies and parallelization opportunities [pending]
+### Dependencies: 38.1, 38.2, 38.3, 38.4
+### Description: Configure job dependencies to ensure proper execution order while maximizing parallelization opportunities to achieve the 15-minute deployment target
+### Details:
+Restructure job dependencies to maximize parallel execution while maintaining required dependency chains. Configure build-and-test and cdk-diff jobs to run in parallel where possible. Ensure deploy-base runs before both regular apps and LakeFormation deployments. Set up parallel execution for regular apps deployment (when multiple apps have changes) and optimize job scheduling. Add matrix strategies and environment variables to support different deployment scenarios. Configure proper timeouts and resource allocation for parallel jobs.
+

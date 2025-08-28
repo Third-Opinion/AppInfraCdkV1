@@ -1,0 +1,43 @@
+# Task ID: 37
+# Title: Update Lake Formation Stack to Implement Single-Tenant-per-HealthLake-Instance Architecture
+# Status: done
+# Dependencies: 28, 26, 30, 32
+# Priority: medium
+# Description: Refactor Lake Formation infrastructure to support dedicated HealthLake instances per tenant with GUID-based tenant identification, removing multi-tenant complexity and implementing simplified single-tenant data import model.
+# Details:
+This task involves major architectural changes to the Lake Formation implementation: 1) Modify LakeFormationSetupConstruct.cs to support single-tenant configuration with GUID-based tenant identification. 2) Update S3 bucket structure to organize data by tenant GUID rather than multi-tenant schemas. 3) Refactor Glue database creation to use tenant-specific naming convention (thirdopinion_{environment}_{tenantGuid}). 4) Update LF-Tags to include TenantId tag alongside existing Environment, DataClassification, and PHI tags. 5) Configure test HealthLake instances for dev and prod environments with dedicated tenant GUIDs. 6) Create sample PHI-marked data for prod test instance following healthcare data compliance requirements. 7) Update permission constructs to grant access based on tenant-specific resources rather than shared multi-tenant resources. 8) Modify data import processes to target single tenant per HealthLake instance. 9) Update environment configuration to map each HealthLake instance to a specific tenant GUID. 10) Remove any multi-tenant logic and shared resource dependencies from the CDK constructs.
+
+# Test Strategy:
+Verify tenant-specific Glue databases are created with correct naming convention. Test that LF-Tags include TenantId and are properly applied to tenant-specific resources. Validate HealthLake instances are configured with dedicated tenant GUIDs in both dev and prod. Confirm sample PHI data is properly marked and accessible only through correct tenant context. Test data import process targets correct single tenant. Verify permission isolation between different tenant instances. Execute validation scripts to ensure no cross-tenant data access is possible. Test end-to-end data flow from HealthLake instance through Lake Formation to verify single-tenant architecture works correctly.
+
+# Subtasks:
+## 1. Update Configuration and Environment Models to Support Single-Tenant Architecture [done]
+### Dependencies: None
+### Description: Modify lakeformation-config.json and EnvironmentConfig.cs to remove multi-tenancy flags and add tenant GUID configuration for single-tenant-per-HealthLake-instance architecture
+### Details:
+1. Update lakeformation-config.json to set enableMultiTenancy=false and enableMultiTenantStructure=false for both dev and prod environments. 2. Add dedicated tenantGuid fields for dev (test GUID) and prod (production tenant GUID) environments. 3. Update HealthLakeConfig class in EnvironmentConfig.cs to include TenantGuid property and remove multi-tenancy support. 4. Remove tenantClaimSystem property as it's no longer needed for single-tenant architecture. 5. Update DataLakeBucketConfig to replace TenantPartitionKey with specific tenant GUID configuration.
+
+## 2. Refactor Glue Database Creation for Single-Tenant Naming Convention [done]
+### Dependencies: 37.1
+### Description: Update LakeFormationSetupStack.cs to create tenant-specific Glue databases using thirdopinion_{environment}_{tenantGuid} naming pattern
+### Details:
+1. Modify CreateGlueDatabases() method in LakeFormationSetupStack.cs to use tenant-specific naming: thirdopinion_{environment}_{tenantGuid}. 2. Remove multi-tenant parameters from database configuration (remove multiTenant=true parameter). 3. Update S3 location URIs to use tenant-specific paths (s3://bucket/tenantGuid/raw/ instead of partitioned structure). 4. Simplify partition keys to remove tenantGuid partitioning since each database serves a single tenant. 5. Update database descriptions to reflect single-tenant usage.
+
+## 3. Update Lake Formation Tags to Include TenantId Support [done]
+### Dependencies: 37.1
+### Description: Enhance LakeFormationTagsConstruct.cs to include TenantId as a required tag alongside existing Environment, DataClassification, and PHI tags
+### Details:
+1. Add TenantId tag creation to LakeFormationTagsConstruct.cs with values sourced from configuration tenant GUIDs. 2. Update tag creation in LakeFormationSetupStack.cs to include TenantId tag values from environment config. 3. Replace hardcoded tenant values ('tenant-a', 'tenant-b', etc.) with actual tenant GUIDs from configuration. 4. Ensure TenantId tag is applied to all databases and resources created. 5. Update GetAllTags() method to include TenantId tag in returned dictionary.
+
+## 4. Configure Test HealthLake Instances with Dedicated Tenant GUIDs [done]
+### Dependencies: 37.1
+### Description: Update configuration to map dedicated HealthLake instances to specific tenant GUIDs for both dev and prod environments
+### Details:
+1. Update lakeformation-config.json to include specific HealthLake datastore IDs and ARNs for each environment's dedicated tenant. 2. Assign test tenant GUID (e.g., 00000000-0000-0000-0000-000000000001) for dev environment. 3. Assign production tenant GUID for prod environment HealthLake instance. 4. Remove enableMultiTenancy flags and tenantClaimSystem references from HealthLake configuration. 5. Document the mapping between HealthLake instances and tenant GUIDs in configuration comments.
+
+## 5. Update Permission Constructs for Single-Tenant Resource Access [done]
+### Dependencies: 37.2, 37.3
+### Description: Modify LakeFormationPermissionsConstruct.cs to grant access based on tenant-specific resources rather than shared multi-tenant resources
+### Details:
+1. Update LakeFormationPermissionsConstruct.cs to reference tenant-specific database names (thirdopinion_{environment}_{tenantGuid}). 2. Modify group permissions to target single-tenant databases instead of multi-tenant shared resources. 3. Update allowedDatabases in group mappings configuration to use tenant-specific database names. 4. Remove multi-tenant filtering logic since each instance serves only one tenant. 5. Simplify permission validation to work with single-tenant architecture. 6. Update any table-level permissions to reflect tenant-specific database structure.
+

@@ -1,0 +1,11 @@
+# Task ID: 27
+# Title: Implement Data Lake Storage Construct
+# Status: done
+# Dependencies: 26
+# Priority: medium
+# Description: Create C# CDK construct for S3 buckets with proper encryption and lifecycle policies
+# Details:
+Implement DataLakeStorageConstruct.cs with three buckets: raw data (thirdopinion-raw-{env}-{region}) with lifecycle rules, curated data (thirdopinion-curated-{env}-{region}) with versioning, and sensitive/PHI bucket for production only with KMS encryption and access logging. Configure appropriate block public access and removal policies.
+
+# Test Strategy:
+Deploy construct to dev environment, verify all three buckets created with correct configurations, test lifecycle rules and encryption settings

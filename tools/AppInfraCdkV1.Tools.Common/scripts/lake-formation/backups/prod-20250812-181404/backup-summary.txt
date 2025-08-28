@@ -1,0 +1,14 @@
+Lake Formation Production Backup
+================================
+Date: Tue Aug 12 18:14:21 PDT 2025
+Account: 442042533707
+Region: us-east-2
+Profile: to-prd-admin
+
+Files backed up:
+- data-lake-settings.json
+- identity-center-config.json
+- permissions.json
+- resources.json
+
+To restore, use the restore-lake-formation.sh script with this backup directory.
