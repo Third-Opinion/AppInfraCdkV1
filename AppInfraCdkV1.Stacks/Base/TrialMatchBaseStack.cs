@@ -64,7 +64,7 @@ public class TrialMatchBaseStack : Stack
     {
         Console.WriteLine("🌐 Creating dedicated TrialMatch VPC with tm naming...");
         
-        var vpcName = _context.Namer.SharedVpc(); // Will be updated to use tm prefix
+        var vpcName = _context.Namer.Vpc(ResourcePurpose.Main); // Fixed: Use proper TrialMatch VPC naming
         
         // Create VPC with new CIDR for TrialMatch
         Vpc = new Vpc(this, "TrialMatchVpc", new VpcProps
@@ -120,7 +120,7 @@ public class TrialMatchBaseStack : Stack
         var albSg = new SecurityGroup(this, "TrialMatchAlbSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = _context.Namer.SharedSecurityGroup("alb"), // Will be updated to use tm prefix
+            SecurityGroupName = _context.Namer.SecurityGroupForAlb(ResourcePurpose.Web), // Fixed: Use proper TrialMatch ALB security group naming
             Description = "Dedicated ALB security group for TrialMatch",
             AllowAllOutbound = true
         });
@@ -135,7 +135,7 @@ public class TrialMatchBaseStack : Stack
         var ecsSg = new SecurityGroup(this, "TrialMatchContainerFromAlbSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = _context.Namer.SharedSecurityGroup("ecs"), // Will be updated to use tm prefix
+            SecurityGroupName = _context.Namer.SecurityGroupForEcs(ResourcePurpose.Web), // Fixed: Use proper TrialMatch ECS security group naming
             Description = "Security group for TrialMatch ECS containers allowing traffic from ALB and internal communication",
             AllowAllOutbound = false
         });
@@ -162,7 +162,7 @@ public class TrialMatchBaseStack : Stack
         var rdsSg = new SecurityGroup(this, "TrialMatchRdsSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = "tm-rds-ec2-1", // Updated to use tm prefix
+            SecurityGroupName = _context.Namer.SecurityGroupForRds(ResourcePurpose.Internal), // Fixed: Use correct ResourcePurpose enum value
             Description = "Security group attached to TrialMatch database to allow EC2 instances with specific security groups attached to connect to the database",
             AllowAllOutbound = false
         });
@@ -182,7 +182,7 @@ public class TrialMatchBaseStack : Stack
         var ecsToRdsSg = new SecurityGroup(this, "TrialMatchEcsToRdsSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = "tm-ecs-to-rds-security-group", // Updated to use tm prefix
+            SecurityGroupName = _context.Namer.Custom("ecs-to-rds", ResourcePurpose.Internal), // Fixed: Use correct ResourcePurpose enum value
             Description = "Created by RDS management console for TrialMatch", // Updated description
             AllowAllOutbound = true
         });
@@ -193,7 +193,7 @@ public class TrialMatchBaseStack : Stack
         var vpcEndpointSg = new SecurityGroup(this, "TrialMatchVpcEndpointSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = _context.Namer.SharedSecurityGroup("vpc-endpoints"), // Will be updated to use tm prefix
+            SecurityGroupName = _context.Namer.Custom("vpc-endpoints", ResourcePurpose.Internal), // Fixed: Use correct ResourcePurpose enum value
             Description = "Dedicated VPC endpoint security group for TrialMatch",
             AllowAllOutbound = false
         });
@@ -213,7 +213,7 @@ public class TrialMatchBaseStack : Stack
     {
         Console.WriteLine("📝 Creating dedicated TrialMatch logging infrastructure...");
         
-        var logGroupName = _context.Namer.SharedLogGroup(); // Will be updated to use tm prefix
+        var logGroupName = _context.Namer.LogGroup("shared", ResourcePurpose.Main); // Fixed: Use proper TrialMatch log group naming
         
         SharedLogGroup = new LogGroup(this, "TrialMatchSharedLogGroup", new LogGroupProps
         {
@@ -231,7 +231,7 @@ public class TrialMatchBaseStack : Stack
         
         // Create custom database credentials secret following naming convention
         var environmentPrefix = _context.Environment.Name.ToLowerInvariant();
-        var databaseSecretName = $"/{environmentPrefix}/tm/database-credentials";
+        var databaseSecretName = _context.Namer.SecretsManager(ResourcePurpose.Internal); // Fixed: Use correct ResourcePurpose enum value
         
         var databaseSecret = new Secret(this, "TrialMatchDatabaseSecret", new SecretProps
         {
@@ -249,7 +249,7 @@ public class TrialMatchBaseStack : Stack
         // Create database subnet group for isolated subnets
         var dbSubnetGroup = new CfnDBSubnetGroup(this, "TrialMatchDbSubnetGroup", new CfnDBSubnetGroupProps
         {
-            DbSubnetGroupName = $"tm-{_context.Environment.Name}-db-subnet-group",
+            DbSubnetGroupName = _context.Namer.Custom("db-subnet-group", ResourcePurpose.Internal), // Fixed: Use correct ResourcePurpose enum value
             DbSubnetGroupDescription = $"TrialMatch database subnet group for {_context.Environment.Name}",
             SubnetIds = Vpc.IsolatedSubnets.Select(s => s.SubnetId).ToArray()
         });
@@ -257,7 +257,7 @@ public class TrialMatchBaseStack : Stack
         // Create database cluster
         SharedDatabaseCluster = new DatabaseCluster(this, "TrialMatchDatabaseCluster", new DatabaseClusterProps
         {
-            ClusterIdentifier = $"tm-{_context.Environment.Name}-database",
+            ClusterIdentifier = _context.Namer.RdsInstance(ResourcePurpose.Internal), // Fixed: Use correct ResourcePurpose enum value
             Engine = DatabaseClusterEngine.AuroraPostgres(new AuroraPostgresClusterEngineProps
             {
                 Version = AuroraPostgresEngineVersion.VER_17_4
@@ -296,7 +296,7 @@ public class TrialMatchBaseStack : Stack
         QuickSightSecurityGroup = new SecurityGroup(this, "TrialMatchQuickSightSecurityGroup", new SecurityGroupProps
         {
             Vpc = Vpc,
-            SecurityGroupName = $"tm-quicksight-{_context.Environment.Name}",
+            SecurityGroupName = _context.Namer.Custom("quicksight", ResourcePurpose.Internal), // Fixed: Use correct ResourcePurpose enum value
             Description = $"Dedicated QuickSight security group for TrialMatch in {_context.Environment.Name}",
             AllowAllOutbound = false
         });

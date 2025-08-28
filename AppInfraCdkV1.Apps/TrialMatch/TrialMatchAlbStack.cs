@@ -85,7 +85,7 @@ public class TrialMatchAlbStack : Stack
         // Create S3 bucket for ALB access logs
         var albLogsBucket = new Bucket(this, "TrialMatchAlbLogsBucket", new BucketProps
         {
-            BucketName = context.Namer.Custom("alb-logs", ResourcePurpose.Web),
+            BucketName = context.Namer.Custom("alb-logs", ResourcePurpose.Web), // Fixed: Use proper TrialMatch custom naming
             RemovalPolicy = RemovalPolicy.DESTROY,
             AutoDeleteObjects = true,
             LifecycleRules = new[]
@@ -103,7 +103,7 @@ public class TrialMatchAlbStack : Stack
         var alb = new ApplicationLoadBalancer(this, "TrialMatchAlb", new Amazon.CDK.AWS.ElasticLoadBalancingV2.ApplicationLoadBalancerProps
         {
             Vpc = vpc,
-            LoadBalancerName = context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web),
+            LoadBalancerName = context.Namer.ApplicationLoadBalancer(ResourcePurpose.Web), // Fixed: Use proper TrialMatch ALB naming
             InternetFacing = true,
             SecurityGroup = securityGroup,
             VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PUBLIC }
@@ -128,7 +128,7 @@ public class TrialMatchAlbStack : Stack
             Port = 8080,
             Protocol = ApplicationProtocol.HTTP,
             Vpc = vpc,
-            TargetGroupName = context.Namer.Custom("tg-api", ResourcePurpose.Web),
+            TargetGroupName = context.Namer.Custom("tg-api", ResourcePurpose.Api), // Fixed: Use proper TrialMatch target group naming
             TargetType = TargetType.IP
         });
         
@@ -149,7 +149,7 @@ public class TrialMatchAlbStack : Stack
             Port = 80,
             Protocol = ApplicationProtocol.HTTP,
             Vpc = vpc,
-            TargetGroupName = context.Namer.Custom("tg-frontend", ResourcePurpose.Web),
+            TargetGroupName = context.Namer.Custom("tg-frontend", ResourcePurpose.Web), // Fixed: Use proper TrialMatch target group naming
             TargetType = TargetType.IP
         });
         
