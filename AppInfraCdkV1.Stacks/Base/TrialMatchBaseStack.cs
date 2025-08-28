@@ -386,7 +386,7 @@ public class TrialMatchBaseStack : Stack
             new CfnOutput(this, $"TrialMatch{kvp.Key}SecurityGroupId", new CfnOutputProps
             {
                 Value = kvp.Value.SecurityGroupId,
-                ExportName = $"tm-{_context.Environment.Name}-{kvp.Key}-sg-id",
+                ExportName = $"tm-{_context.Environment.Name}-sg-{kvp.Key}-id", // Fixed: Changed from {kvp.Key}-sg-id to sg-{kvp.Key}-id
                 Description = $"TrialMatch {kvp.Key} security group ID for {_context.Environment.Name}"
             });
         }
